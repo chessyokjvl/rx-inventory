@@ -50,7 +50,7 @@
 
   <div v-if="!currentUser.name" class="login-bg d-flex justify-content-center align-items-center vh-100">
     <div class="card login-card" style="width: 420px;">
-      <div class="login-header"><i class="bi bi-hospital" style="font-size: 3rem;"></i><h3 class="fw-bold mt-2 mb-0">ระบบบริหารเวชภัณฑ์ รพ.จิตเวชเลยราชนครินทร์</h3><small class="text-white-50">โรงพยาบาลจิตเวชเลยราชนครินทร์</small></div>
+      <div class="login-header"><i class="bi bi-hospital" style="font-size: 3rem;"></i><h3 class="fw-bold mt-2 mb-0">ระบบบริหารเวชภัณฑ์</h3><small class="text-white-50">โรงพยาบาลจิตเวชเลยราชนครินทร์</small></div>
       <div class="card-body p-4 p-md-5">
          <div class="form-floating mb-3"><input v-model="loginForm.user" type="text" class="form-control" id="floatingUser" placeholder="Username" @keyup.enter="focusPassword"><label for="floatingUser"><i class="bi bi-person-fill me-2"></i>ชื่อผู้ใช้งาน</label></div>
          <div class="form-floating mb-4"><input v-model="loginForm.pass" type="password" class="form-control" id="floatingPass" placeholder="Password" @keyup.enter="doLogin" ref="passInput"><label for="floatingPass"><i class="bi bi-lock-fill me-2"></i>รหัสผ่าน</label></div>
@@ -469,3 +469,4 @@ createApp({
 </script>
 </body>
 </html>
+
