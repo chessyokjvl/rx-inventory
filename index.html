@@ -16,13 +16,10 @@
 
   <style>
     body { font-family: 'Prompt', sans-serif; background-color: #f4f6f9; font-size: 0.95rem; }
-    
-    /* Login Screen Styles */
     .login-bg { background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); }
     .login-card { border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: none; overflow: hidden; }
     .login-header { background-color: #0d6efd; color: white; padding: 30px 20px; text-align: center; }
     
-    /* App Styles */
     .sidebar { min-height: 100vh; background: #1e293b; color: white; }
     .nav-link { color: rgba(255,255,255,0.7); cursor: pointer; padding: 12px 20px; border-left: 3px solid transparent; }
     .nav-link:hover, .nav-link.active { color: white; background: #334155; border-left-color: #3b82f6; }
@@ -37,7 +34,6 @@
     .alert-table-container { max-height: 250px; overflow-y: auto; }
     .alert-table-container thead th { position: sticky; top: 0; background: #f8f9fa; z-index: 1; }
 
-    /* Print Style */
     @media print {
       body * { visibility: hidden; }
       #printSection, #printSection * { visibility: visible; }
@@ -57,22 +53,12 @@
   <div v-if="!currentUser.name" class="login-bg d-flex justify-content-center align-items-center vh-100">
     <div class="card login-card" style="width: 420px;">
       <div class="login-header">
-         <i class="bi bi-hospital" style="font-size: 3rem;"></i>
-         <h3 class="fw-bold mt-2 mb-0">ระบบบริหารเวชภัณฑ์</h3>
-         <small class="text-white-50">โรงพยาบาลจิตเวชเลยราชนครินทร์</small>
+         <i class="bi bi-hospital" style="font-size: 3rem;"></i><h3 class="fw-bold mt-2 mb-0">ระบบบริหารเวชภัณฑ์</h3><small class="text-white-50">โรงพยาบาลจิตเวชเลยราชนครินทร์</small>
       </div>
       <div class="card-body p-4 p-md-5">
-         <div class="form-floating mb-3">
-            <input v-model="loginForm.user" type="text" class="form-control" id="floatingUser" placeholder="Username" @keyup.enter="focusPassword">
-            <label for="floatingUser"><i class="bi bi-person-fill me-2"></i>ชื่อผู้ใช้งาน</label>
-         </div>
-         <div class="form-floating mb-4">
-            <input v-model="loginForm.pass" type="password" class="form-control" id="floatingPass" placeholder="Password" @keyup.enter="doLogin" ref="passInput">
-            <label for="floatingPass"><i class="bi bi-lock-fill me-2"></i>รหัสผ่าน</label>
-         </div>
-         <button @click="doLogin" class="btn btn-primary w-100 py-3 fw-bold" :disabled="loading">
-            <i class="bi bi-box-arrow-in-right me-2"></i> เข้าสู่ระบบ
-         </button>
+         <div class="form-floating mb-3"><input v-model="loginForm.user" type="text" class="form-control" id="floatingUser" placeholder="Username" @keyup.enter="focusPassword"><label for="floatingUser"><i class="bi bi-person-fill me-2"></i>ชื่อผู้ใช้งาน</label></div>
+         <div class="form-floating mb-4"><input v-model="loginForm.pass" type="password" class="form-control" id="floatingPass" placeholder="Password" @keyup.enter="doLogin" ref="passInput"><label for="floatingPass"><i class="bi bi-lock-fill me-2"></i>รหัสผ่าน</label></div>
+         <button @click="doLogin" class="btn btn-primary w-100 py-3 fw-bold" :disabled="loading"><i class="bi bi-box-arrow-in-right me-2"></i> เข้าสู่ระบบ</button>
       </div>
     </div>
   </div>
@@ -80,25 +66,18 @@
   <div v-else class="d-flex">
     
     <div class="sidebar d-flex flex-column" style="width: 260px;">
-      <div class="p-3 mb-2 text-center border-bottom border-secondary">
-          <i class="bi bi-hospital fs-1 text-white"></i>
-          <h5 class="mb-0 fw-bold text-white mt-2">JVL Inventory</h5>
-      </div>
-      <div class="px-3 pb-2 small text-info text-center border-bottom border-secondary mb-2">
-          <i class="bi bi-person-circle"></i> {{ currentUser.name }} ({{ currentUser.role }})
-      </div>
+      <div class="p-3 mb-2 text-center border-bottom border-secondary"><i class="bi bi-hospital fs-1 text-white"></i><h5 class="mb-0 fw-bold text-white mt-2">JVL Inventory</h5></div>
+      <div class="px-3 pb-2 small text-info text-center border-bottom border-secondary mb-2"><i class="bi bi-person-circle"></i> {{ currentUser.name }} ({{ currentUser.role }})</div>
       
       <nav class="nav flex-column gap-1 px-2 pb-5">
         <a @click="page='dashboard'" class="nav-link" :class="{active: page==='dashboard'}"><i class="bi bi-grid-fill me-2"></i> Dashboard</a>
         
         <div v-if="currentUser.role==='Admin'" class="mt-2 mb-1 small text-uppercase text-muted border-bottom border-secondary pb-1 ms-2">คลังเวชภัณฑ์</div>
+        <a v-if="currentUser.role==='Admin'" @click="page='opening'" class="nav-link text-warning" :class="{active: page==='opening'}"><i class="bi bi-box-seam me-2"></i> บันทึกยอดยกมา (ตั้งต้น)</a>
         <a v-if="currentUser.role==='Admin'" @click="page='receive'" class="nav-link" :class="{active: page==='receive'}"><i class="bi bi-truck me-2"></i> 1. รับยา (รอตรวจรับ)</a>
         <a v-if="currentUser.role==='Admin'" @click="page='inspect'" class="nav-link" :class="{active: page==='inspect'}"><i class="bi bi-clipboard-check me-2"></i> 2. รายการตรวจรับเข้าคลัง</a>
         <a v-if="currentUser.role==='Admin'" @click="page='stockOut'" class="nav-link" :class="{active: page==='stockOut'}"><i class="bi bi-box-arrow-up me-2"></i> จ่ายสินค้า / ตัดสต็อก</a>
-        <a v-if="currentUser.role==='Admin'" @click="page='approveReq'" class="nav-link" :class="{active: page==='approveReq'}">
-            <i class="bi bi-check2-square me-2"></i> อนุมัติเบิก 
-            <span v-if="pendingRequestsCount>0" class="badge bg-danger rounded-pill ms-auto">{{ pendingRequestsCount }}</span>
-        </a>
+        <a v-if="currentUser.role==='Admin'" @click="page='approveReq'" class="nav-link" :class="{active: page==='approveReq'}"><i class="bi bi-check2-square me-2"></i> อนุมัติเบิก <span v-if="pendingRequestsCount>0" class="badge bg-danger rounded-pill ms-auto">{{ pendingRequestsCount }}</span></a>
         <a v-if="currentUser.role==='Admin'" @click="page='outboundList'" class="nav-link" :class="{active: page==='outboundList'}"><i class="bi bi-card-list me-2"></i> ทะเบียนรายการใบเบิก</a>
         <a v-if="currentUser.role==='Admin'" @click="page='history'" class="nav-link" :class="{active: page==='history'}"><i class="bi bi-clock-history me-2"></i> ประวัติรับจ่าย/พิมพ์</a>
         
@@ -136,7 +115,7 @@
         
         <div class="row g-3 mb-4">
             <div class="col-md-8"><div class="card card-shadow p-3 h-100"><h6 class="fw-bold text-primary">📈 Top 10 มูลค่าเบิกใช้สูงสุด (Turnover)</h6><div style="height: 250px;"><canvas id="turnoverChart"></canvas></div></div></div>
-            <div class="col-md-4"><div class="card card-shadow p-3 h-100"><h6 class="fw-bold text-primary">🍩 สัดส่วนมูลค่าคงคลังตามหมวดหมู่</h6><div style="height: 250px;"><canvas id="categoryChart"></canvas></div></div></div>
+            <div class="col-md-4"><div class="card card-shadow p-3 h-100"><h6 class="fw-bold text-primary">🍩 สัดส่วนมูลค่าคงคลังตามบัญชี (ED/NED)</h6><div style="height: 250px;"><canvas id="categoryChart"></canvas></div></div></div>
         </div>
 
         <div class="row g-3">
@@ -165,6 +144,36 @@
                 </div>
             </div>
         </div>
+      </div>
+
+      <div v-show="page === 'opening'">
+         <h3 class="mb-3 fw-bold text-warning">📦 บันทึกยอดยกมา (Opening Balance)</h3>
+         <div class="alert alert-info"><strong>คำแนะนำ:</strong> การบันทึกยอดยกมา จะนำสินค้าเข้าสู่ "คลังยาใหญ่" ทันที โดยไม่ต้องผ่านขั้นตอนรอตรวจรับ เพื่อใช้สำหรับตั้งต้นสต็อกสินค้าครับ</div>
+         
+         <div class="card card-shadow p-4 mb-3 border-top border-warning border-4">
+            <div class="row g-3">
+               <div class="col-md-3"><label class="fw-bold small text-muted">วันที่บันทึกยอดยกมา</label><input v-model="formOpen.date" type="date" class="form-control fw-bold"></div>
+               <div class="col-md-4"><label class="fw-bold small text-muted">ระบุปีงบประมาณ / เลขอ้างอิง</label><input v-model="formOpen.refDoc" type="text" class="form-control" placeholder="เช่น ยกมาปี 2568"></div>
+            </div>
+         </div>
+         <div class="card card-shadow p-3 mb-3 bg-white">
+            <h6 class="fw-bold text-primary mb-3"><i class="bi bi-plus-circle"></i> คีย์รายการสินค้าคงเหลือ</h6>
+            <div class="row g-2 align-items-end">
+               <div class="col-md-4"><label class="small text-muted fw-bold">รายการสินค้า (ค้นหา/ยิงบาร์โค้ด)</label><select id="openProductSelect" placeholder="พิมพ์ค้นหาสินค้า..."></select></div>
+               <div class="col-md-2"><label class="small text-muted fw-bold">จำนวนคงเหลือสุทธิ</label><input type="number" v-model.number="tempOpen.qty" class="form-control border-primary" min="1"></div>
+               <div class="col-md-2"><label class="small text-muted fw-bold">มูลค่ารวม (บาท)</label><input type="number" v-model.number="tempOpen.totalPrice" class="form-control border-primary" min="0"></div>
+               <div class="col-md-2"><label class="small text-danger fw-bold">วันหมดอายุ (Exp)</label><input type="date" v-model="tempOpen.expDate" class="form-control border-danger"></div>
+            </div>
+            <div class="row g-2 mt-2 align-items-end">
+               <div class="col-md-3"><label class="small text-muted fw-bold">เลข Lot (ถ้ามี)</label><input type="text" v-model="tempOpen.lotNo" class="form-control"></div>
+               <div class="col-md-7"><label class="small text-muted fw-bold">หมายเหตุ</label><input type="text" v-model="tempOpen.note" class="form-control" placeholder="เช่น ยอดยกมาจากการนับสต็อก..."></div>
+               <div class="col-md-2"><button @click="addToOpenCart" class="btn btn-warning w-100 fw-bold shadow-sm" :disabled="!tempOpen.productId">นำลงรายการ</button></div>
+            </div>
+         </div>
+         <div v-if="cartOpen.length > 0" class="card card-shadow p-3">
+            <table class="table table-bordered table-sm align-middle text-center"><thead class="table-light"><tr><th>รายการสินค้า</th><th>จำนวน</th><th>มูลค่ารวม</th><th>Lot/Exp</th><th>หมายเหตุ</th><th>ลบ</th></tr></thead><tbody><tr v-for="(item, idx) in cartOpen"><td class="text-start fw-bold">{{ item.productName }}</td><td class="fw-bold text-primary fs-5">{{ formatNumber(item.qty) }}</td><td>{{ formatNumber(item.totalPrice) }}</td><td>{{ item.lotNo }}<br><span class="badge bg-danger">{{ item.expDate }}</span></td><td class="text-start small text-muted">{{ item.note }}</td><td><button @click="cartOpen.splice(idx,1)" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button></td></tr></tbody></table>
+            <button @click="submitOpeningBalance" class="btn btn-success btn-lg mt-2 fw-bold w-100 shadow"><i class="bi bi-save me-2"></i> บันทึกยอดยกมาเข้าคลังใหญ่</button>
+         </div>
       </div>
 
       <div v-show="page === 'receive'">
@@ -232,11 +241,6 @@
          </div>
       </div>
 
-      <div v-if="page === 'approveReq'">
-         <h3 class="mb-3 fw-bold">ตรวจสอบและอนุมัติใบขอเบิก</h3>
-         <div class="card card-shadow p-3"><table class="table table-hover"><thead><tr class="table-light"><th @click="sortBy('id')" class="sortable">เลขที่ <span class="sort-icon">{{sortIcon('id')}}</span></th><th @click="sortBy('date')" class="sortable">วันที่ <span class="sort-icon">{{sortIcon('date')}}</span></th><th @click="sortBy('dept')" class="sortable">หน่วยงาน <span class="sort-icon">{{sortIcon('dept')}}</span></th><th>ผู้ขอ</th><th>สถานะ</th><th>Action</th></tr></thead><tbody><tr v-for="req in sortedPendingRequests" :key="req.id"><td><span class="fw-bold text-primary">{{ req.id }}</span></td><td>{{ req.date }}</td><td><span class="badge bg-info text-dark">{{ req.dept }}</span></td><td>{{ req.user }}</td><td><span class="badge bg-warning text-dark shadow-sm">รออนุมัติ</span></td><td><button @click="loadRequestToStockOut(req)" class="btn btn-sm btn-primary shadow-sm"><i class="bi bi-box-arrow-up-right me-1"></i> จัดการจ่ายยา</button></td></tr><tr v-if="sortedPendingRequests.length===0"><td colspan="6" class="text-center text-muted p-4">-- ไม่มีรายการใบขอเบิกค้าง --</td></tr></tbody></table></div>
-      </div>
-
       <div v-if="page === 'stockOut'">
          <h3 class="mb-3 fw-bold">📤 จ่ายสินค้า / ตัดสต็อก</h3>
          <div class="card card-shadow p-3 mb-3 border-top border-warning border-4">
@@ -259,6 +263,11 @@
          <div v-if="cartOut.length > 0" class="card card-shadow p-3">
             <table class="table table-sm table-bordered align-middle"><thead class="table-light text-center"><tr><th>สินค้า</th><th>แหล่งสต็อก</th><th>Lot ที่ตัด</th><th class="text-end">จำนวน</th><th class="text-end">ทุนรวม</th><th>ลบ</th></tr></thead><tbody><tr v-for="(item, idx) in cartOut"><td class="fw-bold">{{ item.productName }}</td><td class="text-center"><span class="badge" :class="item.status==='Pending'?'bg-warning text-dark':'bg-success'">{{item.status==='Pending'?'รอตรวจรับ':'คลังใหญ่'}}</span></td><td class="text-center">{{ item.lotNo }}</td><td class="text-end fw-bold text-primary fs-5">{{ formatNumber(item.qty) }}</td><td class="text-end">{{ formatNumber(item.totalPrice) }}</td><td class="text-center"><button @click="cartOut.splice(idx,1)" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></td></tr></tbody><tfoot class="table-light"><tr><td colspan="4" class="text-end fw-bold">รวมมูลค่าต้นทุนที่จ่าย</td><td class="text-end fw-bold text-danger fs-5">{{ formatCurrency(cartOutTotal) }}</td><td></td></tr></tfoot></table><button @click="submitBatchOut" class="btn btn-warning btn-lg w-100 mt-2 fw-bold shadow"><i class="bi bi-save"></i> บันทึกการจ่ายสินค้าและตัดสต็อก</button>
          </div>
+      </div>
+
+      <div v-if="page === 'approveReq'">
+         <h3 class="mb-3 fw-bold">ตรวจสอบและอนุมัติใบขอเบิก</h3>
+         <div class="card card-shadow p-3"><table class="table table-hover"><thead><tr class="table-light"><th @click="sortBy('id')" class="sortable">เลขที่ <span class="sort-icon">{{sortIcon('id')}}</span></th><th @click="sortBy('date')" class="sortable">วันที่ <span class="sort-icon">{{sortIcon('date')}}</span></th><th @click="sortBy('dept')" class="sortable">หน่วยงาน <span class="sort-icon">{{sortIcon('dept')}}</span></th><th>ผู้ขอ</th><th>สถานะ</th><th>Action</th></tr></thead><tbody><tr v-for="req in sortedPendingRequests" :key="req.id"><td><span class="fw-bold text-primary">{{ req.id }}</span></td><td>{{ req.date }}</td><td><span class="badge bg-info text-dark">{{ req.dept }}</span></td><td>{{ req.user }}</td><td><span class="badge bg-warning text-dark shadow-sm">รออนุมัติ</span></td><td><button @click="loadRequestToStockOut(req)" class="btn btn-sm btn-primary shadow-sm"><i class="bi bi-box-arrow-up-right me-1"></i> จัดการจ่ายยา</button></td></tr><tr v-if="sortedPendingRequests.length===0"><td colspan="6" class="text-center text-muted p-4">-- ไม่มีรายการใบขอเบิกค้าง --</td></tr></tbody></table></div>
       </div>
 
       <div v-if="page === 'outboundList'">
@@ -296,7 +305,7 @@
       </div>
 
       <div v-if="page === 'history'">
-         <div class="d-flex justify-content-between align-items-center mb-3"><h3 class="fw-bold">ประวัติธุรกรรมและเอกสาร</h3><button class="btn btn-success shadow-sm fw-bold" @click="exportExcel('historyTable', 'History')"><i class="bi bi-file-excel"></i> Export Excel (หน้านี้)</button></div>
+         <div class="d-flex justify-content-between align-items-center mb-3"><h3 class="fw-bold">ประวัติธุรกรรมรับ-จ่าย</h3><button class="btn btn-success shadow-sm fw-bold" @click="exportExcel('historyTable', 'History')"><i class="bi bi-file-excel"></i> Export Excel (หน้านี้)</button></div>
          <div class="card card-shadow p-3 mb-3 bg-light"><div class="d-flex gap-3"><input type="text" v-model="searchQuery" class="form-control border-primary shadow-sm" placeholder="🔍 พิมพ์ค้นหาเลขที่บิล, ชื่อผู้จำหน่าย, หน่วยงาน..."><select v-model="historyFilterType" class="form-select border-primary shadow-sm w-25"><option value="">แสดงทั้งหมด</option><option value="IN">เฉพาะรับเข้า (IN)</option><option value="OUT">เฉพาะจ่ายออก (OUT)</option></select></div></div>
          <div class="card card-shadow p-3" id="historyTable"><table class="table table-hover align-middle"><thead class="table-dark"><tr><th @click="sortBy('date')" class="sortable">วันที่ <span class="sort-icon text-white">{{sortIcon('date')}}</span></th><th @click="sortBy('id')" class="sortable">เลขที่เอกสาร <span class="sort-icon text-white">{{sortIcon('id')}}</span></th><th @click="sortBy('type')" class="sortable text-center">ประเภท <span class="sort-icon text-white">{{sortIcon('type')}}</span></th><th @click="sortBy('entity')" class="sortable">ต้นทาง/ปลายทาง <span class="sort-icon text-white">{{sortIcon('entity')}}</span></th><th @click="sortBy('total')" class="sortable text-end">ยอดรวมสุทธิ <span class="sort-icon text-white">{{sortIcon('total')}}</span></th><th class="no-print text-center">พิมพ์/Export</th></tr></thead><tbody><tr v-for="doc in sortedFilteredHistory" :key="doc.id"><td>{{ doc.date.split(' ')[0] }}</td><td><span class="fw-bold text-primary">{{ doc.id }}</span><br><small class="text-muted" v-if="doc.ref&&doc.ref!='-'">อ้างอิง: {{doc.ref}}</small></td><td class="text-center"><span class="badge" :class="doc.type=='IN'?'bg-success':'bg-warning text-dark'">{{ doc.type }}</span></td><td class="fw-bold">{{ doc.entity }}</td><td class="text-end fw-bold text-primary">{{ formatCurrency(doc.total) }}</td><td class="no-print text-center"><button @click="openPrintModal(doc)" class="btn btn-sm btn-outline-dark"><i class="bi bi-printer"></i></button></td></tr></tbody></table></div>
       </div>
@@ -324,15 +333,17 @@
          <div class="d-flex justify-content-between align-items-center mb-3"><h3 class="mb-0 fw-bold"><i class="bi bi-gear-fill me-2 text-secondary"></i>{{ adminTitle }}</h3><button @click="openAdminModal(null)" class="btn btn-primary shadow-sm fw-bold"><i class="bi bi-plus-lg"></i> เพิ่มข้อมูลใหม่</button></div>
          <div class="card card-shadow p-3"><table class="table table-hover align-middle"><thead class="table-dark"><tr v-if="page==='manage_prod'"><th>รหัสสินค้า</th><th>ชื่อรายการ</th><th>หมวด/หน่วย</th><th>ประเภท/กลุ่ม</th><th>Min/Max</th><th class="text-center">จัดการ</th></tr><tr v-else><th>รหัส / Key</th><th>ชื่อ / คำอธิบาย</th><th class="text-center">จัดการ</th></tr></thead><tbody><tr v-for="item in adminDataList"><template v-if="page==='manage_prod'"><td><span class="badge bg-light text-dark border px-2 py-1 fs-6">{{ item.id }}</span></td><td class="fw-bold text-primary">{{ item.name }}</td><td><span class="badge bg-info text-dark">{{ item.category }}</span><br><small class="text-muted fw-bold">{{ item.unit }}</small></td><td>{{ item.objType }}<br><span class="badge bg-secondary" v-if="item.drugClass">{{ item.drugClass }}</span></td><td><span class="text-danger fw-bold">Min: {{ item.min }}</span><br><span class="text-success fw-bold">Max: {{ item.max }}</span></td></template><template v-else><td class="fw-bold text-primary">{{ item.id || item.user || item.name }}</td><td class="fw-bold">{{ item.name }}</td></template><td class="text-center"><button @click="openAdminModal(item)" class="btn btn-outline-warning me-2 shadow-sm"><i class="bi bi-pencil-fill"></i></button><button @click="deleteItem(item.id || item.user || item.name)" class="btn btn-outline-danger shadow-sm"><i class="bi bi-trash-fill"></i></button></td></tr></tbody></table></div>
          
-         <div v-if="showModal" class="loading-overlay" style="background: rgba(0,0,0,0.6);"><div class="card p-4 shadow-lg" style="width:600px; border-radius:15px;"><h4 class="mb-4 text-primary fw-bold"><i class="bi bi-pencil-square me-2"></i>{{ modalForm.isEdit ? 'แก้ไขข้อมูล' : 'เพิ่มข้อมูลใหม่' }}</h4><div v-if="page==='manage_prod'" class="d-flex flex-column gap-3"><div class="row"><div class="col"><label class="small text-muted fw-bold">รหัสสินค้า</label><input v-model="modalForm.id" class="form-control bg-light fw-bold" :readonly="modalForm.isEdit"></div></div><div><label class="small text-muted fw-bold">ชื่อสินค้า</label><input v-model="modalForm.name" class="form-control border-primary fw-bold text-primary"></div><div class="row"><div class="col"><label class="small text-muted fw-bold">หมวดหมู่</label><input v-model="modalForm.cat" list="catList" class="form-control"><datalist id="catList"><option v-for="c in categories" :value="c.name"></option></datalist></div><div class="col"><label class="small text-muted fw-bold">หน่วยนับ</label><input v-model="modalForm.unit" list="unitList" class="form-control"><datalist id="unitList"><option v-for="u in units" :value="u.name"></option></datalist></div></div><div class="row"><div class="col"><label class="small text-danger fw-bold">จุดสั่งซื้อ (Min)</label><input type="number" v-model="modalForm.min" class="form-control border-danger"></div><div class="col"><label class="small text-success fw-bold">สต็อกสูงสุด (Max)</label><input type="number" v-model="modalForm.max" class="form-control border-success"></div></div><div class="row bg-light p-3 rounded mx-0 mt-1 border"><div class="col"><label class="small fw-bold text-dark">ประเภทเวชภัณฑ์</label><select v-model="modalForm.objType" class="form-select border-info fw-bold"><option value="เวชภัณฑ์มิใช่ยา">เวชภัณฑ์มิใช่ยา</option><option value="ยา">ยา</option><option value="วัสดุ">วัสดุอื่นๆ</option></select></div><div class="col" v-if="modalForm.objType === 'ยา'"><label class="small fw-bold text-dark">กลุ่มบัญชียา</label><select v-model="modalForm.drugClass" class="form-select border-info fw-bold"><option value="ED">ในบัญชี (ED)</option><option value="NED">นอกบัญชี (NED)</option></select></div></div></div><div v-else class="d-flex flex-column gap-3"><label class="small text-muted fw-bold">รหัส / Key</label><input v-model="modalForm.id" class="form-control bg-light" :readonly="modalForm.isEdit" placeholder="(เว้นว่างได้)"><label class="small text-muted fw-bold">ชื่อ / รายละเอียด</label><input v-model="modalForm.name" class="form-control border-primary fw-bold"><template v-if="page==='manage_user'"><label class="small text-muted fw-bold mt-2">Password</label><input v-model="modalForm.pass" class="form-control border-warning" type="password"><label class="small text-muted fw-bold">สิทธิ์การใช้งาน (Role)</label><select v-model="modalForm.role" class="form-select border-primary"><option>Admin</option><option>User</option></select></template></div><div class="mt-4 d-flex gap-2"><button @click="saveAdminData" class="btn btn-primary flex-grow-1 py-2 fw-bold shadow-sm"><i class="bi bi-save"></i> บันทึกข้อมูล</button> <button @click="showModal=false" class="btn btn-outline-secondary py-2">ยกเลิก</button></div></div></div>
+         <div v-if="showModal" class="loading-overlay" style="background: rgba(0,0,0,0.6);">
+            <div class="card p-4 shadow-lg" style="width:600px; border-radius:15px;"><h4 class="mb-4 text-primary fw-bold"><i class="bi bi-pencil-square me-2"></i>{{ modalForm.isEdit ? 'แก้ไขข้อมูล' : 'เพิ่มข้อมูลใหม่' }}</h4><div v-if="page==='manage_prod'" class="d-flex flex-column gap-3"><div class="row"><div class="col"><label class="small text-muted fw-bold">รหัสสินค้า</label><input v-model="modalForm.id" class="form-control bg-light fw-bold" :readonly="modalForm.isEdit"></div></div><div><label class="small text-muted fw-bold">ชื่อสินค้า</label><input v-model="modalForm.name" class="form-control border-primary fw-bold text-primary"></div><div class="row"><div class="col"><label class="small text-muted fw-bold">หมวดหมู่</label><input v-model="modalForm.cat" list="catList" class="form-control"><datalist id="catList"><option v-for="c in categories" :value="c.name"></option></datalist></div><div class="col"><label class="small text-muted fw-bold">หน่วยนับ</label><input v-model="modalForm.unit" list="unitList" class="form-control"><datalist id="unitList"><option v-for="u in units" :value="u.name"></option></datalist></div></div><div class="row"><div class="col"><label class="small text-danger fw-bold">จุดสั่งซื้อ (Min)</label><input type="number" v-model="modalForm.min" class="form-control border-danger"></div><div class="col"><label class="small text-success fw-bold">สต็อกสูงสุด (Max)</label><input type="number" v-model="modalForm.max" class="form-control border-success"></div></div><div class="row bg-light p-3 rounded mx-0 mt-1 border"><div class="col"><label class="small fw-bold text-dark">ประเภทเวชภัณฑ์</label><select v-model="modalForm.objType" class="form-select border-info fw-bold"><option value="เวชภัณฑ์มิใช่ยา">เวชภัณฑ์มิใช่ยา</option><option value="ยา">ยา</option><option value="วัสดุ">วัสดุอื่นๆ</option></select></div><div class="col" v-if="modalForm.objType === 'ยา'"><label class="small fw-bold text-dark">กลุ่มบัญชียา</label><select v-model="modalForm.drugClass" class="form-select border-info fw-bold"><option value="ED">ในบัญชี (ED)</option><option value="NED">นอกบัญชี (NED)</option></select></div></div></div><div v-else class="d-flex flex-column gap-3"><label class="small text-muted fw-bold">รหัส / Key</label><input v-model="modalForm.id" class="form-control bg-light" :readonly="modalForm.isEdit" placeholder="(เว้นว่างได้)"><label class="small text-muted fw-bold">ชื่อ / รายละเอียด</label><input v-model="modalForm.name" class="form-control border-primary fw-bold"><template v-if="page==='manage_user'"><label class="small text-muted fw-bold mt-2">Password</label><input v-model="modalForm.pass" class="form-control border-warning" type="password"><label class="small text-muted fw-bold">สิทธิ์การใช้งาน (Role)</label><select v-model="modalForm.role" class="form-select border-primary"><option>Admin</option><option>User</option></select></template></div><div class="mt-4 d-flex gap-2"><button @click="saveAdminData" class="btn btn-primary flex-grow-1 py-2 fw-bold shadow-sm"><i class="bi bi-save"></i> บันทึกข้อมูล</button> <button @click="showModal=false" class="btn btn-outline-secondary py-2">ยกเลิก</button></div></div>
+         </div>
       </div>
       
       <div v-if="showBudgetModal" class="loading-overlay" style="background: rgba(0,0,0,0.6);"><div class="card p-4 shadow-lg" style="border-radius:15px;"><h4 class="fw-bold text-success"><i class="bi bi-cash-stack me-2"></i> ตั้งค่างบประมาณปี {{ currentBudgetYear }}</h4><hr><label class="small text-muted fw-bold mb-1">ระบุจำนวนเงินงบประมาณรวมทั้งปี (บาท)</label><input v-model="budgetForm.amount" type="number" class="form-control form-control-lg border-success fw-bold text-success mb-4"><div class="d-flex gap-2"><button @click="saveBudget" class="btn btn-success flex-grow-1 fw-bold">บันทึกงบประมาณ</button><button @click="showBudgetModal=false" class="btn btn-secondary">ปิด</button></div></div></div>
 
       <div v-if="printDoc" class="loading-overlay" style="background: rgba(0,0,0,0.7); align-items: start; padding-top: 50px; overflow-y: auto;">
           <div class="card p-5 bg-white shadow-lg mb-5" style="width: 850px; min-height: 500px;" id="printSection">
-              <div class="text-center mb-4 border-bottom pb-3"><h2 class="fw-bold">JVL Inventory</h2><h4 class="text-secondary fw-bold">{{ printDoc.type === 'IN' ? 'ใบรับสินค้าเข้าคลัง (RECEIVE VOUCHER)' : 'ใบเบิกวัสดุ/ยา (ISSUE VOUCHER)' }}</h4></div>
-              <div class="row mb-4 fs-5"><div class="col-6"><strong>เลขที่เอกสาร:</strong> {{ printDoc.id }}<br><strong>วันที่ทำรายการ:</strong> {{ printDoc.date }}<br><strong>ผู้บันทึก:</strong> {{ printDoc.user }}</div><div class="col-6 text-end"><strong>{{ printDoc.type === 'IN' ? 'รับจากบริษัท' : 'จ่ายให้หน่วยงาน' }}:</strong> <span class="fw-bold text-primary fs-4">{{ printDoc.entity }}</span><br><strong>อ้างอิงบิล/เอกสาร:</strong> {{ printDoc.ref }}</div></div>
+              <div class="text-center mb-4 border-bottom pb-3"><h2 class="fw-bold">JVL Inventory</h2><h4 class="text-secondary fw-bold">{{ printDoc.type === 'IN' ? (printDoc.entity === 'ยอดยกมา' ? 'ใบรับยอดยกมาต้นปี' : 'ใบรับสินค้าเข้าคลัง (RECEIVE VOUCHER)') : 'ใบเบิกวัสดุ/ยา (ISSUE VOUCHER)' }}</h4></div>
+              <div class="row mb-4 fs-5"><div class="col-6"><strong>เลขที่เอกสาร:</strong> {{ printDoc.id }}<br><strong>วันที่ทำรายการ:</strong> {{ printDoc.date }}<br><strong>ผู้บันทึก:</strong> {{ printDoc.user }}</div><div class="col-6 text-end"><strong>{{ printDoc.type === 'IN' ? 'รับจาก' : 'จ่ายให้หน่วยงาน' }}:</strong> <span class="fw-bold text-primary fs-4">{{ printDoc.entity }}</span><br><strong>อ้างอิงเอกสาร:</strong> {{ printDoc.ref }}</div></div>
               <table class="table table-bordered border-dark"><thead><tr class="table-secondary text-center"><th>ลำดับ</th><th>รายการสินค้า</th><th>Lot No.</th><th>จำนวน</th><th>ราคา/หน่วย</th><th>รวมเป็นเงิน</th></tr></thead><tbody><tr v-for="(item, i) in printDoc.items"><td class="text-center">{{ i+1 }}</td><td class="fw-bold">{{ item.name }}</td><td class="text-center">{{ item.lot }}</td><td class="text-end fw-bold">{{ formatNumber(item.qty) }} {{ item.unit }}</td><td class="text-end">{{ formatNumber(item.price) }}</td><td class="text-end">{{ formatNumber(item.total) }}</td></tr></tbody><tfoot><tr><td colspan="5" class="text-end fw-bold fs-5">รวมสุทธิทั้งสิ้น</td><td class="text-end fw-bold fs-4 text-dark">{{ formatCurrency(printDoc.total) }}</td></tr></tfoot></table>
               <div class="row mt-5 pt-5"><div class="col-6 text-center">ลงชื่อ ..............................................................<br><br>(..............................................................)<br><br>ผู้รับสินค้า / ผู้ขอเบิก</div><div class="col-6 text-center">ลงชื่อ ..............................................................<br><br>(..............................................................)<br><br>เจ้าหน้าที่คลัง / ผู้อนุมัติจ่าย</div></div>
               <div class="d-flex justify-content-center gap-3 mt-5 no-print border-top pt-4"><button class="btn btn-primary btn-lg px-4 shadow-sm fw-bold" onclick="window.print()"><i class="bi bi-printer-fill me-2"></i>พิมพ์เอกสาร (PDF)</button><button class="btn btn-success btn-lg px-4 shadow-sm fw-bold" @click="exportExcel('printSection', 'Document_' + printDoc.id)"><i class="bi bi-file-earmark-excel-fill me-2"></i>ส่งออก Excel</button><button class="btn btn-secondary btn-lg px-4 fw-bold" @click="printDoc=null">ปิดหน้าต่าง</button></div>
@@ -355,18 +366,18 @@ createApp({
       page: 'dashboard', searchQuery: '',
       rawData: { users:[], products:[], vendors:[], depts:[], categories:[], units:[], transactions:[], requests:[], budget:[], bills:[] },
       
+      // ฟอร์มต่างๆ
+      formOpen: { date: new Date().toISOString().slice(0,10), refDoc: 'ยอดยกมาปีปัจุบัน' }, tempOpen: { productId: '', productName: '', qty: 1, totalPrice: 0, expDate: '', lotNo: '', note: 'บันทึกยอดยกมาต้นปี' }, cartOpen: [],
       formRec: { refBillNo: '', vendor: '', receivedDate: new Date().toISOString().slice(0,10) }, tempRec: { productId: '', productName: '', qty: 1, totalPrice: 0, expDate: '', lotNo: '', note: '' }, cartRec: [],
       showInspectModal: false, formInspect: { billId: '', refBillNo: '', vendor: '', docNo: '', inspectDate: new Date().toISOString().slice(0,10), budgetSource: 'เงินบำรุง' },
-      
-      formIn: { date: new Date().toISOString().slice(0,10), refDoc: '', vendor: '' }, tempIn: { productName: '', productId: '', lot: '', exp: '', qty: 1, total: 0 }, cartIn: [],
       formOut: { date: new Date().toISOString().slice(0,10), dept: '', reqId: '', reqType: 'เบิกจริง', docNo: '' }, tempOut: { productName: '', productId: '', qty: 1, selectedLotIdx: -1, unitPrice: 0, stockSource: 'Completed' }, cartOut: [],
       tempReq: { productName: '', productId: '', qty: 1, unit: '' }, cartReq: [], reqDept: '',
       
-      reportFilter: { type: 'inventory', start: '', end: '' }, historyFilterType: '',
+      // ตัวกรองและอื่นๆ
+      reportFilter: { type: 'inventory', start: '', end: '' }, historyFilterType: '', outFilter: { start: '', end: '', dept: '', type: '', search: '' },
       showModal: false, modalForm: {}, showBudgetModal: false, budgetForm: {}, printDoc: null,
       sortKey: '', sortAsc: true, dashFilter: { objType: '', category: '', drugClass: '' }, chartInstTurnover: null, chartInstCat: null,
-      tsVendor: null, tsProduct: null,
-      outFilter: { start: '', end: '', dept: '', type: '', search: '' }
+      tsVendor: null, tsProduct: null, tsOpenProduct: null
     }
   },
   computed: {
@@ -415,7 +426,7 @@ createApp({
      totalPurchasedYear() { return this.transactions.filter(t => t.type==='IN' && t.date.startsWith(new Date().getFullYear())).reduce((sum, t) => sum + t.totalPrice, 0); },
      budgetPercent() { return this.totalBudgetYear > 0 ? ((this.totalPurchasedYear / this.totalBudgetYear) * 100).toFixed(1) : 0; },
      
-     categoryReport() { let stats={'ยา':{'ED':0,'NED':0,'Total':0},'เวชภัณฑ์มิใช่ยา':{'Total':0},'วัสดุ':{'Total':0}}; this.inventory.forEach(i=>{ let t=i.objType||'เวชภัณฑ์มิใช่ยา',c=i.drugClass||'Total'; if(!stats[t]) stats[t]={'Total':0}; if(t==='ยา'){ if(!stats['ยา'][c]) stats['ยา'][c]=0; stats['ยา'][c]+=i.totalVal; } stats[t]['Total']+=i.totalVal; }); let rows=[]; let g=this.totalInventoryValue||1; if(stats['ยา']['ED']>0) rows.push({type:'ยา',cls:'ED',val:stats['ยา']['ED'],pct:parseFloat((stats['ยา']['ED']/g*100).toFixed(1))}); if(stats['ยา']['NED']>0) rows.push({type:'ยา',cls:'NED',val:stats['ยา']['NED'],pct:parseFloat((stats['ยา']['NED']/g*100).toFixed(1))}); if(stats['เวชภัณฑ์มิใช่ยา']['Total']>0) rows.push({type:'เวชภัณฑ์มิใช่ยา',cls:'-',val:stats['เวชภัณฑ์มิใช่ยา']['Total'],pct:parseFloat((stats['เวชภัณฑ์มิใช่ยา']['Total']/g*100).toFixed(1))}); if(stats['วัสดุ']['Total']>0) rows.push({type:'วัสดุ',cls:'-',val:stats['วัสดุ']['Total'],pct:parseFloat((stats['วัสดุ']['Total']/g*100).toFixed(1))}); return rows; },
+     categoryReport() { let stats={'ยา':{'ED':0,'NED':0,'Total':0},'เวชภัณฑ์มิใช่ยา':{'Total':0},'วัสดุ':{'Total':0}}; this.inventory.forEach(i=>{ let t=i.objType||'เวชภัณฑ์มิใช่ยา',c=i.drugClass||'Total'; if(!stats[t]) stats[t]={'Total':0}; if(t==='ยา'){ if(!stats['ยา'][c]) stats['ยา'][c]=0; stats['ยา'][c]+=i.totalVal; } stats[t]['Total']+=i.totalVal; }); let rows=[]; let g=this.totalInventoryValue||1; if(stats['ยา']['ED']>0) rows.push({type:'ยา',cls:'ED',val:stats['ยา']['ED'],pct:parseFloat((stats['ยา']['ED']/g*100).toFixed(1))}); if(stats['ยา']['NED']>0) rows.push({type:'ยา',cls:'NED',val:stats['ยา']['NED'],pct:parseFloat((stats['ยา']['NED']/g*100).toFixed(1))}); if(stats['เวชภัณฑ์มิใช่ยา'] && stats['เวชภัณฑ์มิใช่ยา']['Total']>0) rows.push({type:'เวชภัณฑ์มิใช่ยา',cls:'-',val:stats['เวชภัณฑ์มิใช่ยา']['Total'],pct:parseFloat((stats['เวชภัณฑ์มิใช่ยา']['Total']/g*100).toFixed(1))}); if(stats['วัสดุ'] && stats['วัสดุ']['Total']>0) rows.push({type:'วัสดุ',cls:'-',val:stats['วัสดุ']['Total'],pct:parseFloat((stats['วัสดุ']['Total']/g*100).toFixed(1))}); return rows; },
      deptUsageReport() { let r={},s=this.reportFilter.start?new Date(this.reportFilter.start):new Date('2000-01-01'),e=this.reportFilter.end?new Date(this.reportFilter.end):new Date('2099-12-31'); this.transactions.filter(t=>t.type==='OUT'&&t.status==='Completed').forEach(t=>{let d=new Date(t.date);if(d>=s&&d<=e){let dept=t.vendorOrDept;if(!r[dept])r[dept]=0;r[dept]+=t.totalPrice;}}); return r; },
      cartInTotal() { return this.cartIn.reduce((sum, i) => sum + i.totalPrice, 0); }, cartOutTotal() { return this.cartOut.reduce((sum, i) => sum + i.totalPrice, 0); },
      adminTitle() { return this.page.replace('manage_', 'ตั้งค่า').toUpperCase(); },
@@ -427,18 +438,13 @@ createApp({
      historyGroups() { let g={}; this.transactions.forEach(t=>{ let id=t.transId.startsWith('RCV-')||t.transId.startsWith('ISS-')?t.transId:t.billId; if(!g[id])g[id]={id:id,date:t.date,type:t.type,ref:t.billId||'-',entity:t.vendorOrDept,user:t.user,items:[],total:0}; let p=this.products.find(x=>x.id==t.productId); g[id].items.push({name:p?p.name:t.productId,lot:t.lotNo,qty:t.qty,unit:p?p.unit:'',price:t.unitPrice,total:t.totalPrice}); g[id].total+=t.totalPrice; }); return Object.values(g).sort((a,b)=>new Date(b.date)-new Date(a.date)); },
      filteredHistory() { let l=this.historyGroups; if(this.historyFilterType)l=l.filter(g=>g.type===this.historyFilterType); if(this.searchQuery)l=l.filter(g=>g.id.includes(this.searchQuery)||g.entity.includes(this.searchQuery)); return l; },
 
-     sortedFilteredInventory() { return this.applySort(this.filteredInventory); },
-     sortedActiveLots() { return this.applySort(this.activeLots); },
-     sortedFilteredHistory() { return this.applySort(this.filteredHistory); },
-     sortedPendingRequests() { return this.applySort(this.pendingRequestsList); },
-     sortedCategoryReport() { return this.applySort(this.categoryReport); },
-     sortedBills() { return this.applySort(this.bills); },
-     sortedOutboundList() { return this.applySort(this.outboundList); }
+     sortedFilteredInventory() { return this.applySort(this.filteredInventory); }, sortedActiveLots() { return this.applySort(this.activeLots); }, sortedFilteredHistory() { return this.applySort(this.filteredHistory); }, sortedPendingRequests() { return this.applySort(this.pendingRequestsList); }, sortedCategoryReport() { return this.applySort(this.categoryReport); }, sortedBills() { return this.applySort(this.bills); }, sortedOutboundList() { return this.applySort(this.outboundList); }
   },
   watch: {
      page(val) { 
          if(val === 'dashboard') this.$nextTick(() => this.renderCharts()); 
          if(val === 'receive') this.$nextTick(() => this.initTomSelects()); 
+         if(val === 'opening') this.$nextTick(() => this.initTomSelects()); 
      },
      dashFilteredInventory: { handler() { if(this.page === 'dashboard') this.$nextTick(() => this.renderCharts()); }, deep: true }
   },
@@ -451,12 +457,11 @@ createApp({
         } catch(e) { alert("Error: " + e.message); return null; }
      },
 
-     async loadData() { this.loading = true; const data = await this.apiCall("getData"); if(data) { this.rawData = data; if(this.page==='dashboard') this.$nextTick(()=>this.renderCharts()); if(this.page==='receive') this.$nextTick(()=>this.initTomSelects()); } this.loading = false; },
+     async loadData() { this.loading = true; const data = await this.apiCall("getData"); if(data) { this.rawData = data; if(this.page==='dashboard') this.$nextTick(()=>this.renderCharts()); if(this.page==='receive'||this.page==='opening') this.$nextTick(()=>this.initTomSelects()); } this.loading = false; },
 
      doLogin() { 
         if(!this.loginForm.user || !this.loginForm.pass) return alert('กรุณากรอกข้อมูลให้ครบถ้วน');
-        let uStr = String(this.loginForm.user).trim();
-        let pStr = String(this.loginForm.pass).trim();
+        let uStr = String(this.loginForm.user).trim(); let pStr = String(this.loginForm.pass).trim();
         let u = (this.rawData.users||[]).find(x => String(x[0]).trim() === uStr && String(x[1]).trim() === pStr); 
         if(u) { this.currentUser = { user:u[0], role:u[2], name:u[3] }; this.loginForm = { user: '', pass: '' }; } else alert('ชื่อผู้ใช้งาน หรือ รหัสผ่าน ไม่ถูกต้อง'); 
      },
@@ -466,9 +471,10 @@ createApp({
      applySort(arr) { if(!this.sortKey) return arr; return arr.slice().sort((a,b)=>{ let m=this.sortAsc?1:-1; let vA=a[this.sortKey], vB=b[this.sortKey]; if(!isNaN(vA)&&!isNaN(vB)){vA=parseFloat(vA);vB=parseFloat(vB);} if(vA<vB) return -1*m; if(vA>vB) return 1*m; return 0; }); },
 
      initTomSelects() {
-        if(this.tsVendor) this.tsVendor.destroy(); if(this.tsProduct) this.tsProduct.destroy();
+        if(this.tsVendor) this.tsVendor.destroy(); if(this.tsProduct) this.tsProduct.destroy(); if(this.tsOpenProduct) this.tsOpenProduct.destroy();
         let vEl = document.getElementById('vendorSelect'); if(vEl) this.tsVendor = new TomSelect(vEl, { valueField: 'name', labelField: 'name', searchField: 'name', options: this.vendors, onChange: (v) => { this.formRec.vendor = v; } });
         let pEl = document.getElementById('productSelect'); if(pEl) this.tsProduct = new TomSelect(pEl, { valueField: 'id', labelField: 'name', searchField: ['name', 'id'], options: this.products, render: { option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small></div>`; }, item: function(d, e) { return `<div>${e(d.name)}</div>`; } }, onChange: (v) => { let p = this.products.find(x=>x.id == v); if(p) { this.tempRec.productId = p.id; this.tempRec.productName = p.name; } } });
+        let oEl = document.getElementById('openProductSelect'); if(oEl) this.tsOpenProduct = new TomSelect(oEl, { valueField: 'id', labelField: 'name', searchField: ['name', 'id'], options: this.products, render: { option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small></div>`; }, item: function(d, e) { return `<div>${e(d.name)}</div>`; } }, onChange: (v) => { let p = this.products.find(x=>x.id == v); if(p) { this.tempOpen.productId = p.id; this.tempOpen.productName = p.name; } } });
      },
 
      renderCharts() {
@@ -484,35 +490,43 @@ createApp({
         this.chartInstCat = new Chart(document.getElementById('categoryChart'), { type: 'doughnut', data: { labels: Object.keys(bVal), datasets: [{ data: Object.values(bVal), backgroundColor: ['#198754','#dc3545'] }] }, options: { plugins:{legend:{position:'bottom'}} } });
      },
 
-     addToReceiveCart() { if(!this.tempRec.productId || !this.formRec.vendor || !this.formRec.refBillNo) return alert("ระบุข้อมูลหัวบิลและยาให้ครบ"); this.cartRec.push({...this.tempRec, unitPrice: this.tempRec.totalPrice / this.tempRec.qty}); this.tempRec = { productId: '', productName: '', qty: 1, totalPrice: 0, expDate: '', lotNo: '', note: '' }; if(this.tsProduct) this.tsProduct.clear(); },
-     async submitPendingBill() { if(this.cartRec.length===0 || !confirm('สร้างบิลรอตรวจรับ?')) return; this.loading=true; const res = await this.apiCall("savePendingBill", { user: this.currentUser.name, refBillNo: this.formRec.refBillNo, vendor: this.formRec.vendor, receivedDate: this.formRec.receivedDate, items: this.cartRec }); if(res) { alert(res); this.cartRec=[]; this.formRec.refBillNo=''; if(this.tsVendor) this.tsVendor.clear(); await this.loadData(); } this.loading=false; },
-     openInspectModal(bill) { this.formInspect = { billId: bill.id, refBillNo: bill.refBillNo, vendor: bill.vendor, docNo: '', inspectDate: new Date().toISOString().slice(0,10), budgetSource: 'เงินบำรุง' }; this.showInspectModal = true; },
-     async submitInspection() { if(!this.formInspect.docNo || !confirm('ยืนยันนำยาเข้าคลัง?')) return; this.loading=true; const res = await this.apiCall("approveBill", this.formInspect); if(res) { alert(res); this.showInspectModal=false; await this.loadData(); } this.loading=false; },
+     // ยอดยกมา (Opening Balance)
+     addToOpenCart() { if(!this.tempOpen.productId) return alert("ระบุสินค้า"); this.cartOpen.push({...this.tempOpen, unitPrice: this.tempOpen.totalPrice / this.tempOpen.qty}); this.tempOpen = { productId: '', productName: '', qty: 1, totalPrice: 0, expDate: '', lotNo: '', note: 'บันทึกยอดยกมาต้นปี' }; if(this.tsOpenProduct) this.tsOpenProduct.clear(); },
+     async submitOpeningBalance() { if(this.cartOpen.length===0 || !confirm('ยืนยันบันทึกยอดยกมา?')) return; this.loading=true; const res = await this.apiCall("saveBatchTransaction", { user: this.currentUser.name, type: 'IN', items: this.cartOpen.map(i=>({...i, date: this.formOpen.date, refDoc: this.formOpen.refDoc, vendorOrDept: 'ยอดยกมา', status: 'Completed'})) }); if(res){ alert('บันทึกสำเร็จ'); this.cartOpen=[]; await this.loadData(); } this.loading=false; },
 
-     onTempInProdSelect() { let p=this.products.find(x=>x.name===this.tempIn.productName); if(p) this.tempIn.productId=p.id; },
-     addToCartIn() { this.cartIn.push({...this.tempIn, expDate: this.tempIn.exp, totalPrice:this.tempIn.total, unitPrice:this.tempIn.total/this.tempIn.qty}); this.tempIn={productName:'', qty:1, total:0}; },
-     async submitBatchIn() { if(!confirm('บันทึกรับเข้าคลังโดยตรง?')) return; this.loading=true; const res = await this.apiCall("saveBatchTransaction", { user:this.currentUser.name, type:'IN', items:this.cartIn.map(i=>({...i, date:this.formIn.date, refDoc:this.formIn.refDoc, vendorOrDept:this.formIn.vendor})) }); if(res){ alert('Success'); this.cartIn=[]; await this.loadData(); } this.loading=false; },
+     // รับยา (รอตรวจรับ)
+     addToReceiveCart() { if(!this.tempRec.productId || !this.formRec.vendor || !this.formRec.refBillNo) return alert("ระบุข้อมูลให้ครบ"); this.cartRec.push({...this.tempRec, unitPrice: this.tempRec.totalPrice / this.tempRec.qty}); this.tempRec = { productId: '', productName: '', qty: 1, totalPrice: 0, expDate: '', lotNo: '', note: '' }; if(this.tsProduct) this.tsProduct.clear(); },
+     async submitPendingBill() { if(this.cartRec.length===0 || !confirm('สร้างบิลรอตรวจรับ?')) return; this.loading=true; const res = await this.apiCall("savePendingBill", { user: this.currentUser.name, refBillNo: this.formRec.refBillNo, vendor: this.formRec.vendor, receivedDate: this.formRec.receivedDate, items: this.cartRec }); if(res) { alert(res); this.cartRec=[]; this.formRec.refBillNo=''; if(this.tsVendor) this.tsVendor.clear(); await this.loadData(); } this.loading=false; },
      
+     // ตรวจรับยา
+     openInspectModal(bill) { this.formInspect = { billId: bill.id, refBillNo: bill.refBillNo, vendor: bill.vendor, docNo: '', inspectDate: new Date().toISOString().slice(0,10), budgetSource: 'เงินบำรุง' }; this.showInspectModal = true; },
+     async submitInspection() { if(!this.formInspect.docNo || !confirm('นำยาเข้าคลัง?')) return; this.loading=true; const res = await this.apiCall("approveBill", this.formInspect); if(res) { alert(res); this.showInspectModal=false; await this.loadData(); } this.loading=false; },
+
+     // จ่ายสินค้า (Stock Out)
      onTempOutProdSelect() { let p=this.products.find(x=>x.name===this.tempOut.productName); if(p) {this.tempOut.productId=p.id; this.tempOut.selectedLotIdx=-1;} },
      updateTempOutPrice() { if(this.tempOut.selectedLotIdx!=-1) { let lot=this.availableLotsOut[this.tempOut.selectedLotIdx]; this.tempOut.unitPrice=lot.unitPrice; } else this.tempOut.unitPrice=0; },
      addToCartOut() { let lot=this.tempOut.selectedLotIdx==-1?{lot:'WAITING',exp:'',unitPrice:0}:this.availableLotsOut[this.tempOut.selectedLotIdx]; let c=lot.unitPrice||0; let outStatus = this.tempOut.stockSource === 'Pending' ? 'Pending' : 'Completed'; this.cartOut.push({...this.tempOut, lotNo:lot.lot, unitPrice:c, totalPrice:this.tempOut.qty*c, status: outStatus}); this.tempOut={productName:'', qty:1, selectedLotIdx:-1, stockSource: this.tempOut.stockSource}; },
      async submitBatchOut() { if(!this.formOut.docNo) return alert('กรุณาระบุเลขที่เอกสาร'); if(!confirm('ยืนยันจ่ายออกและตัดสต็อก?')) return; this.loading=true; let outItems = this.cartOut.map(i=>({...i, date:this.formOut.date, vendorOrDept:this.formOut.dept, refDoc: this.formOut.docNo, note: this.formOut.reqType})); const res = await this.apiCall("saveBatchTransaction", { user:this.currentUser.name, type:'OUT', reqId:this.formOut.reqId, items: outItems }); if(res){ alert('สำเร็จ'); this.cartOut=[]; this.formOut.reqId=''; this.formOut.docNo=''; await this.loadData(); } this.loading=false; },
 
+     // ระบบขอเบิก
      onTempReqProdSelect() { let p=this.products.find(x=>x.name===this.tempReq.productName); if(p) { this.tempReq.productId=p.id; this.tempReq.unit=p.unit; } },
      addToReqCart() { this.cartReq.push({...this.tempReq}); this.tempReq={productName:'', qty:1, unit:''}; },
      async submitRequest() { if(!this.reqDept) return alert('ระบุหน่วยงาน'); this.loading=true; const res = await this.apiCall("saveRequest", { user:this.currentUser.name, dept:this.reqDept, date: new Date().toISOString().slice(0,10), items:this.cartReq }); if(res){ alert('ส่งคำขอเบิกแล้ว'); this.cartReq=[]; await this.loadData(); } this.loading=false; },
      loadRequestToStockOut(req) { this.page = 'stockOut'; this.formOut.dept = req.dept; this.formOut.reqId = req.id; this.cartOut = req.items.map(i => ({ productName: i.productName, productId: i.productId, qty: i.qty, lotNo: '', totalPrice: 0, status: 'Completed' })); alert('ระบบโหลดรายการแล้ว กรุณาระบุ เลขที่เอกสาร ประเภทบิล และ Lot สินค้าก่อนบันทึก'); },
 
+     // จัดการข้อมูล Master
      openAdminModal(item) { this.showModal=true; if(item) { this.modalForm = {...item, isEdit:true}; if(this.page==='manage_user') this.modalForm.user=item.user; } else { this.modalForm = {isEdit:false, objType:'เวชภัณฑ์มิใช่ยา', drugClass:'ED'}; } },
      async saveAdminData() { let type=this.page.replace('manage_',''); if(type=='cat') type='category'; this.loading=true; const res = await this.apiCall("saveMasterData", { type: type, data: this.modalForm }); if(res){ alert('บันทึกข้อมูลเรียบร้อย'); this.showModal=false; await this.loadData(); } this.loading=false; },
      async deleteItem(id) { if(confirm('ต้องการลบข้อมูลนี้?')) { if(confirm('ยืนยันลบถาวร (ลบแล้วกู้คืนไม่ได้)?')) { let type=this.page.replace('manage_',''); if(type=='cat') type='category'; this.loading=true; const res = await this.apiCall("deleteMasterData", { type: type, id: id }); if(res) await this.loadData(); this.loading=false; } } },
      openBudgetModal() { this.showBudgetModal=true; this.budgetForm={year:this.currentBudgetYear, amount:this.totalBudgetYear}; },
      async saveBudget() { this.loading=true; const res = await this.apiCall("saveMasterData", { type: 'budget', data: this.budgetForm }); if(res){ this.showBudgetModal=false; await this.loadData(); } this.loading=false; },
 
+     // Utility
      getReportTitle() { if(this.reportFilter.type==='inventory') return 'รายงานสินค้าคงคลังปัจจุบัน (Current Inventory)'; if(this.reportFilter.type==='category_val') return 'สรุปมูลค่าคงคลังตามประเภท (ED/NED)'; if(this.reportFilter.type==='expiry') return 'รายงานวันหมดอายุ (Expiry Report)'; if(this.reportFilter.type==='usage') return 'สรุปการเบิกจ่ายแยกรายหน่วยงาน'; return ''; },
      isExpired(d) { return d ? new Date(d) < new Date() : false; },
      isNearExp(d) { if(!d) return false; let diff = (new Date(d) - new Date())/(1000*60*60*24); return diff > 0 && diff <= 180; },
      openPrintModal(doc) { this.printDoc = doc; },
+     
      exportExcel(elementId, filename) {
         let uri = 'data:application/vnd.ms-excel;base64,';
         let template = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"></head><body><table>{table}</table></body></html>';
