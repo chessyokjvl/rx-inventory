@@ -74,8 +74,8 @@
         
         <div v-if="currentUser.role==='Admin'" class="mt-2 mb-1 small text-uppercase text-muted border-bottom border-secondary pb-1 ms-2">คลังเวชภัณฑ์</div>
         <a v-if="currentUser.role==='Admin'" @click="page='opening'" class="nav-link text-warning" :class="{active: page==='opening'}"><i class="bi bi-box-seam me-2"></i> บันทึกยอดยกมา (ตั้งต้น)</a>
-        <a v-if="currentUser.role==='Admin'" @click="page='receive'" class="nav-link" :class="{active: page==='receive'}"><i class="bi bi-truck me-2"></i> 1. รับยา (รอตรวจรับ)</a>
-        <a v-if="currentUser.role==='Admin'" @click="page='inspect'" class="nav-link" :class="{active: page==='inspect'}"><i class="bi bi-clipboard-check me-2"></i> 2. รายการตรวจรับเข้าคลัง</a>
+        <a v-if="currentUser.role==='Admin'" @click="page='receive'" class="nav-link" :class="{active: page==='receive'}"><i class="bi bi-truck me-2"></i> รับยา (รอตรวจรับ)</a>
+        <a v-if="currentUser.role==='Admin'" @click="page='inspect'" class="nav-link" :class="{active: page==='inspect'}"><i class="bi bi-clipboard-check me-2"></i> รายการตรวจรับเข้าคลัง</a>
         <a v-if="currentUser.role==='Admin'" @click="page='stockOut'" class="nav-link" :class="{active: page==='stockOut'}"><i class="bi bi-box-arrow-up me-2"></i> จ่ายสินค้า / ตัดสต็อก</a>
         <a v-if="currentUser.role==='Admin'" @click="page='approveReq'" class="nav-link" :class="{active: page==='approveReq'}"><i class="bi bi-check2-square me-2"></i> อนุมัติเบิก <span v-if="pendingRequestsCount>0" class="badge bg-danger rounded-pill ms-auto">{{ pendingRequestsCount }}</span></a>
         <a v-if="currentUser.role==='Admin'" @click="page='outboundList'" class="nav-link" :class="{active: page==='outboundList'}"><i class="bi bi-card-list me-2"></i> ทะเบียนรายการใบเบิก</a>
@@ -548,3 +548,4 @@ createApp({
 </script>
 </body>
 </html>
+
