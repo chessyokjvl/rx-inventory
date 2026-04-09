@@ -34,7 +34,6 @@
     .alert-table-container { max-height: 250px; overflow-y: auto; }
     .alert-table-container thead th { position: sticky; top: 0; background: #f8f9fa; z-index: 1; }
 
-    /* Mobile Headers */
     .mobile-header { display: none; }
     .sidebar-backdrop { display: none; }
     
@@ -86,13 +85,11 @@
         <h5 class="mb-0 fw-bold"><i class="bi bi-hospital me-2"></i>JVL Inventory</h5>
         <button class="btn btn-link text-white p-0" @click="isSidebarOpen = true"><i class="bi bi-list fs-1"></i></button>
     </div>
-    
     <div class="sidebar-backdrop" :class="{'show': isSidebarOpen}" @click="isSidebarOpen = false"></div>
 
     <div class="sidebar d-flex flex-column no-print" :class="{'show-sidebar': isSidebarOpen}" style="width: 260px;">
       <div class="p-3 mb-2 text-center border-bottom border-secondary d-none d-md-block">
-          <i class="bi bi-hospital fs-1 text-white"></i>
-          <h5 class="mb-0 fw-bold text-white mt-2">JVL Inventory</h5>
+          <i class="bi bi-hospital fs-1 text-white"></i><h5 class="mb-0 fw-bold text-white mt-2">JVL Inventory</h5>
       </div>
       <div class="p-3 mb-2 text-end d-md-none border-bottom border-secondary">
           <button class="btn btn-link text-white p-0" @click="isSidebarOpen = false"><i class="bi bi-x-lg fs-4"></i></button>
@@ -113,10 +110,13 @@
         <a v-if="currentUser.role==='Admin'" @click="page='outboundList'" class="nav-link" :class="{active: page==='outboundList'}"><i class="bi bi-card-list me-2"></i> ทะเบียนรายการใบเบิก</a>
         <a v-if="currentUser.role==='Admin'" @click="page='history'" class="nav-link" :class="{active: page==='history'}"><i class="bi bi-clock-history me-2"></i> ประวัติรับจ่าย/พิมพ์</a>
         
+        <div class="mt-3 mb-1 small text-uppercase text-muted border-bottom border-secondary pb-1 ms-2">บริหารจัดการ 5 แฟ้ม</div>
+        <a v-if="currentUser.role==='Admin'" @click="page='manage_plan'" class="nav-link text-success" :class="{active: page==='manage_plan'}"><i class="bi bi-journal-text me-2"></i> 📝 จัดการแผนจัดซื้อ (PURCHASEPLAN)</a>
+        <a v-if="currentUser.role==='Admin'" @click="page='mophExport'" class="nav-link text-info" :class="{active: page==='mophExport'}"><i class="bi bi-database-down me-2"></i> 📥 ส่งออก 5 แฟ้มมาตรฐาน</a>
+
         <div class="mt-3 mb-1 small text-uppercase text-muted border-bottom border-secondary pb-1 ms-2">บริการ & รายงาน</div>
         <a @click="page='userReq'" class="nav-link" :class="{active: page==='userReq'}"><i class="bi bi-cart-plus me-2"></i> ขอเบิกยา (หน่วยงาน)</a>
         <a @click="page='reports'" class="nav-link" :class="{active: page==='reports'}"><i class="bi bi-bar-chart-line me-2"></i> ระบบรายงานวิเคราะห์</a>
-        <a v-if="currentUser.role==='Admin'" @click="page='mophExport'" class="nav-link text-info" :class="{active: page==='mophExport'}"><i class="bi bi-database-down me-2"></i> ส่งออก 5 แฟ้มมาตรฐาน</a>
 
         <div v-if="currentUser.role==='Admin'" class="mt-3 mb-1 small text-uppercase text-muted border-bottom border-secondary pb-1 ms-2">ตั้งค่าระบบ</div>
         <a v-if="currentUser.role==='Admin'" @click="page='manage_prod'" class="nav-link" :class="{active: page==='manage_prod'}"><i class="bi bi-capsule me-2"></i> จัดการสินค้า (5 แฟ้ม)</a>
@@ -158,7 +158,8 @@
                     <div class="alert-table-container table-responsive">
                         <table class="table table-sm table-hover mb-0 text-nowrap" style="font-size: 0.85em;">
                             <thead><tr><th>สินค้า</th><th class="text-end">คงเหลือ</th><th class="text-end">ใช้ได้อีก (วัน)</th><th class="text-end">Min</th></tr></thead>
-                            <tbody><tr v-for="i in dashReorderItems"><td class="text-truncate" style="max-width:180px;" :title="i.name">{{ i.name }}</td><td class="text-end fw-bold text-danger">{{ formatNumber(i.qty) }}</td><td class="text-end fw-bold text-warning">{{ i.daysLeft }}</td><td class="text-end text-muted">{{ i.min }}</td></tr><tr v-if="dashReorderItems.length===0"><td colspan="4" class="text-center p-3 text-muted">สินค้าในคลังเพียงพอ</td></tr></tbody>
+                            <tbody><tr v-for="i in dashReorderItems"><td class="text-truncate" style="max-width:180px;" :title="i.name">{{ i.name }}</td><td class="text-end fw-bold text-danger">{{ formatNumber(i.qty) }}</td><td class="text-end fw-bold text-warning">{{ i.daysLeft }}</td><td class="text-end text-muted">{{ i.min }}</td></tr>
+                            <tr v-if="dashReorderItems.length===0"><td colspan="4" class="text-center p-3 text-muted">สินค้าในคลังเพียงพอ</td></tr></tbody>
                         </table>
                     </div>
                 </div>
@@ -169,7 +170,8 @@
                     <div class="alert-table-container table-responsive">
                         <table class="table table-sm table-hover mb-0 text-nowrap" style="font-size: 0.85em;">
                             <thead><tr><th>สินค้า</th><th>Lot</th><th>Exp Date</th></tr></thead>
-                            <tbody><tr v-for="l in dashNearExpiry" :class="{'table-danger': isExpired(l.exp)}"><td class="text-truncate" style="max-width:180px;" :title="l.productName">{{ l.productName }}</td><td>{{ l.lot }}</td><td class="fw-bold">{{ l.exp }}</td></tr><tr v-if="dashNearExpiry.length===0"><td colspan="3" class="text-center p-3 text-muted">ปลอดภัย ไม่มีรายการใกล้ Exp</td></tr></tbody>
+                            <tbody><tr v-for="l in dashNearExpiry" :class="{'table-danger': isExpired(l.exp)}"><td class="text-truncate" style="max-width:180px;" :title="l.productName">{{ l.productName }}</td><td>{{ l.lot }}</td><td class="fw-bold">{{ l.exp }}</td></tr>
+                            <tr v-if="dashNearExpiry.length===0"><td colspan="3" class="text-center p-3 text-muted">ปลอดภัย ไม่มีรายการใกล้ Exp</td></tr></tbody>
                         </table>
                     </div>
                 </div>
@@ -179,12 +181,8 @@
 
       <div v-show="page === 'opening'">
          <h3 class="mb-3 fw-bold text-warning">📦 บันทึกยอดยกมา (Opening Balance)</h3>
-         <div class="alert alert-info shadow-sm"><strong>คำแนะนำ:</strong> การบันทึกยอดยกมา จะนำสินค้าเข้าสู่ "คลังยาใหญ่" ทันที เพื่อใช้ตั้งต้นสต็อกสินค้า</div>
          <div class="card card-shadow p-4 mb-3 border-top border-warning border-4">
-            <div class="row g-3">
-               <div class="col-12 col-md-4"><label class="fw-bold small text-muted">วันที่บันทึกยอดยกมา</label><input v-model="formOpen.date" type="date" class="form-control fw-bold"></div>
-               <div class="col-12 col-md-5"><label class="fw-bold small text-muted">ระบุปีงบประมาณ / เลขอ้างอิง</label><input v-model="formOpen.refDoc" type="text" class="form-control" placeholder="เช่น ยกมาปี 2568"></div>
-            </div>
+            <div class="row g-3"><div class="col-12 col-md-4"><label class="fw-bold small text-muted">วันที่บันทึกยอดยกมา</label><input v-model="formOpen.date" type="date" class="form-control fw-bold"></div><div class="col-12 col-md-5"><label class="fw-bold small text-muted">ระบุปีงบประมาณ / เลขอ้างอิง</label><input v-model="formOpen.refDoc" type="text" class="form-control" placeholder="เช่น ยกมาปี 2568"></div></div>
          </div>
          <div class="card card-shadow p-3 mb-3 bg-white">
             <h6 class="fw-bold text-primary mb-3"><i class="bi bi-plus-circle"></i> คีย์รายการสินค้าคงเหลือ</h6>
@@ -195,11 +193,7 @@
                <div class="col-12 col-md-2"><label class="small text-muted fw-bold">มูลค่ารวม (บาท)</label><input type="number" v-model.number="tempOpen.totalPrice" class="form-control bg-light text-end fw-bold" readonly></div>
                <div class="col-12 col-md-2"><label class="small text-danger fw-bold">วันหมดอายุ (Exp)</label><input type="date" v-model="tempOpen.expDate" class="form-control border-danger"></div>
             </div>
-            <div class="row g-2 mt-md-2 align-items-end">
-               <div class="col-12 col-md-3"><label class="small text-muted fw-bold">เลข Lot (ถ้ามี)</label><input type="text" v-model="tempOpen.lotNo" class="form-control"></div>
-               <div class="col-12 col-md-6"><label class="small text-muted fw-bold">หมายเหตุ</label><input type="text" v-model="tempOpen.note" class="form-control" placeholder="เช่น ยอดยกมาจากการนับสต็อก..."></div>
-               <div class="col-12 col-md-3"><button @click="addToOpenCart" class="btn btn-warning w-100 fw-bold shadow-sm mt-3 mt-md-0" :disabled="!tempOpen.productId">นำลงรายการ</button></div>
-            </div>
+            <div class="row g-2 mt-md-2 align-items-end"><div class="col-12 col-md-3"><label class="small text-muted fw-bold">เลข Lot (ถ้ามี)</label><input type="text" v-model="tempOpen.lotNo" class="form-control"></div><div class="col-12 col-md-6"><label class="small text-muted fw-bold">หมายเหตุ</label><input type="text" v-model="tempOpen.note" class="form-control" placeholder="เช่น ยอดยกมาจากการนับสต็อก..."></div><div class="col-12 col-md-3"><button @click="addToOpenCart" class="btn btn-warning w-100 fw-bold shadow-sm mt-3 mt-md-0" :disabled="!tempOpen.productId">นำลงรายการ</button></div></div>
          </div>
          <div v-if="cartOpen.length > 0" class="card card-shadow p-3">
             <div class="table-responsive"><table class="table table-bordered table-sm align-middle text-center text-nowrap"><thead class="table-light"><tr><th>รายการสินค้า</th><th>จำนวน</th><th>ราคา/หน่วย</th><th>มูลค่ารวม</th><th>Lot/Exp</th><th>ลบ</th></tr></thead><tbody><tr v-for="(item, idx) in cartOpen"><td class="text-start fw-bold">{{ item.productName }}</td><td class="fw-bold text-primary fs-5">{{ formatNumber(item.qty) }}</td><td>{{ formatNumber(item.unitPrice) }}</td><td class="fw-bold">{{ formatNumber(item.totalPrice) }}</td><td>{{ item.lotNo }}<br><span class="badge bg-danger">{{ item.expDate }}</span></td><td><button @click="cartOpen.splice(idx,1)" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button></td></tr></tbody></table></div>
@@ -225,11 +219,7 @@
                <div class="col-12 col-md-2"><label class="small text-muted fw-bold">มูลค่ารวม (บาท)</label><input type="number" v-model.number="tempRec.totalPrice" class="form-control bg-light text-end fw-bold" readonly></div>
                <div class="col-12 col-md-2"><label class="small text-danger fw-bold">วันหมดอายุ (Exp)</label><input type="date" v-model="tempRec.expDate" class="form-control border-danger"></div>
             </div>
-            <div class="row g-2 mt-md-2 align-items-end">
-               <div class="col-12 col-md-3"><label class="small text-muted fw-bold">เลข Lot (ไม่บังคับ)</label><input type="text" v-model="tempRec.lotNo" class="form-control"></div>
-               <div class="col-12 col-md-6"><label class="small text-muted fw-bold">หมายเหตุ</label><input type="text" v-model="tempRec.note" class="form-control" placeholder="เช่น ยืมมาก่อน, กล่องมีตำหนิ..."></div>
-               <div class="col-12 col-md-3"><button @click="addToReceiveCart" class="btn btn-primary w-100 fw-bold shadow-sm mt-3 mt-md-0">นำลงตะกร้า</button></div>
-            </div>
+            <div class="row g-2 mt-md-2 align-items-end"><div class="col-12 col-md-3"><label class="small text-muted fw-bold">เลข Lot (ไม่บังคับ)</label><input type="text" v-model="tempRec.lotNo" class="form-control"></div><div class="col-12 col-md-6"><label class="small text-muted fw-bold">หมายเหตุ</label><input type="text" v-model="tempRec.note" class="form-control" placeholder="เช่น ยืมมาก่อน, กล่องมีตำหนิ..."></div><div class="col-12 col-md-3"><button @click="addToReceiveCart" class="btn btn-primary w-100 fw-bold shadow-sm mt-3 mt-md-0">นำลงตะกร้า</button></div></div>
          </div>
          <div v-if="cartRec.length > 0" class="card card-shadow p-3">
             <div class="table-responsive"><table class="table table-bordered table-sm align-middle text-center text-nowrap"><thead class="table-light"><tr><th>รายการยา</th><th>จำนวน</th><th>ราคา/หน่วย</th><th>ราคารวม</th><th>Lot/Exp</th><th>ลบ</th></tr></thead><tbody><tr v-for="(item, idx) in cartRec"><td class="text-start fw-bold">{{ item.productName }}</td><td class="fw-bold text-primary fs-5">{{ formatNumber(item.qty) }}</td><td>{{ formatNumber(item.unitPrice) }}</td><td class="fw-bold">{{ formatNumber(item.totalPrice) }}</td><td>{{ item.lotNo }}<br><span class="badge bg-danger">{{ item.expDate }}</span></td><td><button @click="cartRec.splice(idx,1)" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button></td></tr></tbody></table></div>
@@ -242,14 +232,11 @@
              <h3 class="fw-bold mb-2 mb-md-0">📋 รายการใบรับ / ตรวจรับยาเข้าคลัง</h3>
              <div class="d-flex gap-2"><button class="btn btn-outline-primary shadow-sm" onclick="window.print()"><i class="bi bi-printer"></i> Print</button><button class="btn btn-outline-success shadow-sm" @click="exportExcel('inspectTable', 'InspectList')"><i class="bi bi-file-excel"></i> Excel</button></div>
          </div>
-         <div class="row mb-3 text-center no-print g-2">
-            <div class="col-12 col-md-4"><div class="card p-2 bg-warning text-dark fw-bold shadow-sm">รอนานสุด: {{ waitMetrics.max }} วัน</div></div>
-            <div class="col-12 col-md-4"><div class="card p-2 bg-info text-dark fw-bold shadow-sm">เฉลี่ย: {{ waitMetrics.avg }} วัน</div></div>
-            <div class="col-12 col-md-4"><div class="card p-2 bg-success text-white fw-bold shadow-sm">เร็วสุด: {{ waitMetrics.min }} วัน</div></div>
-         </div>
+         <div class="row mb-3 text-center no-print g-2"><div class="col-12 col-md-4"><div class="card p-2 bg-warning text-dark fw-bold shadow-sm">รอนานสุด: {{ waitMetrics.max }} วัน</div></div><div class="col-12 col-md-4"><div class="card p-2 bg-info text-dark fw-bold shadow-sm">เฉลี่ย: {{ waitMetrics.avg }} วัน</div></div><div class="col-12 col-md-4"><div class="card p-2 bg-success text-white fw-bold shadow-sm">เร็วสุด: {{ waitMetrics.min }} วัน</div></div></div>
          <div class="card card-shadow p-3" id="inspectTable">
              <div class="table-responsive"><table class="table table-hover align-middle text-nowrap"><thead class="table-dark"><tr><th @click="sortBy('receivedDate')" class="sortable">วันที่รับของ <span class="sort-icon text-white">{{sortIcon('receivedDate')}}</span></th><th @click="sortBy('refBillNo')" class="sortable">เลขบิล <span class="sort-icon text-white">{{sortIcon('refBillNo')}}</span></th><th>บริษัท</th><th>สถานะ</th><th>วันที่ตรวจรับ</th><th>เลขเอกสาร</th><th>แหล่งเงิน</th><th class="text-center no-print">Action</th></tr></thead><tbody><tr v-for="bill in sortedBills" :key="bill.id"><td>{{ bill.receivedDate }}</td><td class="fw-bold text-primary">{{ bill.refBillNo }}</td><td>{{ bill.vendor }}</td><td><span v-if="bill.status==='Pending'" class="badge bg-warning text-dark border shadow-sm">รอตรวจรับ</span><span v-else class="badge bg-success shadow-sm">ตรวจรับแล้ว</span></td><td class="text-muted">{{ bill.inspectDate || '-' }}</td><td>{{ bill.docNo || '-' }}</td><td><small class="badge bg-light text-dark">{{ bill.budgetSource || '-' }}</small></td><td class="text-center no-print"><button v-if="bill.status==='Pending'" @click="openInspectModal(bill)" class="btn btn-sm btn-primary shadow-sm"><i class="bi bi-clipboard-check"></i> ตรวจรับ</button><button v-else class="btn btn-sm btn-outline-secondary" disabled>เข้าคลังแล้ว</button></td></tr></tbody></table></div>
          </div>
+         
          <div v-show="showInspectModal" class="loading-overlay" style="background: rgba(0,0,0,0.6);">
              <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 500px; border-radius: 12px;"><h4 class="mb-3 fw-bold text-success"><i class="bi bi-check-circle-fill me-2"></i> ตรวจรับยาเข้าคลัง</h4><div class="mb-2 text-muted p-2 bg-light rounded">บิลเลขที่: <strong class="text-dark">{{ formInspect.refBillNo }}</strong><br>บริษัท: <strong class="text-dark">{{ formInspect.vendor }}</strong></div><hr><div class="mb-3"><label class="form-label small fw-bold">หมายเลขเอกสาร (ระบบราชการ)</label><input type="text" v-model="formInspect.docNo" class="form-control border-success fw-bold text-success"></div><div class="mb-3"><label class="form-label small fw-bold">วันที่ทำการตรวจรับ</label><input type="date" v-model="formInspect.inspectDate" class="form-control border-success"></div><div class="mb-4"><label class="form-label small fw-bold">แหล่งงบประมาณ</label><select v-model="formInspect.budgetSource" class="form-select border-success"><option value="เงินบำรุง">เงินบำรุง</option><option value="เงินงบประมาณ">เงินงบประมาณ</option></select></div><div class="d-flex gap-2"><button @click="submitInspection" class="btn btn-success flex-grow-1 fw-bold shadow-sm">ยืนยันนำยาเข้าคลัง</button><button @click="showInspectModal=false" class="btn btn-outline-secondary">ยกเลิก</button></div></div>
          </div>
@@ -258,21 +245,10 @@
       <div v-if="page === 'stockOut'">
          <h3 class="mb-3 fw-bold">📤 จ่ายสินค้า / ตัดสต็อก</h3>
          <div class="card card-shadow p-3 mb-3 border-top border-warning border-4">
-            <div class="row g-3">
-               <div class="col-12 col-md-3"><label class="small fw-bold text-muted">วันที่จ่าย</label><input type="date" v-model="formOut.date" class="form-control"></div>
-               <div class="col-12 col-md-3"><label class="small fw-bold text-muted">ประเภทใบเบิก</label><select v-model="formOut.reqType" class="form-select border-warning text-dark fw-bold"><option value="เบิกจริง">เบิกจริง (ปกติ)</option><option value="เบิกฉุกเฉิน">เบิกฉุกเฉิน</option></select></div>
-               <div class="col-12 col-md-3"><label class="small fw-bold text-muted">เลขที่เอกสาร</label><input v-model="formOut.docNo" type="text" class="form-control" placeholder="DOC-XXX"></div>
-               <div class="col-12 col-md-3"><label class="small fw-bold text-muted">หน่วยงานที่ขอเบิก</label><select v-model="formOut.dept" class="form-select"><option v-for="d in depts" :value="d.name">{{ d.name }}</option></select></div>
-            </div>
+            <div class="row g-3"><div class="col-12 col-md-3"><label class="small fw-bold text-muted">วันที่จ่าย</label><input type="date" v-model="formOut.date" class="form-control"></div><div class="col-12 col-md-3"><label class="small fw-bold text-muted">ประเภทใบเบิก</label><select v-model="formOut.reqType" class="form-select border-warning text-dark fw-bold"><option value="เบิกจริง">เบิกจริง (ปกติ)</option><option value="เบิกฉุกเฉิน">เบิกฉุกเฉิน</option></select></div><div class="col-12 col-md-3"><label class="small fw-bold text-muted">เลขที่เอกสาร</label><input v-model="formOut.docNo" type="text" class="form-control" placeholder="DOC-XXX"></div><div class="col-12 col-md-3"><label class="small fw-bold text-muted">หน่วยงานที่ขอเบิก</label><select v-model="formOut.dept" class="form-select"><option v-for="d in depts" :value="d.name">{{ d.name }}</option></select></div></div>
          </div>
          <div class="card card-shadow p-3 mb-3 bg-light border">
-            <div class="row g-2 align-items-end">
-               <div class="col-12 col-md-3"><label class="small fw-bold text-muted">ค้นหาสินค้า</label><input list="listOut" v-model="tempOut.productName" @change="onTempOutProdSelect" class="form-control border-primary" placeholder="ค้นหา..."><datalist id="listOut"><option v-for="p in products" :value="p.name"></option></datalist></div>
-               <div class="col-12 col-md-3"><label class="small fw-bold text-success">แหล่งตัดสต็อก</label><select v-model="tempOut.stockSource" class="form-select border-success text-success fw-bold" @change="tempOut.selectedLotIdx=-1"><option value="Completed">คลังยาใหญ่ (พร้อมจ่าย)</option><option value="Pending">ยารอตรวจรับ (Pending)</option></select></div>
-               <div class="col-12 col-md-3"><label class="small fw-bold text-danger">ตัดจาก Lot</label><select v-model="tempOut.selectedLotIdx" class="form-select border-danger" @change="updateTempOutPrice"><option :value="-1">-- ไม่ระบุ Lot / ยอมให้ติดลบ --</option><option v-for="(lot, idx) in availableLotsOut" :value="idx">Lot: {{ lot.lot }} | Exp: {{ lot.exp }} | มี: {{ lot.qty }}</option></select></div>
-               <div class="col-12 col-md-1"><label class="small fw-bold text-muted">จำนวน</label><input type="number" v-model.number="tempOut.qty" class="form-control border-primary" min="1"></div>
-               <div class="col-12 col-md-2"><button @click="addToCartOut" class="btn btn-warning w-100 fw-bold shadow-sm mt-3 mt-md-0" :disabled="!tempOut.productId">เพิ่มลงตะกร้า</button></div>
-            </div>
+            <div class="row g-2 align-items-end"><div class="col-12 col-md-3"><label class="small fw-bold text-muted">ค้นหาสินค้า</label><input list="listOut" v-model="tempOut.productName" @change="onTempOutProdSelect" class="form-control border-primary" placeholder="ค้นหา..."><datalist id="listOut"><option v-for="p in products" :value="p.name"></option></datalist></div><div class="col-12 col-md-3"><label class="small fw-bold text-success">แหล่งตัดสต็อก</label><select v-model="tempOut.stockSource" class="form-select border-success text-success fw-bold" @change="tempOut.selectedLotIdx=-1"><option value="Completed">คลังยาใหญ่ (พร้อมจ่าย)</option><option value="Pending">ยารอตรวจรับ (Pending)</option></select></div><div class="col-12 col-md-3"><label class="small fw-bold text-danger">ตัดจาก Lot</label><select v-model="tempOut.selectedLotIdx" class="form-select border-danger" @change="updateTempOutPrice"><option :value="-1">-- ไม่ระบุ Lot / ยอมให้ติดลบ --</option><option v-for="(lot, idx) in availableLotsOut" :value="idx">Lot: {{ lot.lot }} | Exp: {{ lot.exp }} | มี: {{ lot.qty }}</option></select></div><div class="col-12 col-md-1"><label class="small fw-bold text-muted">จำนวน</label><input type="number" v-model.number="tempOut.qty" class="form-control border-primary" min="1"></div><div class="col-12 col-md-2"><button @click="addToCartOut" class="btn btn-warning w-100 fw-bold shadow-sm mt-3 mt-md-0" :disabled="!tempOut.productId">เพิ่มลงตะกร้า</button></div></div>
          </div>
          <div v-if="cartOut.length > 0" class="card card-shadow p-3">
             <div class="table-responsive"><table class="table table-sm table-bordered align-middle text-nowrap"><thead class="table-light text-center"><tr><th>สินค้า</th><th>แหล่งสต็อก</th><th>Lot ที่ตัด</th><th class="text-end">จำนวน</th><th class="text-end">ทุนรวม</th><th>ลบ</th></tr></thead><tbody><tr v-for="(item, idx) in cartOut"><td class="fw-bold">{{ item.productName }}</td><td class="text-center"><span class="badge" :class="item.status==='Pending'?'bg-warning text-dark':'bg-success'">{{item.status==='Pending'?'รอตรวจรับ':'คลังใหญ่'}}</span></td><td class="text-center">{{ item.lotNo }}</td><td class="text-end fw-bold text-primary fs-5">{{ formatNumber(item.qty) }}</td><td class="text-end">{{ formatNumber(item.totalPrice) }}</td><td class="text-center"><button @click="cartOut.splice(idx,1)" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></td></tr></tbody><tfoot class="table-light"><tr><td colspan="4" class="text-end fw-bold">รวมมูลค่าต้นทุนที่จ่าย</td><td class="text-end fw-bold text-danger fs-5">{{ formatCurrency(cartOutTotal) }}</td><td></td></tr></tfoot></table></div>
@@ -286,18 +262,9 @@
       </div>
 
       <div v-if="page === 'outboundList'">
-         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
-             <h3 class="fw-bold text-primary mb-2 mb-md-0">📑 ทะเบียนรายการใบเบิกจ่าย</h3>
-             <div class="d-flex gap-2"><button class="btn btn-outline-primary shadow-sm fw-bold" onclick="window.print()"><i class="bi bi-printer"></i> Print</button><button class="btn btn-success shadow-sm fw-bold" @click="exportExcel('outboundTable', 'RequisitionList')"><i class="bi bi-file-excel"></i> Export Excel</button></div>
-         </div>
+         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3"><h3 class="fw-bold text-primary mb-2 mb-md-0">📑 ทะเบียนรายการใบเบิกจ่าย</h3><div class="d-flex gap-2"><button class="btn btn-outline-primary shadow-sm fw-bold" onclick="window.print()"><i class="bi bi-printer"></i> Print</button><button class="btn btn-success shadow-sm fw-bold" @click="exportExcel('outboundTable', 'RequisitionList')"><i class="bi bi-file-excel"></i> Export Excel</button></div></div>
          <div class="card card-shadow p-3 mb-3 bg-light border-primary border-top border-4 no-print">
-            <div class="row g-2">
-                <div class="col-6 col-md-2"><label class="small fw-bold">ตั้งแต่วันที่</label><input type="date" v-model="outFilter.start" class="form-control"></div>
-                <div class="col-6 col-md-2"><label class="small fw-bold">ถึงวันที่</label><input type="date" v-model="outFilter.end" class="form-control"></div>
-                <div class="col-12 col-md-3"><label class="small fw-bold">หน่วยงาน</label><select v-model="outFilter.dept" class="form-select"><option value="">ทุกหน่วยงาน</option><option v-for="d in depts" :value="d.name">{{ d.name }}</option></select></div>
-                <div class="col-12 col-md-2"><label class="small fw-bold">ประเภท</label><select v-model="outFilter.type" class="form-select"><option value="">ทั้งหมด</option><option value="เบิกจริง">เบิกจริง</option><option value="เบิกฉุกเฉิน">เบิกฉุกเฉิน</option></select></div>
-                <div class="col-12 col-md-3"><label class="small fw-bold">เลขที่เอกสาร</label><input type="text" v-model="outFilter.search" class="form-control" placeholder="ค้นหา DOC-XX..."></div>
-            </div>
+            <div class="row g-2"><div class="col-6 col-md-2"><label class="small fw-bold">ตั้งแต่วันที่</label><input type="date" v-model="outFilter.start" class="form-control"></div><div class="col-6 col-md-2"><label class="small fw-bold">ถึงวันที่</label><input type="date" v-model="outFilter.end" class="form-control"></div><div class="col-12 col-md-3"><label class="small fw-bold">หน่วยงาน</label><select v-model="outFilter.dept" class="form-select"><option value="">ทุกหน่วยงาน</option><option v-for="d in depts" :value="d.name">{{ d.name }}</option></select></div><div class="col-12 col-md-2"><label class="small fw-bold">ประเภท</label><select v-model="outFilter.type" class="form-select"><option value="">ทั้งหมด</option><option value="เบิกจริง">เบิกจริง</option><option value="เบิกฉุกเฉิน">เบิกฉุกเฉิน</option></select></div><div class="col-12 col-md-3"><label class="small fw-bold">เลขที่เอกสาร</label><input type="text" v-model="outFilter.search" class="form-control" placeholder="ค้นหา DOC-XX..."></div></div>
          </div>
          <div class="card card-shadow p-3" id="outboundTable"><div class="table-responsive"><table class="table table-hover align-middle table-bordered text-nowrap"><thead class="table-dark"><tr><th @click="sortBy('date')" class="sortable text-center">วันที่จ่าย <span class="sort-icon text-white">{{sortIcon('date')}}</span></th><th @click="sortBy('docNo')" class="sortable text-center">เลขที่เอกสาร <span class="sort-icon text-white">{{sortIcon('docNo')}}</span></th><th @click="sortBy('dept')" class="sortable">หน่วยงาน <span class="sort-icon text-white">{{sortIcon('dept')}}</span></th><th @click="sortBy('reqType')" class="sortable text-center">ประเภทการเบิก <span class="sort-icon text-white">{{sortIcon('reqType')}}</span></th><th @click="sortBy('totalQty')" class="sortable text-end">จำนวนรวม <span class="sort-icon text-white">{{sortIcon('totalQty')}}</span></th><th @click="sortBy('totalVal')" class="sortable text-end">มูลค่ารวม (ทุน) <span class="sort-icon text-white">{{sortIcon('totalVal')}}</span></th></tr></thead><tbody><tr v-for="doc in sortedOutboundList" :key="doc.batchId"><td class="text-center">{{ doc.date.split(' ')[0] }}</td><td class="text-center fw-bold text-primary">{{ doc.docNo }}</td><td class="fw-bold">{{ doc.dept }}</td><td class="text-center"><span class="badge" :class="doc.reqType.includes('ฉุกเฉิน')?'bg-danger':'bg-success'">{{ doc.reqType }}</span></td><td class="text-end fw-bold">{{ formatNumber(doc.totalQty) }}</td><td class="text-end fw-bold text-danger">{{ formatCurrency(doc.totalVal) }}</td></tr><tr v-if="sortedOutboundList.length===0"><td colspan="6" class="text-center text-muted p-4">-- ไม่พบข้อมูลตามเงื่อนไขที่เลือก --</td></tr></tbody><tfoot class="table-light"><tr class="fw-bold fs-5"><td colspan="4" class="text-end">รวมยอดสุทธิตามตัวกรอง</td><td class="text-end text-primary">{{ formatNumber(outboundSummary.qty) }}</td><td class="text-end text-danger">{{ formatCurrency(outboundSummary.val) }}</td></tr></tfoot></table></div></div>
       </div>
@@ -310,36 +277,12 @@
 
       <div v-if="page === 'reports'">
          <h3 class="fw-bold mb-3">ระบบรายงานการบริหารเวชภัณฑ์</h3>
-         <div class="card card-shadow p-4 mb-3 no-print bg-light border border-primary">
-            <div class="row g-3">
-                <div class="col-12 col-md-5"><label class="fw-bold small text-primary mb-1">เลือกประเภทรายงานที่ต้องการ</label><select v-model="reportFilter.type" class="form-select border-primary shadow-sm fw-bold"><option value="inventory">1. รายงานสินค้าคงคลังปัจจุบัน (Current Inventory)</option><option value="category_val">2. สรุปมูลค่าตามประเภทยา (ED/NED)</option><option value="expiry">3. รายงานวันหมดอายุ (Expiry Report)</option><option value="usage">4. สรุปมูลค่าการเบิกจ่ายแยกตามหน่วยงาน</option></select></div>
-                <div class="col-6 col-md-2" v-if="['usage'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ตั้งแต่วันที่</label><input type="date" v-model="reportFilter.start" class="form-control shadow-sm"></div>
-                <div class="col-6 col-md-2" v-if="['usage'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ถึงวันที่</label><input type="date" v-model="reportFilter.end" class="form-control shadow-sm"></div>
-                <div class="col-12 col-md-3 d-flex gap-2 ms-auto align-items-end mt-3 mt-md-0"><button class="btn btn-outline-primary w-100 fw-bold shadow-sm" onclick="window.print()"><i class="bi bi-printer"></i> พิมพ์ PDF</button><button class="btn btn-success w-100 fw-bold shadow-sm" @click="exportExcel('reportArea', 'Report')"><i class="bi bi-file-excel"></i> ส่งออก Excel</button></div>
-            </div>
-         </div>
+         <div class="card card-shadow p-4 mb-3 no-print bg-light border border-primary"><div class="row g-3"><div class="col-12 col-md-5"><label class="fw-bold small text-primary mb-1">เลือกประเภทรายงานที่ต้องการ</label><select v-model="reportFilter.type" class="form-select border-primary shadow-sm fw-bold"><option value="inventory">1. รายงานสินค้าคงคลังปัจจุบัน (Current Inventory)</option><option value="category_val">2. สรุปมูลค่าตามประเภทยา (ED/NED)</option><option value="expiry">3. รายงานวันหมดอายุ (Expiry Report)</option><option value="usage">4. สรุปมูลค่าการเบิกจ่ายแยกตามหน่วยงาน</option></select></div><div class="col-6 col-md-2" v-if="['usage'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ตั้งแต่วันที่</label><input type="date" v-model="reportFilter.start" class="form-control shadow-sm"></div><div class="col-6 col-md-2" v-if="['usage'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ถึงวันที่</label><input type="date" v-model="reportFilter.end" class="form-control shadow-sm"></div><div class="col-12 col-md-3 d-flex gap-2 ms-auto align-items-end mt-3 mt-md-0"><button class="btn btn-outline-primary w-100 fw-bold shadow-sm" onclick="window.print()"><i class="bi bi-printer"></i> พิมพ์ PDF</button><button class="btn btn-success w-100 fw-bold shadow-sm" @click="exportExcel('reportArea', 'Report')"><i class="bi bi-file-excel"></i> ส่งออก Excel</button></div></div></div>
          
          <div class="card card-shadow p-4 bg-white" id="reportArea">
             <h4 class="text-center fw-bold text-primary mb-4">{{ getReportTitle() }}</h4>
             <div class="table-responsive">
-                
-                <div v-if="reportFilter.type==='inventory'">
-                    <table class="table table-bordered table-striped table-hover text-nowrap">
-                        <thead class="table-dark">
-                            <tr><th @click="sortBy('id')" class="sortable">รหัส <span class="sort-icon text-white">{{sortIcon('id')}}</span></th><th @click="sortBy('name')" class="sortable">ชื่อสินค้า <span class="sort-icon text-white">{{sortIcon('name')}}</span></th><th @click="sortBy('objType')" class="sortable text-center">ประเภท <span class="sort-icon text-white">{{sortIcon('objType')}}</span></th><th @click="sortBy('controlList')" class="sortable text-center">กลุ่มควบคุม <span class="sort-icon text-white">{{sortIcon('controlList')}}</span></th><th @click="sortBy('qty')" class="sortable text-end">คงเหลือ <span class="sort-icon text-white">{{sortIcon('qty')}}</span></th><th @click="sortBy('daysLeft')" class="sortable text-end bg-primary text-white border-light">ใช้งานได้ (วัน) <span class="sort-icon text-white">{{sortIcon('daysLeft')}}</span></th><th @click="sortBy('totalVal')" class="sortable text-end">มูลค่ารวม <span class="sort-icon text-white">{{sortIcon('totalVal')}}</span></th></tr>
-                        </thead>
-                        <tbody>
-                            <tr v-for="item in sortedFilteredInventory" :key="item.id">
-                                <td>{{ item.id }}</td><td class="fw-bold">{{ item.name }}</td><td class="text-center"><span class="badge bg-secondary">{{ item.objType }} {{ item.drugClass ? ' ('+item.drugClass+')' : '' }}</span></td>
-                                <td class="text-center"><span class="badge shadow-sm" :class="item.controlList==='Must list'?'bg-danger':(item.controlList==='Watch list'?'bg-warning text-dark':'bg-secondary')">{{ item.controlList }}</span></td>
-                                <td class="text-end fw-bold text-primary fs-6">{{ formatNumber(item.qty) }} <span class="fs-6 text-muted fw-normal">{{ item.unit }}</span></td>
-                                <td class="text-end fw-bold" :class="{'text-danger': item.daysLeft !== 'N/A' && item.daysLeft < 15, 'text-success': item.daysLeft !== 'N/A' && item.daysLeft >= 45}">{{ item.daysLeft }}</td>
-                                <td class="text-end fw-bold">{{ formatCurrency(item.totalVal) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
+                <div v-if="reportFilter.type==='inventory'"><table class="table table-bordered table-striped table-hover text-nowrap"><thead class="table-dark"><tr><th @click="sortBy('id')" class="sortable">รหัส <span class="sort-icon text-white">{{sortIcon('id')}}</span></th><th @click="sortBy('name')" class="sortable">ชื่อสินค้า <span class="sort-icon text-white">{{sortIcon('name')}}</span></th><th @click="sortBy('objType')" class="sortable text-center">ประเภท <span class="sort-icon text-white">{{sortIcon('objType')}}</span></th><th @click="sortBy('controlList')" class="sortable text-center">กลุ่มควบคุม <span class="sort-icon text-white">{{sortIcon('controlList')}}</span></th><th @click="sortBy('qty')" class="sortable text-end">คงเหลือ <span class="sort-icon text-white">{{sortIcon('qty')}}</span></th><th @click="sortBy('daysLeft')" class="sortable text-end bg-primary text-white border-light">ใช้งานได้ (วัน) <span class="sort-icon text-white">{{sortIcon('daysLeft')}}</span></th><th @click="sortBy('totalVal')" class="sortable text-end">มูลค่ารวม <span class="sort-icon text-white">{{sortIcon('totalVal')}}</span></th></tr></thead><tbody><tr v-for="item in sortedFilteredInventory" :key="item.id"><td>{{ item.id }}</td><td class="fw-bold">{{ item.name }}</td><td class="text-center"><span class="badge bg-secondary">{{ item.objType }} {{ item.drugClass ? ' ('+item.drugClass+')' : '' }}</span></td><td class="text-center"><span class="badge shadow-sm" :class="item.controlList==='Must list'?'bg-danger':(item.controlList==='Watch list'?'bg-warning text-dark':'bg-secondary')">{{ item.controlList }}</span></td><td class="text-end fw-bold text-primary fs-6">{{ formatNumber(item.qty) }} <span class="fs-6 text-muted fw-normal">{{ item.unit }}</span></td><td class="text-end fw-bold" :class="{'text-danger': item.daysLeft !== 'N/A' && item.daysLeft < 15, 'text-success': item.daysLeft !== 'N/A' && item.daysLeft >= 45}">{{ item.daysLeft }}</td><td class="text-end fw-bold">{{ formatCurrency(item.totalVal) }}</td></tr></tbody></table></div>
                 <div v-if="reportFilter.type==='category_val'"><table class="table table-bordered text-nowrap"><thead class="table-dark"><tr><th @click="sortBy('type')" class="sortable text-center">ประเภท <span class="sort-icon text-white">{{sortIcon('type')}}</span></th><th @click="sortBy('cls')" class="sortable text-center">กลุ่ม <span class="sort-icon text-white">{{sortIcon('cls')}}</span></th><th @click="sortBy('val')" class="sortable text-end">มูลค่าสุทธิ (บาท) <span class="sort-icon text-white">{{sortIcon('val')}}</span></th><th @click="sortBy('pct')" class="sortable text-end">สัดส่วน (%) <span class="sort-icon text-white">{{sortIcon('pct')}}</span></th></tr></thead><tbody><tr v-for="row in sortedCategoryReport" :key="row.type+row.cls"><td class="text-center fw-bold">{{ row.type }}</td><td class="text-center">{{ row.cls }}</td><td class="text-end fw-bold text-primary fs-5">{{ formatCurrency(row.val) }}</td><td class="text-end text-success fw-bold fs-5">{{ row.pct }}%</td></tr></tbody><tfoot><tr class="table-secondary"><td colspan="2" class="text-end fw-bold fs-5">มูลค่าคงคลังรวมทั้งสิ้น</td><td class="text-end text-danger fw-bold fs-4">{{ formatCurrency(totalInventoryValue) }}</td><td class="text-end fw-bold fs-5">100%</td></tr></tfoot></table></div>
                 <div v-if="reportFilter.type==='expiry'"><table class="table table-bordered table-hover text-nowrap"><thead class="table-dark"><tr><th @click="sortBy('productName')" class="sortable">รายการสินค้า <span class="sort-icon text-white">{{sortIcon('productName')}}</span></th><th @click="sortBy('lot')" class="sortable text-center">Lot No. <span class="sort-icon text-white">{{sortIcon('lot')}}</span></th><th @click="sortBy('exp')" class="sortable text-center">วันหมดอายุ (Exp) <span class="sort-icon text-white">{{sortIcon('exp')}}</span></th><th @click="sortBy('qty')" class="sortable text-end">จำนวนคงเหลือ <span class="sort-icon text-white">{{sortIcon('qty')}}</span></th><th class="text-center">สถานะ</th></tr></thead><tbody><tr v-for="lot in sortedActiveLots" :key="lot.lot"><td class="fw-bold">{{ lot.productName }}</td><td class="text-center">{{ lot.lot }}</td><td class="text-center fw-bold">{{ lot.exp }}</td><td class="text-end fw-bold text-primary fs-5">{{ formatNumber(lot.qty) }}</td><td class="text-center"><span class="badge px-3 py-2" :class="isExpired(lot.exp)?'bg-danger':(isNearExp(lot.exp)?'bg-warning text-dark':'bg-success')">{{ isExpired(lot.exp)?'หมดอายุแล้ว':(isNearExp(lot.exp)?'ใกล้หมด (6 เดือน)':'ปกติ') }}</span></td></tr><tr v-if="sortedActiveLots.length===0"><td colspan="5" class="text-center text-muted p-4">-- ไม่พบข้อมูล Lot สินค้าในคลัง --</td></tr></tbody></table></div>
                 <div v-if="reportFilter.type==='usage'"><table class="table table-bordered table-striped align-middle text-nowrap"><thead class="table-dark"><tr><th>หน่วยงานที่เบิกของ</th><th class="text-end">มูลค่ารวมที่เบิกไป (บาท)</th></tr></thead><tbody><tr v-for="(val, dept) in deptUsageReport"><td><span class="badge bg-info text-dark fs-6">{{ dept }}</span></td><td class="text-end fw-bold text-danger fs-5">{{ formatCurrency(val) }}</td></tr><tr v-if="Object.keys(deptUsageReport).length===0"><td colspan="2" class="text-center text-muted p-4">-- ไม่พบการเบิกจ่ายในช่วงเวลานี้ --</td></tr></tbody></table></div>
@@ -349,79 +292,16 @@
 
       <div v-if="page === 'mophExport'">
          <h3 class="fw-bold mb-3 text-info"><i class="bi bi-database-down me-2"></i>ส่งออกข้อมูล 5 แฟ้มมาตรฐานกระทรวงฯ</h3>
-         <div class="alert alert-primary shadow-sm border-0">
-             <strong>คำอธิบาย:</strong> ระบบประมวลผลข้อมูลการบริหารเวชภัณฑ์เพื่อส่งออกเป็นไฟล์ <code>.csv</code> (UTF-8 Pipe-delimited) ตามมาตรฐานกระทรวงสาธารณสุข
-         </div>
-         
+         <div class="alert alert-primary shadow-sm border-0"><strong>คำอธิบาย:</strong> ระบบประมวลผลข้อมูลการบริหารเวชภัณฑ์เพื่อส่งออกเป็นไฟล์ <code>.csv</code> (UTF-8 Pipe-delimited) ตามมาตรฐานกระทรวงสาธารณสุข</div>
          <div class="card card-shadow p-4 mb-4">
-             <div class="row align-items-center">
-                 <div class="col-md-6">
-                     <label class="fw-bold mb-2">ระบุปีและเดือนที่ต้องการรายงาน (PERIOD_RPT)</label>
-                     <input type="month" v-model="mophPeriod" class="form-control form-control-lg border-primary w-50">
-                     <small class="text-muted mt-1 d-block">รูปแบบ: YYYY-MM (ค.ศ.) เช่น 2026-04</small>
-                 </div>
-             </div>
+             <div class="row align-items-center"><div class="col-md-6"><label class="fw-bold mb-2">ระบุปีและเดือนที่ต้องการรายงาน (PERIOD_RPT)</label><input type="month" v-model="mophPeriod" class="form-control form-control-lg border-primary w-50"><small class="text-muted mt-1 d-block">รูปแบบ: YYYY-MM (ค.ศ.) เช่น 2026-04</small></div></div>
          </div>
-
          <div class="row g-4">
-             <div class="col-md-6">
-                 <div class="card card-shadow h-100 border-0 border-start border-4 border-info">
-                     <div class="card-body d-flex justify-content-between align-items-center">
-                         <div>
-                             <h5 class="fw-bold text-dark mb-1">1. DRUGLIST.csv</h5>
-                             <p class="text-muted small mb-0">ข้อมูลพื้นฐานรายการยา (ส่งเฉพาะยา)</p>
-                         </div>
-                         <button @click="exportDrugListCSV" class="btn btn-info text-white shadow-sm px-4" :disabled="!mophPeriod">
-                             <i class="bi bi-download me-2"></i>ดาวน์โหลด
-                         </button>
-                     </div>
-                 </div>
-             </div>
-             
-             <div class="col-md-6">
-                 <div class="card card-shadow h-100 border-0 border-start border-4 border-secondary opacity-50">
-                     <div class="card-body d-flex justify-content-between align-items-center">
-                         <div>
-                             <h5 class="fw-bold text-dark mb-1">2. PURCHASEPLAN.csv</h5>
-                             <p class="text-muted small mb-0">แผนการจัดซื้อ (กำลังพัฒนา)</p>
-                         </div>
-                         <button class="btn btn-secondary px-4" disabled><i class="bi bi-lock me-2"></i>ดาวน์โหลด</button>
-                     </div>
-                 </div>
-             </div>
-             <div class="col-md-6">
-                 <div class="card card-shadow h-100 border-0 border-start border-4 border-secondary opacity-50">
-                     <div class="card-body d-flex justify-content-between align-items-center">
-                         <div>
-                             <h5 class="fw-bold text-dark mb-1">3. RECEIPT.csv</h5>
-                             <p class="text-muted small mb-0">ข้อมูลการรับเข้า (กำลังพัฒนา)</p>
-                         </div>
-                         <button class="btn btn-secondary px-4" disabled><i class="bi bi-lock me-2"></i>ดาวน์โหลด</button>
-                     </div>
-                 </div>
-             </div>
-             <div class="col-md-6">
-                 <div class="card card-shadow h-100 border-0 border-start border-4 border-secondary opacity-50">
-                     <div class="card-body d-flex justify-content-between align-items-center">
-                         <div>
-                             <h5 class="fw-bold text-dark mb-1">4. DISTRIBUTION.csv</h5>
-                             <p class="text-muted small mb-0">ข้อมูลการจ่ายยา (กำลังพัฒนา)</p>
-                         </div>
-                         <button class="btn btn-secondary px-4" disabled><i class="bi bi-lock me-2"></i>ดาวน์โหลด</button>
-                     </div>
-                 </div>
-             </div>
-             <div class="col-md-6">
-                 <div class="card card-shadow h-100 border-0 border-start border-4 border-secondary opacity-50">
-                     <div class="card-body d-flex justify-content-between align-items-center">
-                         <div>
-                             <h5 class="fw-bold text-dark mb-1">5. INVENTORY.csv</h5>
-                             <p class="text-muted small mb-0">ยอดคงเหลือ (กำลังพัฒนา)</p>
-                         </div>
-                         <button class="btn btn-secondary px-4" disabled><i class="bi bi-lock me-2"></i>ดาวน์โหลด</button>
-                     </div>
-                 </div>
-             </div>
+             <div class="col-md-6"><div class="card card-shadow h-100 border-0 border-start border-4 border-info"><div class="card-body d-flex justify-content-between align-items-center"><div><h5 class="fw-bold text-dark mb-1">1. DRUGLIST.csv</h5><p class="text-muted small mb-0">ข้อมูลพื้นฐานรายการยา (ส่งเฉพาะยา)</p></div><button @click="exportDrugListCSV" class="btn btn-info text-white shadow-sm px-4" :disabled="!mophPeriod"><i class="bi bi-download me-2"></i>ดาวน์โหลด</button></div></div></div>
+             <div class="col-md-6"><div class="card card-shadow h-100 border-0 border-start border-4 border-success"><div class="card-body d-flex justify-content-between align-items-center"><div><h5 class="fw-bold text-dark mb-1">2. PURCHASEPLAN.csv</h5><p class="text-muted small mb-0">แผนการจัดซื้อประจำปี</p></div><button @click="exportPurchasePlanCSV" class="btn btn-success shadow-sm px-4" :disabled="!mophPeriod"><i class="bi bi-download me-2"></i>ดาวน์โหลด</button></div></div></div>
+             <div class="col-md-6"><div class="card card-shadow h-100 border-0 border-start border-4 border-secondary opacity-50"><div class="card-body d-flex justify-content-between align-items-center"><div><h5 class="fw-bold text-dark mb-1">3. RECEIPT.csv</h5><p class="text-muted small mb-0">ข้อมูลการรับเข้า (กำลังพัฒนา)</p></div><button class="btn btn-secondary px-4" disabled><i class="bi bi-lock me-2"></i>ดาวน์โหลด</button></div></div></div>
+             <div class="col-md-6"><div class="card card-shadow h-100 border-0 border-start border-4 border-secondary opacity-50"><div class="card-body d-flex justify-content-between align-items-center"><div><h5 class="fw-bold text-dark mb-1">4. DISTRIBUTION.csv</h5><p class="text-muted small mb-0">ข้อมูลการจ่ายยา (กำลังพัฒนา)</p></div><button class="btn btn-secondary px-4" disabled><i class="bi bi-lock me-2"></i>ดาวน์โหลด</button></div></div></div>
+             <div class="col-md-6"><div class="card card-shadow h-100 border-0 border-start border-4 border-secondary opacity-50"><div class="card-body d-flex justify-content-between align-items-center"><div><h5 class="fw-bold text-dark mb-1">5. INVENTORY.csv</h5><p class="text-muted small mb-0">ยอดคงเหลือ (กำลังพัฒนา)</p></div><button class="btn btn-secondary px-4" disabled><i class="bi bi-lock me-2"></i>ดาวน์โหลด</button></div></div></div>
          </div>
       </div>
 
@@ -431,173 +311,111 @@
            <div v-if="cartReq.length > 0" class="card card-shadow p-4 bg-light"><h5 class="fw-bold text-dark"><i class="bi bi-basket2-fill text-warning"></i> รายการในตะกร้า ({{ cartReq.length }} รายการ)</h5><div class="table-responsive"><table class="table table-hover bg-white mt-3 border text-nowrap"><thead class="table-primary text-center"><tr><th class="text-start">รายการสินค้า</th><th>จำนวนที่ขอเบิก</th><th>ลบ</th></tr></thead><tbody><tr v-for="(item, idx) in cartReq"><td class="text-start"><span class="fw-bold fs-5">{{ item.productName }}</span></td><td class="text-center fs-4 text-primary fw-bold">{{ item.qty }} <span class="fs-6 text-muted fw-normal">{{item.unit}}</span></td><td class="text-center"><button @click="cartReq.splice(idx,1)" class="btn btn-outline-danger"><i class="bi bi-trash-fill"></i></button></td></tr></tbody></table></div><div class="row mt-4 align-items-end p-4 bg-white rounded border border-warning border-3"><div class="col-12 col-md-6"><label class="fw-bold text-danger mb-2 fs-5">1. กรุณาระบุหน่วยงานของท่าน</label><select v-model="reqDept" class="form-select form-select-lg border-danger shadow-sm"><option value="" disabled selected>-- คลิกเพื่อเลือกหน่วยงาน --</option><option v-for="d in depts" :value="d.name">{{ d.name }}</option></select></div><div class="col-12 col-md-6"><label class="fw-bold text-success mb-2 fs-5 mt-3 mt-md-0">2. ตรวจสอบและส่งข้อมูล</label><button @click="submitRequest" class="btn btn-success btn-lg w-100 fw-bold shadow" :disabled="!reqDept"><i class="bi bi-send-fill me-2"></i> บันทึกและส่งคำขอเบิกไปยังคลัง</button></div></div></div>
       </div>
       
-      <div v-if="page.startsWith('manage_')">
+      <div v-if="page === 'manage_plan'">
          <div class="d-flex justify-content-between align-items-center mb-3">
-             <h3 class="mb-0 fw-bold"><i class="bi bi-gear-fill me-2 text-secondary"></i>{{ adminTitle }}</h3>
-             <button @click="openAdminModal(null)" class="btn btn-primary shadow-sm fw-bold"><i class="bi bi-plus-lg"></i> เพิ่มข้อมูลใหม่</button>
+             <h3 class="mb-0 fw-bold"><i class="bi bi-journal-text me-2 text-success"></i>จัดการแผนจัดซื้อ (PURCHASEPLAN)</h3>
+             <button @click="openPlanModal(null)" class="btn btn-success shadow-sm fw-bold"><i class="bi bi-plus-lg"></i> สร้างแผนจัดซื้อ</button>
          </div>
          <div class="card card-shadow p-3">
              <div class="table-responsive">
                  <table class="table table-hover align-middle text-nowrap">
                      <thead class="table-dark">
-                         <tr v-if="page==='manage_prod'">
-                             <th>รหัส/WorkingCode</th>
-                             <th>ชื่อรายการ</th>
-                             <th>หมวด/หน่วย</th>
-                             <th>ประเภท/กลุ่ม</th>
-                             <th>ระดับควบคุม</th>
-                             <th>Min/Max</th>
-                             <th class="text-center">จัดการ</th>
-                         </tr>
-                         <tr v-else>
-                             <th>รหัส / Key</th>
-                             <th>ชื่อ / คำอธิบาย</th>
-                             <th class="text-center">จัดการ</th>
-                         </tr>
+                         <tr><th>ปีงบประมาณ</th><th>รายการยา</th><th>ขนาดบรรจุ (Pack)</th><th>ราคา/Pack</th><th>แผนจัดซื้อปีนี้ (Pack)</th><th>มูลค่ารวม (บาท)</th><th class="text-center">จัดการ</th></tr>
                      </thead>
                      <tbody>
-                         <tr v-for="item in adminDataList">
-                             <template v-if="page==='manage_prod'">
-                                 <td><span class="badge bg-light text-dark border px-2 py-1 fs-6">{{ item.id }}</span><br><small class="text-muted" v-if="item.workingCode">{{ item.workingCode }}</small></td>
-                                 <td class="fw-bold text-primary">{{ item.name }}</td>
-                                 <td><span class="badge bg-info text-dark">{{ item.category }}</span><br><small class="text-muted fw-bold">{{ item.unit }}</small></td>
-                                 <td>{{ item.objType }}<br><span class="badge bg-secondary" v-if="item.drugClass">{{ item.drugClass }}</span></td>
-                                 <td><span class="badge shadow-sm" :class="item.controlList==='Must list'?'bg-danger':(item.controlList==='Watch list'?'bg-warning text-dark':'bg-secondary')">{{ item.controlList }}</span></td>
-                                 <td><span class="text-danger fw-bold">Min: {{ item.min }}</span><br><span class="text-success fw-bold">Max: {{ item.max }}</span></td>
-                             </template>
-                             <template v-else>
-                                 <td class="fw-bold text-primary">{{ item.id || item.user || item.name }}</td>
-                                 <td class="fw-bold">{{ item.name }}</td>
-                             </template>
-                             <td class="text-center">
-                                 <button @click="openAdminModal(item)" class="btn btn-outline-warning me-2 shadow-sm"><i class="bi bi-pencil-fill"></i></button>
-                                 <button @click="deleteItem(item.id || item.user || item.name)" class="btn btn-outline-danger shadow-sm"><i class="bi bi-trash-fill"></i></button>
-                             </td>
+                         <tr v-for="plan in purchasePlans" :key="plan.id">
+                             <td class="fw-bold text-primary">{{ plan.yearBudget }}</td>
+                             <td><span class="fw-bold">{{ getProductName(plan.productId) }}</span><br><small class="text-muted">{{ plan.productId }}</small></td>
+                             <td class="text-center">{{ formatNumber(plan.packSize) }}</td>
+                             <td class="text-end">{{ formatCurrency(plan.packCost) }}</td>
+                             <td class="text-center fw-bold text-success fs-6">{{ formatNumber(plan.qtyThisYear) }}</td>
+                             <td class="text-end fw-bold text-danger">{{ formatCurrency(plan.qtyThisYear * plan.packCost) }}</td>
+                             <td class="text-center"><button @click="openPlanModal(plan)" class="btn btn-outline-warning btn-sm me-2 shadow-sm"><i class="bi bi-pencil-fill"></i></button><button @click="deleteItem('plan', plan.id)" class="btn btn-outline-danger btn-sm shadow-sm"><i class="bi bi-trash-fill"></i></button></td>
                          </tr>
+                         <tr v-if="purchasePlans.length===0"><td colspan="7" class="text-center text-muted p-4">-- ยังไม่มีข้อมูลแผนจัดซื้อ --</td></tr>
                      </tbody>
                  </table>
              </div>
          </div>
          
          <div v-if="showModal" class="loading-overlay" style="background: rgba(0,0,0,0.6);">
+            <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 800px; border-radius:15px; max-height: 90vh; overflow-y: auto;">
+                <h4 class="mb-4 text-success fw-bold"><i class="bi bi-journal-plus me-2"></i>{{ modalForm.isEdit ? 'แก้ไขแผนจัดซื้อ' : 'สร้างแผนจัดซื้อใหม่' }}</h4>
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="small text-muted fw-bold">ปีงบประมาณ (ค.ศ.)</label><input type="number" v-model="modalForm.yearBudget" class="form-control fw-bold border-success" placeholder="เช่น 2026"></div>
+                    <div class="col-md-9"><label class="small text-muted fw-bold">รายการยา</label><input list="planProdList" v-model="modalForm.tempProductName" @change="onPlanProdSelect" class="form-control border-success"><datalist id="planProdList"><option v-for="p in products" :value="p.name"></option></datalist></div>
+                    
+                    <div class="col-12 mt-3"><h6 class="fw-bold text-secondary border-bottom pb-2">ข้อมูลขนาดและราคา</h6></div>
+                    <div class="col-md-4"><label class="small text-muted fw-bold">ขนาดบรรจุ (Base Unit ต่อ 1 Pack)</label><input type="number" v-model.number="modalForm.packSize" class="form-control"></div>
+                    <div class="col-md-4"><label class="small text-muted fw-bold">ราคาต่อ Pack (บาท)</label><input type="number" v-model.number="modalForm.packCost" class="form-control"></div>
+                    <div class="col-md-4"><label class="small text-danger fw-bold">มูลค่าแผนจัดซื้อปีนี้</label><input type="text" :value="formatCurrency(modalForm.packCost * modalForm.qtyThisYear)" class="form-control bg-light fw-bold" readonly></div>
+                    
+                    <div class="col-12 mt-3"><h6 class="fw-bold text-secondary border-bottom pb-2">ปริมาณการใช้ย้อนหลัง (หน่วย: Pack)</h6></div>
+                    <div class="col-md-4"><label class="small text-muted fw-bold">ปีงบประมาณที่แล้ว (Y-1)</label><input type="number" v-model.number="modalForm.qtyUseY1" class="form-control"></div>
+                    <div class="col-md-4"><label class="small text-muted fw-bold">ย้อนหลัง 2 ปี (Y-2)</label><input type="number" v-model.number="modalForm.qtyUseY2" class="form-control"></div>
+                    <div class="col-md-4"><label class="small text-muted fw-bold">ย้อนหลัง 3 ปี (Y-3)</label><input type="number" v-model.number="modalForm.qtyUseY3" class="form-control"></div>
+
+                    <div class="col-12 mt-3"><h6 class="fw-bold text-success border-bottom pb-2">แผนจัดซื้อปีนี้ (หน่วย: Pack)</h6></div>
+                    <div class="col-md-4"><label class="small text-success fw-bold">จำนวนรวมทั้งปี (QTY_THIS_YEAR)</label><input type="number" v-model.number="modalForm.qtyThisYear" class="form-control border-success fw-bold text-success"></div>
+                    <div class="col-md-8">
+                        <div class="row g-2">
+                            <div class="col-3"><label class="small text-muted">ไตรมาส 1</label><input type="number" v-model.number="modalForm.qtyQ1" class="form-control"></div>
+                            <div class="col-3"><label class="small text-muted">ไตรมาส 2</label><input type="number" v-model.number="modalForm.qtyQ2" class="form-control"></div>
+                            <div class="col-3"><label class="small text-muted">ไตรมาส 3</label><input type="number" v-model.number="modalForm.qtyQ3" class="form-control"></div>
+                            <div class="col-3"><label class="small text-muted">ไตรมาส 4</label><input type="number" v-model.number="modalForm.qtyQ4" class="form-control"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-4 d-flex gap-2">
+                    <button @click="savePlanData" class="btn btn-success flex-grow-1 py-2 fw-bold shadow-sm" :disabled="!modalForm.productId || !modalForm.yearBudget"><i class="bi bi-save"></i> บันทึกแผนจัดซื้อ</button> 
+                    <button @click="showModal=false" class="btn btn-outline-secondary py-2">ยกเลิก</button>
+                </div>
+            </div>
+         </div>
+      </div>
+
+      <div v-if="page.startsWith('manage_') && page !== 'manage_plan'">
+         <div class="d-flex justify-content-between align-items-center mb-3"><h3 class="mb-0 fw-bold"><i class="bi bi-gear-fill me-2 text-secondary"></i>{{ adminTitle }}</h3><button @click="openAdminModal(null)" class="btn btn-primary shadow-sm fw-bold"><i class="bi bi-plus-lg"></i> เพิ่มข้อมูลใหม่</button></div>
+         <div class="card card-shadow p-3">
+             <div class="table-responsive">
+                 <table class="table table-hover align-middle text-nowrap"><thead class="table-dark"><tr v-if="page==='manage_prod'"><th>รหัส/WorkingCode</th><th>ชื่อรายการ</th><th>หมวด/หน่วย</th><th>ประเภท/กลุ่ม</th><th>ระดับควบคุม</th><th>Min/Max</th><th class="text-center">จัดการ</th></tr><tr v-else><th>รหัส / Key</th><th>ชื่อ / คำอธิบาย</th><th class="text-center">จัดการ</th></tr></thead><tbody><tr v-for="item in adminDataList"><template v-if="page==='manage_prod'"><td><span class="badge bg-light text-dark border px-2 py-1 fs-6">{{ item.id }}</span><br><small class="text-muted" v-if="item.workingCode">{{ item.workingCode }}</small></td><td class="fw-bold text-primary">{{ item.name }}</td><td><span class="badge bg-info text-dark">{{ item.category }}</span><br><small class="text-muted fw-bold">{{ item.unit }}</small></td><td>{{ item.objType }}<br><span class="badge bg-secondary" v-if="item.drugClass">{{ item.drugClass }}</span></td><td><span class="badge shadow-sm" :class="item.controlList==='Must list'?'bg-danger':(item.controlList==='Watch list'?'bg-warning text-dark':'bg-secondary')">{{ item.controlList }}</span></td><td><span class="text-danger fw-bold">Min: {{ item.min }}</span><br><span class="text-success fw-bold">Max: {{ item.max }}</span></td></template><template v-else><td class="fw-bold text-primary">{{ item.id || item.user || item.name }}</td><td class="fw-bold">{{ item.name }}</td></template><td class="text-center"><button @click="openAdminModal(item)" class="btn btn-outline-warning me-2 shadow-sm"><i class="bi bi-pencil-fill"></i></button><button @click="deleteItem(item.id || item.user || item.name)" class="btn btn-outline-danger shadow-sm"><i class="bi bi-trash-fill"></i></button></td></tr></tbody></table>
+             </div>
+         </div>
+         
+         <div v-if="showModal && page !== 'manage_plan'" class="loading-overlay" style="background: rgba(0,0,0,0.6);">
             <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 600px; border-radius:15px; max-height: 90vh; overflow-y: auto;">
                 <h4 class="mb-4 text-primary fw-bold"><i class="bi bi-pencil-square me-2"></i>{{ modalForm.isEdit ? 'แก้ไขข้อมูล' : 'เพิ่มข้อมูลใหม่' }}</h4>
                 <div v-if="page==='manage_prod'" class="d-flex flex-column gap-3">
-                    <div class="row">
-                        <div class="col-6"><label class="small text-muted fw-bold">รหัสสินค้าในระบบ</label><input v-model="modalForm.id" class="form-control bg-light fw-bold" :readonly="modalForm.isEdit"></div>
-                        <div class="col-6"><label class="small text-muted fw-bold text-info">รหัส 24 หลัก (HOSxP)</label><input v-model="modalForm.workingCode" class="form-control border-info" placeholder="WORKING_CODE"></div>
-                    </div>
+                    <div class="row"><div class="col-6"><label class="small text-muted fw-bold">รหัสสินค้าในระบบ</label><input v-model="modalForm.id" class="form-control bg-light fw-bold" :readonly="modalForm.isEdit"></div><div class="col-6"><label class="small text-muted fw-bold text-info">รหัส 24 หลัก (HOSxP)</label><input v-model="modalForm.workingCode" class="form-control border-info" placeholder="WORKING_CODE"></div></div>
                     <div><label class="small text-muted fw-bold">ชื่อสินค้า (GENERIC_NAME)</label><input v-model="modalForm.name" class="form-control border-primary fw-bold text-primary"></div>
-                    <div class="row">
-                        <div class="col-12 col-md-6 mb-2 mb-md-0"><label class="small text-muted fw-bold">หมวดหมู่</label><input v-model="modalForm.cat" list="catList" class="form-control"><datalist id="catList"><option v-for="c in categories" :value="c.name"></option></datalist></div>
-                        <div class="col-12 col-md-6"><label class="small text-muted fw-bold">หน่วยนับ</label><input v-model="modalForm.unit" list="unitList" class="form-control"><datalist id="unitList"><option v-for="u in units" :value="u.name"></option></datalist></div>
-                    </div>
-                    <div class="row">
-                        <div class="col-6"><label class="small text-danger fw-bold">จุดสั่งซื้อ (Min)</label><input type="number" v-model="modalForm.min" class="form-control border-danger"></div>
-                        <div class="col-6"><label class="small text-success fw-bold">สต็อกสูงสุด (Max)</label><input type="number" v-model="modalForm.max" class="form-control border-success"></div>
-                    </div>
-                    <div class="row bg-light p-3 rounded mx-0 mt-1 border">
-                        <div class="col-12 col-md-6 mb-2 mb-md-0"><label class="small fw-bold text-dark">ประเภทเวชภัณฑ์</label><select v-model="modalForm.objType" class="form-select border-primary fw-bold"><option value="เวชภัณฑ์มิใช่ยา">เวชภัณฑ์มิใช่ยา</option><option value="ยา">ยา</option><option value="วัสดุ">วัสดุอื่นๆ</option></select></div>
-                        <div class="col-12 col-md-6"><label class="small fw-bold text-danger">ระดับการควบคุม</label><select v-model="modalForm.controlList" class="form-select border-danger fw-bold"><option value="General list">General list (ทั่วไป)</option><option value="Watch list">Watch list (เฝ้าระวัง)</option><option value="Must list">Must list (ห้ามขาด)</option></select></div>
-                    </div>
+                    <div class="row"><div class="col-12 col-md-6 mb-2 mb-md-0"><label class="small text-muted fw-bold">หมวดหมู่</label><input v-model="modalForm.cat" list="catList" class="form-control"><datalist id="catList"><option v-for="c in categories" :value="c.name"></option></datalist></div><div class="col-12 col-md-6"><label class="small text-muted fw-bold">หน่วยนับ</label><input v-model="modalForm.unit" list="unitList" class="form-control"><datalist id="unitList"><option v-for="u in units" :value="u.name"></option></datalist></div></div>
+                    <div class="row"><div class="col-6"><label class="small text-danger fw-bold">จุดสั่งซื้อ (Min)</label><input type="number" v-model="modalForm.min" class="form-control border-danger"></div><div class="col-6"><label class="small text-success fw-bold">สต็อกสูงสุด (Max)</label><input type="number" v-model="modalForm.max" class="form-control border-success"></div></div>
+                    <div class="row bg-light p-3 rounded mx-0 mt-1 border"><div class="col-12 col-md-6 mb-2 mb-md-0"><label class="small fw-bold text-dark">ประเภทเวชภัณฑ์</label><select v-model="modalForm.objType" class="form-select border-primary fw-bold"><option value="เวชภัณฑ์มิใช่ยา">เวชภัณฑ์มิใช่ยา</option><option value="ยา">ยา</option><option value="วัสดุ">วัสดุอื่นๆ</option></select></div><div class="col-12 col-md-6"><label class="small fw-bold text-danger">ระดับการควบคุม</label><select v-model="modalForm.controlList" class="form-select border-danger fw-bold"><option value="General list">General list (ทั่วไป)</option><option value="Watch list">Watch list (เฝ้าระวัง)</option><option value="Must list">Must list (ห้ามขาด)</option></select></div></div>
+                    
                     <div class="row bg-info bg-opacity-10 p-3 rounded mx-0 mt-1 border border-info" v-if="modalForm.objType === 'ยา'">
                         <div class="col-12 mb-2"><h6 class="fw-bold text-info"><i class="bi bi-database-down"></i> สำหรับรายงาน 5 แฟ้ม</h6></div>
-                        <div class="col-6 mb-2"><label class="small fw-bold text-dark">กลุ่มบัญชียา</label><select v-model="modalForm.drugClass" class="form-select border-info fw-bold"><option value="ED">ในบัญชี (ED)</option><option value="NED">นอกบัญชี (NED)</option></select></div>
+                        <div class="col-6 mb-2"><label class="small fw-bold text-dark">กลุ่มบัญชียา (NLEM)</label><select v-model="modalForm.drugClass" class="form-select border-info fw-bold"><option value="ED">ในบัญชี (ED)</option><option value="NED">นอกบัญชี (NED)</option></select></div>
                         <div class="col-6 mb-2"><label class="small fw-bold text-dark">รหัส GPUID</label><input v-model="modalForm.gpuid" class="form-control border-info" placeholder="เว้นว่างระบบจะส่ง 99"></div>
                         <div class="col-6 mb-2"><label class="small fw-bold text-dark">ประเภทยา (Cat)</label><select v-model="modalForm.productCat" class="form-select border-info"><option value="1">1. แผนปัจจุบัน(อย.)</option><option value="2">2. ผลิตเอง(แผนปัจจุบัน)</option><option value="3">3. สมุนไพร(อย.)</option><option value="4">4. ผลิตเอง(สมุนไพร)</option><option value="5">5. อื่นๆ</option></select></div>
                         <div class="col-6 mb-2"><label class="small fw-bold text-dark">สถานะยาใน รพ.</label><select v-model="modalForm.drugStatus" class="form-select border-info"><option value="1">1. มีการใช้งาน</option><option value="2">2. ตัดออกแต่มียา</option><option value="3">3. เฉพาะราย</option><option value="4">4. ตัดออกและไม่มียา</option></select></div>
                         <div class="col-12"><label class="small fw-bold text-dark">วันที่เปลี่ยนสถานะยา (YYYYMMDD)</label><input type="text" v-model="modalForm.dateStatus" class="form-control border-info" placeholder="เช่น 20260409"></div>
                     </div>
                 </div>
-                <div v-else class="d-flex flex-column gap-3">
-                    <label class="small text-muted fw-bold">รหัส / Key</label><input v-model="modalForm.id" class="form-control bg-light" :readonly="modalForm.isEdit" placeholder="(เว้นว่างได้)">
-                    <label class="small text-muted fw-bold">ชื่อ / รายละเอียด</label><input v-model="modalForm.name" class="form-control border-primary fw-bold">
-                    <template v-if="page==='manage_user'"><label class="small text-muted fw-bold mt-2">Password</label><input v-model="modalForm.pass" class="form-control border-warning" type="password"><label class="small text-muted fw-bold">สิทธิ์การใช้งาน (Role)</label><select v-model="modalForm.role" class="form-select border-primary"><option>Admin</option><option>User</option></select></template>
-                </div>
-                <div class="mt-4 d-flex gap-2">
-                    <button @click="saveAdminData" class="btn btn-primary flex-grow-1 py-2 fw-bold shadow-sm"><i class="bi bi-save"></i> บันทึกข้อมูล</button> 
-                    <button @click="showModal=false" class="btn btn-outline-secondary py-2">ยกเลิก</button>
-                </div>
+                <div v-else class="d-flex flex-column gap-3"><label class="small text-muted fw-bold">รหัส / Key</label><input v-model="modalForm.id" class="form-control bg-light" :readonly="modalForm.isEdit" placeholder="(เว้นว่างได้)"><label class="small text-muted fw-bold">ชื่อ / รายละเอียด</label><input v-model="modalForm.name" class="form-control border-primary fw-bold"><template v-if="page==='manage_user'"><label class="small text-muted fw-bold mt-2">Password</label><input v-model="modalForm.pass" class="form-control border-warning" type="password"><label class="small text-muted fw-bold">สิทธิ์การใช้งาน (Role)</label><select v-model="modalForm.role" class="form-select border-primary"><option>Admin</option><option>User</option></select></template></div>
+                <div class="mt-4 d-flex gap-2"><button @click="saveAdminData" class="btn btn-primary flex-grow-1 py-2 fw-bold shadow-sm"><i class="bi bi-save"></i> บันทึกข้อมูล</button> <button @click="showModal=false" class="btn btn-outline-secondary py-2">ยกเลิก</button></div>
             </div>
          </div>
       </div>
       
-      <div v-if="showBudgetModal" class="loading-overlay" style="background: rgba(0,0,0,0.6);">
-          <div class="card p-4 shadow-lg mx-2" style="border-radius:15px; width: 100%; max-width: 500px;">
-              <h4 class="fw-bold text-success"><i class="bi bi-cash-stack me-2"></i> ตั้งค่างบประมาณปี {{ currentBudgetYear }}</h4><hr>
-              <label class="small text-muted fw-bold mb-1">ระบุจำนวนเงินงบประมาณรวมทั้งปี (บาท)</label>
-              <input v-model="budgetForm.amount" type="number" class="form-control form-control-lg border-success fw-bold text-success mb-4">
-              <div class="d-flex gap-2">
-                  <button @click="saveBudget" class="btn btn-success flex-grow-1 fw-bold">บันทึกงบประมาณ</button>
-                  <button @click="showBudgetModal=false" class="btn btn-secondary">ปิด</button>
-              </div>
-          </div>
-      </div>
+      <div v-if="showBudgetModal" class="loading-overlay" style="background: rgba(0,0,0,0.6);"><div class="card p-4 shadow-lg mx-2" style="border-radius:15px; width: 100%; max-width: 500px;"><h4 class="fw-bold text-success"><i class="bi bi-cash-stack me-2"></i> ตั้งค่างบประมาณปี {{ currentBudgetYear }}</h4><hr><label class="small text-muted fw-bold mb-1">ระบุจำนวนเงินงบประมาณรวมทั้งปี (บาท)</label><input v-model="budgetForm.amount" type="number" class="form-control form-control-lg border-success fw-bold text-success mb-4"><div class="d-flex gap-2"><button @click="saveBudget" class="btn btn-success flex-grow-1 fw-bold">บันทึกงบประมาณ</button><button @click="showBudgetModal=false" class="btn btn-secondary">ปิด</button></div></div></div>
 
       <div v-if="printDoc" class="loading-overlay" style="background: rgba(0,0,0,0.7); align-items: start; padding-top: 50px; overflow-y: auto;">
           <div class="card p-4 p-md-5 bg-white shadow-lg mb-5 mx-2" style="width: 100%; max-width: 850px; min-height: 500px;" id="printSection">
-              <div class="text-center mb-4 border-bottom pb-3">
-                  <h2 class="fw-bold">JVL Inventory</h2>
-                  <h4 class="text-secondary fw-bold">{{ printDoc.type === 'IN' ? (printDoc.entity === 'ยอดยกมา' ? 'ใบรับยอดยกมาต้นปี' : 'ใบรับสินค้าเข้าคลัง (RECEIVE VOUCHER)') : 'ใบเบิกวัสดุ/ยา (ISSUE VOUCHER)' }}</h4>
-              </div>
-              <div class="row mb-4 fs-6 fs-md-5">
-                  <div class="col-6">
-                      <strong>เลขที่เอกสาร:</strong> {{ printDoc.id }}<br>
-                      <strong>วันที่ทำรายการ:</strong> {{ printDoc.date }}<br>
-                      <strong>ผู้บันทึก:</strong> {{ printDoc.user }}
-                  </div>
-                  <div class="col-6 text-end">
-                      <strong>{{ printDoc.type === 'IN' ? 'รับจาก' : 'จ่ายให้หน่วยงาน' }}:</strong> <span class="fw-bold text-primary fs-5 fs-md-4">{{ printDoc.entity }}</span><br>
-                      <strong>อ้างอิงเอกสาร:</strong> {{ printDoc.ref }}
-                  </div>
-              </div>
-              <div class="table-responsive">
-                  <table class="table table-bordered border-dark text-nowrap">
-                      <thead>
-                          <tr class="table-secondary text-center">
-                              <th>ลำดับ</th>
-                              <th>รายการสินค้า</th>
-                              <th>Lot No.</th>
-                              <th>จำนวน</th>
-                              <th>ราคา/หน่วย</th>
-                              <th>รวมเป็นเงิน</th>
-                          </tr>
-                      </thead>
-                      <tbody>
-                          <tr v-for="(item, i) in printDoc.items">
-                              <td class="text-center">{{ i+1 }}</td>
-                              <td class="fw-bold">{{ item.name }}</td>
-                              <td class="text-center">{{ item.lot }}</td>
-                              <td class="text-end fw-bold">{{ formatNumber(item.qty) }} {{ item.unit }}</td>
-                              <td class="text-end">{{ formatNumber(item.price) }}</td>
-                              <td class="text-end">{{ formatNumber(item.total) }}</td>
-                          </tr>
-                      </tbody>
-                      <tfoot>
-                          <tr>
-                              <td colspan="5" class="text-end fw-bold fs-6 fs-md-5">รวมสุทธิทั้งสิ้น</td>
-                              <td class="text-end fw-bold fs-5 fs-md-4 text-dark">{{ formatCurrency(printDoc.total) }}</td>
-                          </tr>
-                      </tfoot>
-                  </table>
-              </div>
-              <div class="row mt-5 pt-5">
-                  <div class="col-6 text-center">
-                      ลงชื่อ ..............................................................<br><br>
-                      (..............................................................)<br><br>
-                      ผู้รับสินค้า / ผู้ขอเบิก
-                  </div>
-                  <div class="col-6 text-center">
-                      ลงชื่อ ..............................................................<br><br>
-                      (..............................................................)<br><br>
-                      เจ้าหน้าที่คลัง / ผู้อนุมัติจ่าย
-                  </div>
-              </div>
-              <div class="d-flex flex-column flex-md-row justify-content-center gap-3 mt-5 no-print border-top pt-4">
-                  <button class="btn btn-primary btn-lg px-4 shadow-sm fw-bold" onclick="window.print()"><i class="bi bi-printer-fill me-2"></i>พิมพ์เอกสาร (PDF)</button>
-                  <button class="btn btn-success btn-lg px-4 shadow-sm fw-bold" @click="exportExcel('printSection', 'Document_' + printDoc.id)"><i class="bi bi-file-earmark-excel-fill me-2"></i>ส่งออก Excel</button>
-                  <button class="btn btn-secondary btn-lg px-4 fw-bold" @click="printDoc=null">ปิดหน้าต่าง</button>
-              </div>
+              <div class="text-center mb-4 border-bottom pb-3"><h2 class="fw-bold">JVL Inventory</h2><h4 class="text-secondary fw-bold">{{ printDoc.type === 'IN' ? (printDoc.entity === 'ยอดยกมา' ? 'ใบรับยอดยกมาต้นปี' : 'ใบรับสินค้าเข้าคลัง (RECEIVE VOUCHER)') : 'ใบเบิกวัสดุ/ยา (ISSUE VOUCHER)' }}</h4></div>
+              <div class="row mb-4 fs-6 fs-md-5"><div class="col-6"><strong>เลขที่เอกสาร:</strong> {{ printDoc.id }}<br><strong>วันที่ทำรายการ:</strong> {{ printDoc.date }}<br><strong>ผู้บันทึก:</strong> {{ printDoc.user }}</div><div class="col-6 text-end"><strong>{{ printDoc.type === 'IN' ? 'รับจาก' : 'จ่ายให้หน่วยงาน' }}:</strong> <span class="fw-bold text-primary fs-5 fs-md-4">{{ printDoc.entity }}</span><br><strong>อ้างอิงเอกสาร:</strong> {{ printDoc.ref }}</div></div>
+              <div class="table-responsive"><table class="table table-bordered border-dark text-nowrap"><thead><tr class="table-secondary text-center"><th>ลำดับ</th><th>รายการสินค้า</th><th>Lot No.</th><th>จำนวน</th><th>ราคา/หน่วย</th><th>รวมเป็นเงิน</th></tr></thead><tbody><tr v-for="(item, i) in printDoc.items"><td class="text-center">{{ i+1 }}</td><td class="fw-bold">{{ item.name }}</td><td class="text-center">{{ item.lot }}</td><td class="text-end fw-bold">{{ formatNumber(item.qty) }} {{ item.unit }}</td><td class="text-end">{{ formatNumber(item.price) }}</td><td class="text-end">{{ formatNumber(item.total) }}</td></tr></tbody><tfoot><tr><td colspan="5" class="text-end fw-bold fs-6 fs-md-5">รวมสุทธิทั้งสิ้น</td><td class="text-end fw-bold fs-5 fs-md-4 text-dark">{{ formatCurrency(printDoc.total) }}</td></tr></tfoot></table></div>
+              <div class="row mt-5 pt-5"><div class="col-6 text-center">ลงชื่อ ..............................................................<br><br>(..............................................................)<br><br>ผู้รับสินค้า / ผู้ขอเบิก</div><div class="col-6 text-center">ลงชื่อ ..............................................................<br><br>(..............................................................)<br><br>เจ้าหน้าที่คลัง / ผู้อนุมัติจ่าย</div></div>
+              <div class="d-flex flex-column flex-md-row justify-content-center gap-3 mt-5 no-print border-top pt-4"><button class="btn btn-primary btn-lg px-4 shadow-sm fw-bold" onclick="window.print()"><i class="bi bi-printer-fill me-2"></i>พิมพ์เอกสาร (PDF)</button><button class="btn btn-success btn-lg px-4 shadow-sm fw-bold" @click="exportExcel('printSection', 'Document_' + printDoc.id)"><i class="bi bi-file-earmark-excel-fill me-2"></i>ส่งออก Excel</button><button class="btn btn-secondary btn-lg px-4 fw-bold" @click="printDoc=null">ปิดหน้าต่าง</button></div>
           </div>
       </div>
 
@@ -613,11 +431,9 @@ const { createApp } = Vue;
 createApp({
   data() {
     return {
-      loading: true, 
-      isSidebarOpen: false, 
-      currentUser: {}, loginForm: { user: '', pass: '' },
+      loading: true, isSidebarOpen: false, currentUser: {}, loginForm: { user: '', pass: '' },
       page: 'dashboard', searchQuery: '',
-      rawData: { users:[], products:[], vendors:[], depts:[], categories:[], units:[], transactions:[], requests:[], budget:[], bills:[] },
+      rawData: { users:[], products:[], vendors:[], depts:[], categories:[], units:[], transactions:[], requests:[], budget:[], bills:[], purchasePlans:[] },
       
       formOpen: { date: new Date().toISOString().slice(0,10), refDoc: 'ยอดยกมาปีปัจจุบัน' }, tempOpen: { productId: '', productName: '', qty: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: 'บันทึกยอดยกมาต้นปี' }, cartOpen: [],
       formRec: { refBillNo: '', vendor: '', receivedDate: new Date().toISOString().slice(0,10) }, tempRec: { productId: '', productName: '', qty: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: '' }, cartRec: [],
@@ -630,7 +446,6 @@ createApp({
       sortKey: '', sortAsc: true, dashFilter: { objType: '', category: '', drugClass: '' }, chartInstTurnover: null, chartInstCat: null,
       tsVendor: null, tsProduct: null, tsOpenProduct: null,
       
-      // ตัวแปรสำหรับ 5 แฟ้ม
       mophPeriod: ''
     }
   },
@@ -652,6 +467,15 @@ createApp({
      requests() { return (this.rawData.requests||[]).map(r => { let items=[]; try{items=JSON.parse(r[4]);}catch(e){} return { id:r[0], date:r[1], dept:r[2], status:r[3], items:items, user:r[5] }; }); },
      users() { return (this.rawData.users||[]).map(u=>({user:u[0], name:u[3], role:u[2]})); },
      
+     // แผนจัดซื้อ (Purchase Plans)
+     purchasePlans() {
+         return (this.rawData.purchasePlans||[]).map(r=>({
+             id: r[0], yearBudget: r[1], productId: r[2], packSize: parseFloat(r[3])||1, packCost: parseFloat(r[4])||0,
+             qtyUseY3: parseFloat(r[5])||0, qtyUseY2: parseFloat(r[6])||0, qtyUseY1: parseFloat(r[7])||0, 
+             qtyThisYear: parseFloat(r[8])||0, qtyQ1: parseFloat(r[9])||0, qtyQ2: parseFloat(r[10])||0, qtyQ3: parseFloat(r[11])||0, qtyQ4: parseFloat(r[12])||0
+         }));
+     },
+     
      inventory() { 
          let inv = {}; 
          this.products.forEach(p => inv[p.id] = { ...p, qty: 0, totalVal: 0, daysLeft: 'N/A' }); 
@@ -663,10 +487,7 @@ createApp({
          }); 
          return Object.values(inv).map(item => {
              let minVal = parseFloat(item.min) || 0;
-             if (minVal > 0) {
-                 let dailyRate = minVal / 45; 
-                 item.daysLeft = Math.round(item.qty / dailyRate); 
-             }
+             if (minVal > 0) { let dailyRate = minVal / 45; item.daysLeft = Math.round(item.qty / dailyRate); }
              return item;
          }); 
      },
@@ -710,6 +531,7 @@ createApp({
      historyGroups() { let g={}; this.transactions.forEach(t=>{ let id=t.transId.startsWith('RCV-')||t.transId.startsWith('ISS-')?t.transId:t.billId; if(!g[id])g[id]={id:id,date:t.date,type:t.type,ref:t.refDoc||'-',entity:t.vendorOrDept,user:t.user,items:[],total:0}; let p=this.products.find(x=>x.id==t.productId); g[id].items.push({name:p?p.name:t.productId,lot:t.lotNo,qty:t.qty,unit:p?p.unit:'',price:t.unitPrice,total:t.totalPrice}); g[id].total+=t.totalPrice; }); return Object.values(g).sort((a,b)=>new Date(b.date)-new Date(a.date)); },
      filteredHistory() { let l=this.historyGroups; if(this.historyFilterType)l=l.filter(g=>g.type===this.historyFilterType); if(this.searchQuery)l=l.filter(g=>g.id.includes(this.searchQuery)||g.entity.includes(this.searchQuery)); return l; },
 
+     // SORTED COMPS
      sortedFilteredInventory() { return this.applySort(this.filteredInventory); }, sortedActiveLots() { return this.applySort(this.activeLots); }, sortedFilteredHistory() { return this.applySort(this.filteredHistory); }, sortedPendingRequests() { return this.applySort(this.pendingRequestsList); }, sortedCategoryReport() { return this.applySort(this.categoryReport); }, sortedBills() { return this.applySort(this.bills); }, sortedOutboundList() { return this.applySort(this.outboundList); }
   },
   watch: {
@@ -785,24 +607,51 @@ createApp({
      async submitRequest() { if(!this.reqDept) return alert('ระบุหน่วยงาน'); this.loading=true; const res = await this.apiCall("saveRequest", { user:this.currentUser.name, dept:this.reqDept, date: new Date().toISOString().slice(0,10), items:this.cartReq }); if(res){ alert('ส่งคำขอเบิกแล้ว'); this.cartReq=[]; await this.loadData(); } this.loading=false; },
      loadRequestToStockOut(req) { this.page = 'stockOut'; this.formOut.dept = req.dept; this.formOut.reqId = req.id; this.cartOut = req.items.map(i => ({ productName: i.productName, productId: i.productId, qty: i.qty, lotNo: '', totalPrice: 0, status: 'Completed' })); alert('ระบบโหลดรายการแล้ว กรุณาระบุ เลขที่เอกสาร ประเภทบิล และ Lot สินค้าก่อนบันทึก'); },
 
-     openAdminModal(item) { this.showModal=true; if(item) { this.modalForm = {...item, isEdit:true}; if(this.page==='manage_user') this.modalForm.user=item.user; } else { this.modalForm = {isEdit:false, objType:'เวชภัณฑ์มิใช่ยา', drugClass:'ED', controlList:'General list'}; } },
+     // Plan Management
+     getProductName(id) { let p = this.products.find(x=>x.id===id); return p ? p.name : id; },
+     getProductUnit(id) { let p = this.products.find(x=>x.id===id); return p ? p.unit : ''; },
+     onPlanProdSelect() { let p=this.products.find(x=>x.name===this.modalForm.tempProductName); if(p) this.modalForm.productId=p.id; },
+     openPlanModal(plan) { 
+         this.showModal=true; 
+         if(plan) { 
+             this.modalForm = {...plan, isEdit:true, tempProductName: this.getProductName(plan.productId)}; 
+         } else { 
+             this.modalForm = {isEdit:false, yearBudget: this.currentBudgetYear, packSize: 1, packCost: 0, qtyThisYear: 0, qtyUseY1:0, qtyUseY2:0, qtyUseY3:0, qtyQ1:0, qtyQ2:0, qtyQ3:0, qtyQ4:0}; 
+         } 
+     },
+     async savePlanData() { 
+         this.loading=true; 
+         const res = await this.apiCall("saveMasterData", { type: 'plan', data: this.modalForm }); 
+         if(res){ alert('บันทึกแผนจัดซื้อเรียบร้อย'); this.showModal=false; await this.loadData(); } 
+         this.loading=false; 
+     },
+
+     openAdminModal(item) { 
+         this.showModal=true; 
+         if(item) { this.modalForm = {...item, isEdit:true}; if(this.page==='manage_user') this.modalForm.user=item.user; } 
+         else { this.modalForm = {isEdit:false, objType:'เวชภัณฑ์มิใช่ยา', drugClass:'ED', controlList:'General list', productCat: '1', drugStatus: '1'}; } 
+     },
      async saveAdminData() { let type=this.page.replace('manage_',''); if(type=='cat') type='category'; this.loading=true; const res = await this.apiCall("saveMasterData", { type: type, data: this.modalForm }); if(res){ alert('บันทึกข้อมูลเรียบร้อย'); this.showModal=false; await this.loadData(); } this.loading=false; },
-     async deleteItem(id) { if(confirm('ต้องการลบข้อมูลนี้?')) { if(confirm('ยืนยันลบถาวร (ลบแล้วกู้คืนไม่ได้)?')) { let type=this.page.replace('manage_',''); if(type=='cat') type='category'; this.loading=true; const res = await this.apiCall("deleteMasterData", { type: type, id: id }); if(res) await this.loadData(); this.loading=false; } } },
+     async deleteItem(type, id) { 
+         if(confirm('ต้องการลบข้อมูลนี้?')) { 
+             if(confirm('ยืนยันลบถาวร (ลบแล้วกู้คืนไม่ได้)?')) { 
+                 let t = type.replace('manage_',''); if(t=='cat') t='category'; 
+                 this.loading=true; const res = await this.apiCall("deleteMasterData", { type: t, id: id }); 
+                 if(res) await this.loadData(); this.loading=false; 
+             } 
+         } 
+     },
      openBudgetModal() { this.showBudgetModal=true; this.budgetForm={year:this.currentBudgetYear, amount:this.totalBudgetYear}; },
      async saveBudget() { this.loading=true; const res = await this.apiCall("saveMasterData", { type: 'budget', data: this.budgetForm }); if(res){ this.showBudgetModal=false; await this.loadData(); } this.loading=false; },
 
-     // --- DRUGLIST 5 FILES EXPORT LOGIC ---
+     // MOPH EXPORTS
      exportDrugListCSV() {
          if(!this.mophPeriod) return alert('กรุณาระบุปีและเดือนที่ต้องการรายงาน (PERIOD_RPT) ก่อนดาวน์โหลด');
-         
-         const hospCode = 'EA0014644';
-         const now = new Date();
-         const pad = (n) => n.toString().padStart(2, '0');
+         const hospCode = 'EA0014644'; const now = new Date(); const pad = (n) => n.toString().padStart(2, '0');
          const dateSend = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
          
          const drugProducts = this.products.filter(p => p.objType === 'ยา');
-         
-         let csvContent = '\uFEFF'; // BOM สำหรับให้เปิดใน Excel ภาษาไทยได้
+         let csvContent = '\uFEFF'; 
          csvContent += "HOSP_CODE|WORKING_CODE|GENERIC_NAME|GPUID|NLEM|PRODUCT_CAT|BASE_UNIT|STATUS|DATE_STATUS|PERIOD_RPT|DATE_SEND\n";
          
          drugProducts.forEach(p => {
@@ -816,17 +665,44 @@ createApp({
              let pCat = p.productCat || '1';
              let bUnit = p.unit || '';
              let status = p.drugStatus || '1';
-             let dStatus = p.dateStatus ? p.dateStatus.replace(/-/g, '') : `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}`; // Default to today if empty
+             let dStatus = p.dateStatus ? p.dateStatus.replace(/-/g, '') : `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}`; 
              
              let row = `${hospCode}|${wCode}|${gName}|${gpuid}|${nlem}|${pCat}|${bUnit}|${status}|${dStatus}|${this.mophPeriod.replace(/-/g,'')}|${dateSend}`;
              csvContent += row + "\n";
          });
          
          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-         const link = document.createElement("a");
-         link.href = URL.createObjectURL(blob);
-         link.download = `DRUGLIST_${hospCode}_${this.mophPeriod.replace(/-/g,'')}.csv`;
-         link.click();
+         const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `DRUGLIST_${hospCode}_${this.mophPeriod.replace(/-/g,'')}.csv`; link.click();
+     },
+
+     exportPurchasePlanCSV() {
+         if(!this.mophPeriod) return alert('กรุณาระบุปีและเดือนที่ต้องการรายงาน (PERIOD_RPT) ก่อนดาวน์โหลด');
+         const hospCode = 'EA0014644'; const now = new Date(); const pad = (n) => n.toString().padStart(2, '0');
+         const dateSend = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+         const periodRpt = this.mophPeriod.replace(/-/g,'');
+
+         let csvContent = '\uFEFF';
+         csvContent += "HOSP_CODE|YEARBUDGET|WORKING_CODE|GENERIC_NAME|GPUID|NLEM|QTY_USE_YEAR3|QTY_USE_YEAR2|QTY_USE_YEAR1|QTY_THIS_YEAR|PACK_SIZE|BASE_UNIT|PACK_COST|VALUE_THIS_YEAR|QTY_PLAN_TRIMES1|QTY_PLAN_TRIMES2|QTY_PLAN_TRIMES3|QTY_PLAN_TRIMES4|PERIOD_RPT|DATE_SEND\n";
+
+         this.purchasePlans.forEach(plan => {
+             let p = this.products.find(x => x.id === plan.productId);
+             if(!p) return;
+
+             let wCode = p.workingCode || p.id;
+             let gName = p.name;
+             let gpuid = p.gpuid || '99';
+             let nlem = p.drugClass.includes('NED') ? 'N' : 'E';
+             let bUnit = p.unit || '';
+
+             let valueThisYear = (parseFloat(plan.qtyThisYear) * parseFloat(plan.packCost)).toFixed(2);
+             let packCost = parseFloat(plan.packCost).toFixed(2);
+
+             let row = `${hospCode}|${plan.yearBudget}|${wCode}|${gName}|${gpuid}|${nlem}|${plan.qtyUseY3}|${plan.qtyUseY2}|${plan.qtyUseY1}|${plan.qtyThisYear}|${plan.packSize}|${bUnit}|${packCost}|${valueThisYear}|${plan.qtyQ1}|${plan.qtyQ2}|${plan.qtyQ3}|${plan.qtyQ4}|${periodRpt}|${dateSend}`;
+             csvContent += row + "\n";
+         });
+
+         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+         const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `PURCHASEPLAN_${hospCode}_${periodRpt}.csv`; link.click();
      },
 
      getReportTitle() { if(this.reportFilter.type==='inventory') return 'รายงานสินค้าคงคลังปัจจุบัน (Current Inventory)'; if(this.reportFilter.type==='category_val') return 'สรุปมูลค่าคงคลังตามประเภท (ED/NED)'; if(this.reportFilter.type==='expiry') return 'รายงานวันหมดอายุ (Expiry Report)'; if(this.reportFilter.type==='usage') return 'สรุปการเบิกจ่ายแยกรายหน่วยงาน'; return ''; },
@@ -839,21 +715,13 @@ createApp({
         let template = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"></head><body><table>{table}</table></body></html>';
         let base64 = function(s) { return window.btoa(unescape(encodeURIComponent(s))) };
         let format = function(s, c) { return s.replace(/{(\w+)}/g, function(m, p) { return c[p]; }) };
-        
         let container = document.getElementById(elementId);
         if(!container) return alert('ไม่พบข้อมูล');
         let table = container.getElementsByTagName('table')[0];
         if(!table) return alert('ไม่พบตาราง');
-        
         let cloneTable = table.cloneNode(true);
         let rows = cloneTable.rows;
-        for(let i=0; i<rows.length; i++) { 
-            let lastCell = rows[i].cells[rows[i].cells.length - 1]; 
-            if(lastCell && (lastCell.innerText.includes('Action') || lastCell.innerText.includes('Print') || lastCell.innerText.includes('จัดการ') || lastCell.innerText.includes('ลบ') || lastCell.innerHTML.includes('<button'))) {
-                rows[i].deleteCell(rows[i].cells.length - 1); 
-            }
-        }
-        
+        for(let i=0; i<rows.length; i++) { let lastCell = rows[i].cells[rows[i].cells.length - 1]; if(lastCell && (lastCell.innerText.includes('Action') || lastCell.innerText.includes('Print') || lastCell.innerText.includes('จัดการ') || lastCell.innerText.includes('ลบ') || lastCell.innerHTML.includes('<button'))) rows[i].deleteCell(rows[i].cells.length - 1); }
         let ctx = { worksheet: 'Sheet1', table: cloneTable.innerHTML };
         let link = document.createElement("a"); link.href = uri + base64(format(template, ctx)); link.download = filename + "_" + new Date().toISOString().slice(0,10) + ".xls"; link.click();
      }
