@@ -335,7 +335,7 @@
              
              <div class="col-md-6"><div class="card card-shadow h-100 border-0 border-start border-4 border-primary"><div class="card-body d-flex justify-content-between align-items-center"><div><h5 class="fw-bold text-dark mb-1">3. RECEIPT.csv</h5><p class="text-muted small mb-0">ข้อมูลการรับเข้าคลังเวชภัณฑ์</p></div><button @click="exportReceiptCSV" class="btn btn-primary shadow-sm px-4" :disabled="!mophPeriod"><i class="bi bi-download me-2"></i>ดาวน์โหลด</button></div></div></div>
              
-             <div class="col-md-6"><div class="card card-shadow h-100 border-0 border-start border-4 border-secondary opacity-50"><div class="card-body d-flex justify-content-between align-items-center"><div><h5 class="fw-bold text-dark mb-1">4. DISTRIBUTION.csv</h5><p class="text-muted small mb-0">ข้อมูลการจ่ายยา (กำลังพัฒนา)</p></div><button class="btn btn-secondary px-4" disabled><i class="bi bi-lock me-2"></i>ดาวน์โหลด</button></div></div></div>
+             <div class="col-md-6"><div class="card card-shadow h-100 border-0 border-start border-4 border-warning"><div class="card-body d-flex justify-content-between align-items-center"><div><h5 class="fw-bold text-dark mb-1">4. DISTRIBUTION.csv</h5><p class="text-muted small mb-0">ข้อมูลการจ่ายยาให้หน่วยเบิก</p></div><button @click="exportDistributionCSV" class="btn btn-warning text-dark shadow-sm px-4 fw-bold" :disabled="!mophPeriod"><i class="bi bi-download me-2"></i>ดาวน์โหลด</button></div></div></div>
              <div class="col-md-6"><div class="card card-shadow h-100 border-0 border-start border-4 border-secondary opacity-50"><div class="card-body d-flex justify-content-between align-items-center"><div><h5 class="fw-bold text-dark mb-1">5. INVENTORY.csv</h5><p class="text-muted small mb-0">ยอดคงเหลือ (กำลังพัฒนา)</p></div><button class="btn btn-secondary px-4" disabled><i class="bi bi-lock me-2"></i>ดาวน์โหลด</button></div></div></div>
          </div>
       </div>
@@ -361,7 +361,7 @@
 
       <div v-if="page.startsWith('manage_') && page !== 'manage_plan'">
          <div class="d-flex justify-content-between align-items-center mb-3"><h3 class="mb-0 fw-bold"><i class="bi bi-gear-fill me-2 text-secondary"></i>{{ adminTitle }}</h3><button @click="openAdminModal(null)" class="btn btn-primary shadow-sm fw-bold"><i class="bi bi-plus-lg"></i> เพิ่มข้อมูลใหม่</button></div>
-         <div class="card card-shadow p-3"><div class="table-responsive"><table class="table table-hover align-middle text-nowrap"><thead class="table-dark"><tr v-if="page==='manage_prod'"><th>รหัส/WorkingCode</th><th>ชื่อรายการ</th><th>หมวด/หน่วย</th><th>ประเภท/กลุ่ม</th><th>ระดับควบคุม</th><th>Min/Max</th><th class="text-center">จัดการ</th></tr><tr v-else><th>รหัส / Key</th><th>ชื่อ / คำอธิบาย/ เลขผู้เสียภาษี</th><th class="text-center">จัดการ</th></tr></thead><tbody><tr v-for="item in adminDataList"><template v-if="page==='manage_prod'"><td><span class="badge bg-light text-dark border px-2 py-1 fs-6">{{ item.id }}</span><br><small class="text-muted" v-if="item.workingCode">{{ item.workingCode }}</small></td><td class="fw-bold text-primary">{{ item.name }}</td><td><span class="badge bg-info text-dark">{{ item.category }}</span><br><small class="text-muted fw-bold">{{ item.unit }}</small></td><td>{{ item.objType }}<br><span class="badge bg-secondary" v-if="item.drugClass">{{ item.drugClass }}</span></td><td><span class="badge shadow-sm" :class="item.controlList==='Must list'?'bg-danger':(item.controlList==='Watch list'?'bg-warning text-dark':'bg-secondary')">{{ item.controlList }}</span></td><td><span class="text-danger fw-bold">Min: {{ item.min }}</span><br><span class="text-success fw-bold">Max: {{ item.max }}</span></td></template><template v-else-if="page==='manage_vendor'"><td class="fw-bold text-primary">{{ item.id }}</td><td class="fw-bold">{{ item.name }}<br><small class="text-muted" v-if="item.taxId">เลขเสียภาษี: {{ item.taxId }}</small></td></template><template v-else><td class="fw-bold text-primary">{{ item.id || item.user || item.name }}</td><td class="fw-bold">{{ item.name }}</td></template><td class="text-center"><button @click="openAdminModal(item)" class="btn btn-outline-warning me-2 shadow-sm"><i class="bi bi-pencil-fill"></i></button><button @click="deleteItem(item.id || item.user || item.name)" class="btn btn-outline-danger shadow-sm"><i class="bi bi-trash-fill"></i></button></td></tr></tbody></table></div></div>
+         <div class="card card-shadow p-3"><div class="table-responsive"><table class="table table-hover align-middle text-nowrap"><thead class="table-dark"><tr v-if="page==='manage_prod'"><th>รหัส/WorkingCode</th><th>ชื่อรายการ</th><th>หมวด/หน่วย</th><th>ประเภท/กลุ่ม</th><th>ระดับควบคุม</th><th>Min/Max</th><th class="text-center">จัดการ</th></tr><tr v-else><th>รหัส / Key</th><th>ชื่อ / คำอธิบาย/ เลขผู้เสียภาษี</th><th class="text-center">จัดการ</th></tr></thead><tbody><tr v-for="item in adminDataList"><template v-if="page==='manage_prod'"><td><span class="badge bg-light text-dark border px-2 py-1 fs-6">{{ item.id }}</span><br><small class="text-muted" v-if="item.workingCode">{{ item.workingCode }}</small></td><td class="fw-bold text-primary">{{ item.name }}</td><td><span class="badge bg-info text-dark">{{ item.category }}</span><br><small class="text-muted fw-bold">{{ item.unit }}</small></td><td>{{ item.objType }}<br><span class="badge bg-secondary" v-if="item.drugClass">{{ item.drugClass }}</span></td><td><span class="badge shadow-sm" :class="item.controlList==='Must list'?'bg-danger':(item.controlList==='Watch list'?'bg-warning text-dark':'bg-secondary')">{{ item.controlList }}</span></td><td><span class="text-danger fw-bold">Min: {{ item.min }}</span><br><span class="text-success fw-bold">Max: {{ item.max }}</span></td></template><template v-else-if="page==='manage_vendor'"><td class="fw-bold text-primary">{{ item.id }}</td><td class="fw-bold">{{ item.name }}<br><small class="text-muted" v-if="item.taxId">เลขเสียภาษี: {{ item.taxId }}</small></td></template><template v-else-if="page==='manage_dept'"><td class="fw-bold text-primary">{{ item.id }}</td><td class="fw-bold">{{ item.name }}<br><small class="text-muted text-info">ประเภทหน่วยเบิก (5 แฟ้ม): รหัส {{ item.deptGroup }}</small></td></template><template v-else><td class="fw-bold text-primary">{{ item.id || item.user || item.name }}</td><td class="fw-bold">{{ item.name }}</td></template><td class="text-center"><button @click="openAdminModal(item)" class="btn btn-outline-warning me-2 shadow-sm"><i class="bi bi-pencil-fill"></i></button><button @click="deleteItem(item.id || item.user || item.name)" class="btn btn-outline-danger shadow-sm"><i class="bi bi-trash-fill"></i></button></td></tr></tbody></table></div></div>
          
          <div v-if="showModal && page !== 'manage_plan'" class="loading-overlay" style="background: rgba(0,0,0,0.6);">
             <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 600px; border-radius:15px; max-height: 90vh; overflow-y: auto;">
@@ -383,7 +383,22 @@
                         <div class="col-6"><label class="small fw-bold text-dark">วันที่เปลี่ยนสถานะ (YYYYMMDD)</label><input type="text" v-model="modalForm.dateStatus" class="form-control border-info" placeholder="เช่น 20260409"></div>
                     </div>
                 </div>
-                
+
+<div v-else-if="page==='manage_dept'" class="d-flex flex-column gap-3">
+    <label class="small text-muted fw-bold">รหัสหน่วยเบิก</label><input v-model="modalForm.id" class="form-control bg-light" :readonly="modalForm.isEdit" placeholder="(เว้นว่างระบบรันออโต้)">
+    <label class="small text-muted fw-bold">ชื่อหน่วยงาน</label><input v-model="modalForm.name" class="form-control border-primary fw-bold">
+    <label class="small text-danger fw-bold">ประเภทหน่วยเบิก (DIS_DEPT_GROUP)</label>
+    <select v-model="modalForm.deptGroup" class="form-select border-danger fw-bold">
+        <option value="1">1 - OPD และ IPD (บริการใกล้เคียงกัน)</option>
+        <option value="2">2 - OPD (ผู้ป่วยนอกเป็นหลัก)</option>
+        <option value="3">3 - IPD (ผู้ป่วยในเป็นหลัก)</option>
+        <option value="4">4 - อื่นๆ ในโรงพยาบาล (เช่น ห้องผ่าตัด, X-ray)</option>
+        <option value="5">5 - รพ.สต. (เครือข่ายเดียวกัน)</option>
+        <option value="6">6 - รพ.สต. ที่ถ่ายโอนไปท้องถิ่น</option>
+        <option value="9">9 - อื่นๆ นอกโรงพยาบาล</option>
+    </select>
+</div>
+              
                 <div v-else-if="page==='manage_vendor'" class="d-flex flex-column gap-3">
                     <label class="small text-muted fw-bold">รหัสผู้จำหน่าย</label><input v-model="modalForm.id" class="form-control bg-light" :readonly="modalForm.isEdit" placeholder="(เว้นว่างได้)">
                     <label class="small text-muted fw-bold">ชื่อบริษัท / ชื่อผู้จำหน่าย</label><input v-model="modalForm.name" class="form-control border-primary fw-bold">
@@ -455,7 +470,7 @@ createApp({
          })); 
      },
      vendors() { return (this.rawData.vendors||[]).map(r=>({ id:r[0], name:r[1], address:r[2], contact:r[3], taxId:r[4]||'' })); },
-     depts() { return (this.rawData.depts||[]).map(r=>({ id:r[0], name:r[1] })); },
+     depts() { return (this.rawData.depts||[]).map(r=>({ id:r[0], name:r[1], deptGroup:r[2]||'4' })); },
      categories() { return (this.rawData.categories||[]).map(r=>({ name:r[0] })); },
      units() { return (this.rawData.units||[]).map(r=>({ name:r[0] })); },
      
@@ -614,7 +629,10 @@ createApp({
      openPlanModal(plan) { this.showModal=true; if(plan) { this.modalForm = {...plan, isEdit:true, tempProductName: this.getProductName(plan.productId)}; } else { this.modalForm = {isEdit:false, yearBudget: this.currentBudgetYear, packSize: 1, packCost: 0, qtyThisYear: 0, qtyUseY1:0, qtyUseY2:0, qtyUseY3:0, qtyQ1:0, qtyQ2:0, qtyQ3:0, qtyQ4:0}; } },
      async savePlanData() { this.loading=true; const res = await this.apiCall("saveMasterData", { type: 'plan', data: this.modalForm }); if(res){ alert('บันทึกแผนจัดซื้อเรียบร้อย'); this.showModal=false; await this.loadData(); } this.loading=false; },
 
-     openAdminModal(item) { this.showModal=true; if(item) { this.modalForm = {...item, isEdit:true}; if(this.page==='manage_user') this.modalForm.user=item.user; } else { this.modalForm = {isEdit:false, objType:'เวชภัณฑ์มิใช่ยา', drugClass:'ED', controlList:'General list', productCat: '1', drugStatus: '1'}; } },
+     openAdminModal(item) { this.showModal=true; if(item) { this.modalForm = {...item, isEdit:true}; if(this.page==='manage_user') this.modalForm.user=item.user; } else { 
+    this.modalForm = {isEdit:false, objType:'เวชภัณฑ์มิใช่ยา', drugClass:'ED', controlList:'General list', productCat: '1', drugStatus: '1'}; 
+    if(this.page === 'manage_dept') this.modalForm.deptGroup = '4'; // ค่าเริ่มต้นเป็น 4
+     },
      async saveAdminData() { let type=this.page.replace('manage_',''); if(type=='cat') type='category'; this.loading=true; const res = await this.apiCall("saveMasterData", { type: type, data: this.modalForm }); if(res){ alert('บันทึกข้อมูลเรียบร้อย'); this.showModal=false; await this.loadData(); } this.loading=false; },
      async deleteItem(type, id) { if(confirm('ต้องการลบข้อมูลนี้?')) { if(confirm('ยืนยันลบถาวร (ลบแล้วกู้คืนไม่ได้)?')) { let t = type.replace('manage_',''); if(t=='cat') t='category'; this.loading=true; const res = await this.apiCall("deleteMasterData", { type: t, id: id }); if(res) await this.loadData(); this.loading=false; } } },
      openBudgetModal() { this.showBudgetModal=true; this.budgetForm={year:this.currentBudgetYear, amount:this.totalBudgetYear}; },
@@ -658,7 +676,43 @@ createApp({
          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
          const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `PURCHASEPLAN_${hospCode}_${periodRpt}.csv`; link.click();
      },
-     
+
+    exportDistributionCSV() {
+         if(!this.mophPeriod) return alert('กรุณาระบุปีและเดือนที่ต้องการรายงาน (PERIOD_RPT) ก่อนดาวน์โหลด');
+         const hospCode = 'EA0014644'; 
+         const now = new Date(); const pad = (n) => n.toString().padStart(2, '0');
+         const dateSend = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+         const periodRpt = this.mophPeriod.replace(/-/g,'');
+
+         let csvContent = '\uFEFF';
+         csvContent += "HOSP_CODE|WORKING_CODE|TRADE_NAME|TPUID|QTY_DIS|PACK_SIZE|BASE_UNIT|VALUE|DIS_DEPT_GROUP|PERIOD_RPT|DATE_SEND\n";
+
+         // ดึงรายการเบิกจ่าย (OUT) ในเดือนนั้นๆ
+         let distributions = this.transactions.filter(t => t.type === 'OUT' && t.date.startsWith(this.mophPeriod) && t.status === 'Completed');
+
+         distributions.forEach(t => {
+             let p = this.products.find(x => x.id === t.productId);
+             if(!p || p.objType !== 'ยา') return; // เอาเฉพาะยา
+             
+             let d = this.depts.find(x => x.name === t.vendorOrDept) || {};
+             
+             let wCode = p.workingCode || p.id;
+             let tName = p.name;
+             let tpuid = p.tpuid || '99';
+             let qtyDis = t.qty;
+             let pSize = t.packSize || 1; // อ้างอิงจากตอนจ่าย (ปกติ = 1 Base Unit)
+             let bUnit = p.unit || '';
+             let val = parseFloat(t.totalPrice).toFixed(2);
+             let deptGroup = d.deptGroup || '4';
+
+             let row = `${hospCode}|${wCode}|${tName}|${tpuid}|${qtyDis}|${pSize}|${bUnit}|${val}|${deptGroup}|${periodRpt}|${dateSend}`;
+             csvContent += row + "\n";
+         });
+
+         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+         const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `DISTRIBUTION_${hospCode}_${periodRpt}.csv`; link.click();
+     },
+    
      // ----------------------------------------------------
      // NEW: Export RECEIPT 5 Files (แฟ้มที่ 3)
      // ----------------------------------------------------
