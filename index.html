@@ -212,7 +212,29 @@
                <div class="col-12 mt-3 pt-2 border-top border-info border-opacity-50"><h6 class="fw-bold text-info"><i class="bi bi-database-down"></i> ข้อมูลเพิ่มเติมสำหรับ 5 แฟ้ม (RECEIPT)</h6></div>
                <div class="col-12 col-md-3"><label class="small fw-bold text-muted">เลขที่ใบสั่งซื้อ (PO_NO)</label><input v-model="formRec.poNo" type="text" class="form-control border-info"></div>
                <div class="col-12 col-md-3"><label class="small fw-bold text-muted">เลขคุมสัญญา (CNT_NO)</label><input v-model="formRec.cntNo" type="text" class="form-control border-info"></div>
-               <div class="col-12 col-md-2"><label class="small fw-bold text-muted">วิธีจัดหา</label><input v-model="formRec.buyMethod" type="number" class="form-control border-info" placeholder="1-9"></div>
+               <div class="col-12 col-md-3">
+    <label class="small fw-bold text-muted">วิธีจัดหา (ตาม 5 แฟ้ม)</label>
+    <select v-model="formRec.buyMethod" class="form-select border-info text-truncate">
+        <option value="10">10 - ประกาศเชิญชวนทั่วไป</option>
+        <option value="11">11 - e-Market</option>
+        <option value="12">12 - e-Bidding</option>
+        <option value="13">13 - สอบราคา</option>
+        <option value="20">20 - วิธีคัดเลือก</option>
+        <option value="30">30 - วิธีเฉพาะเจาะจง</option>
+        <option value="31">31 - เฉพาะเจาะจง (ไม่มีผู้เสนอ)</option>
+        <option value="32">32 - เฉพาะเจาะจง (ไม่เกิน 500,000 บาท)</option>
+        <option value="33">33 - เฉพาะเจาะจง (ผู้จำหน่ายรายเดียว เช่น อย.)</option>
+        <option value="34">34 - เฉพาะเจาะจง (เร่งด่วน เช่น อุบัติภัย/โรคติดต่อ)</option>
+        <option value="35">35 - เฉพาะเจาะจง (ซื้อต่อสัญญา ราคาเดิม)</option>
+        <option value="36">36 - เฉพาะเจาะจง (ขายทอดตลาดจากรัฐ)</option>
+        <option value="37">37 - เฉพาะเจาะจง (จำต้องซื้อเฉพาะแหล่ง)</option>
+        <option value="38">38 - เฉพาะเจาะจง (อื่นๆ ตามกฎกระทรวง เช่น GPO)</option>
+        <option value="95">95 - ยาสนับสนุน สปสช</option>
+        <option value="96">96 - ยาสนับสนุน ปกส.</option>
+        <option value="97">97 - ยาสนับสนุนโครงการอื่นๆ</option>
+        <option value="99">99 - อื่นๆ</option>
+    </select>
+</div>
                <div class="col-12 col-md-2"><label class="small fw-bold text-muted">จัดซื้อร่วม</label><select v-model="formRec.coPurchase" class="form-select border-info"><option value="1">1. ไม่จัดซื้อร่วม</option><option value="2">2. จังหวัด</option><option value="3">3. เขต</option><option value="4">4. กรม</option><option value="5">5. ประเทศ</option></select></div>
                <div class="col-12 col-md-2"><label class="small fw-bold text-muted">การรับยาเข้า</label><select v-model="formRec.rcvFlag" class="form-select border-info"><option value="1">1. ซื้อ</option><option value="2">2. ขาด/บริจาค/แถม</option><option value="3">3. ผลิตเอง</option><option value="4">4. ยืม</option><option value="9">9. อื่นๆ</option></select></div>
             </div>
@@ -409,7 +431,7 @@ createApp({
       formOpen: { date: new Date().toISOString().slice(0,10), refDoc: 'ยอดยกมาปีปัจจุบัน' }, tempOpen: { productId: '', productName: '', qty: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: 'บันทึกยอดยกมาต้นปี' }, cartOpen: [],
       
       // เพิ่มฟิลด์สำหรับ 5 แฟ้มในหน้า รับเข้า
-      formRec: { refBillNo: '', vendor: '', receivedDate: new Date().toISOString().slice(0,10), poNo:'', cntNo:'', buyMethod:'1', coPurchase:'1', rcvFlag:'1' }, 
+      formRec: { refBillNo: '', vendor: '', receivedDate: new Date().toISOString().slice(0,10), poNo:'', cntNo:'', buyMethod:'32', coPurchase:'1', rcvFlag:'1' }, 
       tempRec: { productId: '', productName: '', qty: 1, packSize: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: '' }, cartRec: [],
       
       showInspectModal: false, formInspect: { billId: '', refBillNo: '', vendor: '', docNo: '', inspectDate: new Date().toISOString().slice(0,10), budgetSource: 'เงินบำรุง' },
