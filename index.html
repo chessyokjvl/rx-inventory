@@ -1903,6 +1903,13 @@ createApp({
         
         let oEl = document.getElementById('openProductSelect'); 
         if(oEl) this.tsOpenProduct = new TomSelect(oEl, { valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode'], options: this.products, render: { option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small></div>`; }, item: function(d, e) { return `<div>${e(d.name)}</div>`; } }, onChange: (v) => { let p = this.products.find(x=>x.id == v); if(p) { this.tempOpen.productId = p.id; this.tempOpen.productName = p.name; } } });
+        if(this.tsStockOutDept) this.tsStockOutDept.destroy();
+        let sEl = document.getElementById('stockOutDeptSelect');
+        if(sEl) this.tsStockOutDept = new TomSelect(sEl, { 
+            valueField: 'name', labelField: 'name', searchField: 'name', 
+            options: this.depts, 
+            onChange: (v) => { this.formOut.dept = v; } 
+        });
      },
 
      renderCharts() {
@@ -2014,7 +2021,7 @@ createApp({
          this.loading=true; 
          let outItems = this.cartOut.map(i=>({...i, date:this.formOut.date, vendorOrDept:this.formOut.dept, refDoc: this.formOut.docNo, note: this.formOut.reqType})); 
          const res = await this.apiCall("saveBatchTransaction", { user:this.currentUser.name, type:'OUT', reqId:this.formOut.reqId, items: outItems }); 
-         if(res){ alert('สำเร็จ'); this.cartOut=[]; this.formOut.reqId=''; this.formOut.docNo=''; await this.loadData(); } 
+         if(res){ alert('สำเร็จ'); this.cartOut=[]; this.formOut.reqId=''; this.formOut.docNo=''; if(this.tsStockOutDept) this.tsStockOutDept.clear(); await this.loadData(); } 
          this.loading=false; 
      },
 
