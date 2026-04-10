@@ -254,18 +254,9 @@
         </div>
         
         <div class="row g-3 mb-4">
-            <div class="col-12 col-lg-8">
-                <div class="card card-shadow p-3 h-100">
-                    <h6 class="fw-bold text-primary">📈 Top 10 มูลค่าเบิกใช้สูงสุด (Turnover)</h6>
-                    <div style="height: 250px;"><canvas id="turnoverChart"></canvas></div>
-                </div>
-            </div>
-            <div class="col-12 col-lg-4">
-                <div class="card card-shadow p-3 h-100">
-                    <h6 class="fw-bold text-primary">🍩 สัดส่วนมูลค่าตามแหล่งงบประมาณ</h6>
-                    <div style="height: 250px;"><canvas id="categoryChart"></canvas></div>
-                </div>
-            </div>
+            <div class="col-12 col-lg-4"><div class="card card-shadow p-3 h-100"><h6 class="fw-bold text-primary">📈 Top 10 มูลค่าเบิกใช้สูงสุด</h6><div style="height: 250px;"><canvas id="turnoverChart"></canvas></div></div></div>
+            <div class="col-12 col-lg-4"><div class="card card-shadow p-3 h-100"><h6 class="fw-bold text-primary">🏢 สัดส่วนเบิกใช้ตามหน่วยงาน</h6><div style="height: 250px;"><canvas id="deptChart"></canvas></div></div></div>
+            <div class="col-12 col-lg-4"><div class="card card-shadow p-3 h-100"><h6 class="fw-bold text-primary">🍩 แหล่งงบประมาณ</h6><div style="height: 250px;"><canvas id="categoryChart"></canvas></div></div></div>
         </div>
 
         <div class="row g-3">
@@ -686,11 +677,9 @@
                    <label class="small fw-bold text-muted">เลขที่เอกสาร</label>
                    <input v-model="formOut.docNo" type="text" class="form-control" placeholder="DOC-XXX">
                </div>
-               <div class="col-12 col-md-3">
+              <div class="col-12 col-md-3">
                    <label class="small fw-bold text-muted">หน่วยงานที่ขอเบิก</label>
-                   <select v-model="formOut.dept" class="form-select">
-                       <option v-for="d in depts" :value="d.name">{{ d.name }}</option>
-                   </select>
+                   <select id="stockOutDeptSelect" placeholder="พิมพ์ค้นหาหน่วยงาน..."></select>
                </div>
             </div>
          </div>
@@ -1536,6 +1525,7 @@ createApp({
       tsVendor: null, 
       tsProduct: null, 
       tsOpenProduct: null,
+      chartInstDept: null, tsStockOutDept: null,
       
       mophPeriod: ''
     }
