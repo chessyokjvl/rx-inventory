@@ -1942,14 +1942,52 @@ createApp({
             }
         });
         
+        // ฟังก์ชันช่วยคำนวณ % สำหรับกราฟ (เวลาคลิกซ่อน Legend ให้มันคำนวณใหม่เฉพาะส่วนที่โชว์)
+        const tooltipCallback = function(context) {
+            let label = context.label || '';
+            let value = context.parsed || 0;
+            let dataset = context.dataset;
+            let total = 0;
+            dataset.data.forEach((val, i) => {
+                let meta = context.chart.getDatasetMeta(context.datasetIndex);
+                if (!meta.data[i].hidden) total += val; // รวมยอดเฉพาะอันที่ไม่ได้กดซ่อน
+            });
+            let percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+            return label + ': ' + new Intl.NumberFormat('th-TH', {style:'currency', currency:'THB'}).format(value) + ' (' + percentage + ')';
+        };
+
+        // 1. วาดกราฟแหล่งงบประมาณ (อัปเดตให้มี %)
         if(this.chartInstCat) this.chartInstCat.destroy();
         this.chartInstCat = new Chart(document.getElementById('categoryChart'), { 
             type: 'doughnut', 
-            data: { 
-                labels: Object.keys(budgetStats), 
-                datasets: [{ data: Object.values(budgetStats), backgroundColor: ['#0d6efd','#ffc107','#6f42c1'] }] 
-            }, 
-            options: { plugins:{legend:{position:'bottom'}} } 
+            data: { labels: Object.keys(budgetStats), datasets: [{ data: Object.values(budgetStats), backgroundColor: ['#0d6efd','#ffc107','#6f42c1'] }] }, 
+            options: { plugins:{ legend:{position:'bottom'}, tooltip: { callbacks: { label: tooltipCallback } } } } 
+        });
+
+        // 2. วาดกราฟมูลค่าเบิกแยกตามหน่วยงาน (กราฟใหม่ กดซ่อน/โชว์ได้)
+        let deptUsage = {};
+        this.transactions.filter(t=>t.type==='OUT'&&t.status==='Completed').forEach(t=>{
+            let dept = t.vendorOrDept;
+            if(!deptUsage[dept]) deptUsage[dept]=0;
+            deptUsage[dept] += t.totalPrice;
+        });
+        
+        if(this.chartInstDept) this.chartInstDept.destroy();
+        this.chartInstDept = new Chart(document.getElementById('deptChart'), {
+            type: 'doughnut', // ใช้ Doughnut เพื่อให้กดเปิด/ปิดแต่ละหน่วยงานจาก Legend ได้ง่าย
+            data: {
+                labels: Object.keys(deptUsage),
+                datasets: [{ 
+                    data: Object.values(deptUsage), 
+                    backgroundColor: ['#0d6efd','#6610f2','#6f42c1','#d63384','#dc3545','#fd7e14','#ffc107','#198754','#20c997','#0dcaf0'] 
+                }]
+            },
+            options: { 
+                plugins:{ 
+                    legend:{position:'right', labels: { boxWidth: 12, font: { size: 10 } }}, 
+                    tooltip: { callbacks: { label: tooltipCallback } } 
+                } 
+            }
         });
      },
 
