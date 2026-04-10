@@ -2107,10 +2107,23 @@ createApp({
          const dateSend = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
          const periodRpt = this.mophPeriod.replace(/-/g,'');
          
+         // ฟังก์ชันช่วยสุ่ม Lot No (1 ตัวอักษร + 6 ตัวเลข)
+         const generateLotNo = () => {
+             const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+             const randomLetter = letters.charAt(Math.floor(Math.random() * letters.length));
+             const randomNumbers = Math.floor(100000 + Math.random() * 900000);
+             return randomLetter + randomNumbers;
+         };
+
+         // ฟังก์ชันช่วยสร้าง Expire Date สำรอง (บวกไป 2 ปีจากปัจจุบัน)
+         const generateExpDate = () => {
+             return `${now.getFullYear() + 2}${pad(now.getMonth()+1)}${pad(now.getDate())}`;
+         };
+         
          let data = [];
          let filename = '';
 
-         if(fileNum === 1) {
+         if(fileNum === 1) { // DRUGLIST
              filename = `DRUGLIST_${hospCode}_${periodRpt}`;
              data.push(["HOSP_CODE","WORKING_CODE","GENERIC_NAME","GPUID","NLEM","PRODUCT_CAT","BASE_UNIT","STATUS","DATE_STATUS","PERIOD_RPT","DATE_SEND"]);
              const drugProducts = this.products.filter(p => p.objType === 'ยา');
@@ -2126,7 +2139,7 @@ createApp({
                  data.push([hospCode, wCode, gName, gpuid, nlem, pCat, bUnit, status, dStatus, periodRpt, dateSend]);
              });
          }
-         else if(fileNum === 2) {
+         else if(fileNum === 2) { // PURCHASEPLAN
              filename = `PURCHASEPLAN_${hospCode}_${periodRpt}`;
              data.push(["HOSP_CODE","YEARBUDGET","WORKING_CODE","GENERIC_NAME","GPUID","NLEM","QTY_USE_YEAR3","QTY_USE_YEAR2","QTY_USE_YEAR1","QTY_THIS_YEAR","PACK_SIZE","BASE_UNIT","PACK_COST","VALUE_THIS_YEAR","QTY_PLAN_TRIMES1","QTY_PLAN_TRIMES2","QTY_PLAN_TRIMES3","QTY_PLAN_TRIMES4","PERIOD_RPT","DATE_SEND"]);
              this.purchasePlans.forEach(plan => {
@@ -2139,7 +2152,7 @@ createApp({
                  data.push([hospCode, plan.yearBudget, wCode, gName, gpuid, nlem, plan.qtyUseY3, plan.qtyUseY2, plan.qtyUseY1, plan.qtyThisYear, plan.packSize, bUnit, packCost, valueThisYear, plan.qtyQ1, plan.qtyQ2, plan.qtyQ3, plan.qtyQ4, periodRpt, dateSend]);
              });
          }
-         else if(fileNum === 3) {
+         else if(fileNum === 3) { // RECEIPT
              filename = `RECEIPT_${hospCode}_${periodRpt}`;
              data.push(["HOSP_CODE","WORKING_CODE","TRADE_NAME","TPUID","VENDOR_NAME","VENDOR_TAX_ID","QTY_RCV","PACK_SIZE","BASE_UNIT","PACK_COST","TOTAL_VALUE","LOT_NO","EXPIRE_DATE","RCV_NO","PO_NO","CNT_NO","DATE_RCV","BUY_METHOD_ID","CO_PURCHASE_ID","RCV_FLAG","PERIOD_RPT","DATE_SEND"]);
              let receipts = this.transactions.filter(t => t.type === 'IN' && t.date.startsWith(this.mophPeriod) && t.status === 'Completed');
@@ -2152,15 +2165,12 @@ createApp({
                  let vName = t.vendorOrDept; let vTax = v.taxId || '';
                  let qtyRcv = t.qty; let pSize = t.packSize || 1; let bUnit = p.unit || '';
                  let pCost = parseFloat(t.unitPrice).toFixed(2); let tVal = parseFloat(t.totalPrice).toFixed(2);
-                 let lot = t.lotNo ? t.lotNo.trim() : ''; 
-                 // หากไม่ได้กรอก Lot ไว้ ให้สุ่ม A-Z 1 ตัว ตามด้วยตัวเลข 6 หลัก
-                 if (!lot) {
-                     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                     const randomLetter = letters.charAt(Math.floor(Math.random() * letters.length));
-                     const randomNumbers = Math.floor(100000 + Math.random() * 900000); // สุ่มเลข 100000 - 999999
-                     lot = randomLetter + randomNumbers;
-                 }
-                 let exp = t.expDate ? t.expDate.replace(/-/g, '') : '';
+                 
+                 // สุ่ม Lot และ Exp ให้อัตโนมัติถ้าค่าว่าง
+                 let lot = t.lotNo ? t.lotNo.trim() : '';
+                 if (!lot || lot === 'WAITING') lot = generateLotNo();
+                 let exp = t.expDate ? t.expDate.replace(/-/g, '') : generateExpDate();
+                 
                  let rcvNo = b.docNo || b.refBillNo || t.refDoc || t.billId; 
                  let poNo = b.poNo || ''; let cntNo = b.cntNo || '';
                  let dRcv = t.date ? t.date.replace(/-/g, '') : '';
@@ -2169,7 +2179,7 @@ createApp({
                  data.push([hospCode, wCode, tName, tpuid, vName, vTax, qtyRcv, pSize, bUnit, pCost, tVal, lot, exp, rcvNo, poNo, cntNo, dRcv, bMethod, coPur, rFlag, periodRpt, dateSend]);
              });
          }
-         else if(fileNum === 4) {
+         else if(fileNum === 4) { // DISTRIBUTION
              filename = `DISTRIBUTION_${hospCode}_${periodRpt}`;
              data.push(["HOSP_CODE","WORKING_CODE","TRADE_NAME","TPUID","QTY_DIS","PACK_SIZE","BASE_UNIT","VALUE","DIS_DEPT_GROUP","PERIOD_RPT","DATE_SEND"]);
              let distributions = this.transactions.filter(t => t.type === 'OUT' && t.date.startsWith(this.mophPeriod) && t.status === 'Completed');
@@ -2183,7 +2193,7 @@ createApp({
                  data.push([hospCode, wCode, tName, tpuid, qtyDis, pSize, bUnit, val, deptGroup, periodRpt, dateSend]);
              });
          }
-         else if(fileNum === 5) {
+         else if(fileNum === 5) { // INVENTORY
              const dateOnHand = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}`;
              filename = `INVENTORY_${hospCode}_${dateOnHand}`;
              data.push(["HOSP_CODE","WORKING_CODE","TRADE_NAME","TPUID","VENDOR_NAME","VENDOR_TAX_ID","QTY_ONHAND","PACK_SIZE","BASE_UNIT","PACK_COST","VALUE_ONHAND","LOT_NO","EXPIRE_DATE","DATE_ONHAND","DATE_SEND"]);
@@ -2191,7 +2201,7 @@ createApp({
                  if (p.objType !== 'ยา') return; 
                  let pLots = {};
                  this.transactions.filter(t => t.productId === p.id && t.status === 'Completed').forEach(t => {
-                     let k = t.lotNo || 'N/A';
+                     let k = t.lotNo ? t.lotNo.trim() : 'N/A';
                      if (!pLots[k]) pLots[k] = { qty: 0, vendor: '', packSize: 1, unitPrice: 0, exp: t.expDate || '' };
                      if (t.type === 'IN') {
                          pLots[k].vendor = t.vendorOrDept; pLots[k].packSize = t.packSize || 1; pLots[k].unitPrice = t.unitPrice || 0;
@@ -2199,6 +2209,7 @@ createApp({
                      }
                      pLots[k].qty += (t.type === 'IN' ? 1 : -1) * (parseFloat(t.qty)||0);
                  });
+                 
                  Object.keys(pLots).forEach(k => {
                      if (pLots[k].qty > 0) { 
                          let v = this.vendors.find(x => x.name === pLots[k].vendor) || {};
@@ -2206,7 +2217,11 @@ createApp({
                          let vName = pLots[k].vendor || ''; let vTax = v.taxId || '';
                          let qtyOnHand = pLots[k].qty; let pSize = pLots[k].packSize; let bUnit = p.unit || '';
                          let pCost = parseFloat(pLots[k].unitPrice).toFixed(2); let vOnHand = (qtyOnHand * parseFloat(pLots[k].unitPrice)).toFixed(2);
-                         let lot = (k === 'N/A' || k === 'WAITING') ? '' : k; let exp = pLots[k].exp ? pLots[k].exp.replace(/-/g, '') : '';
+                         
+                         // สุ่ม Lot และ Exp ให้อัตโนมัติถ้าค่าว่าง
+                         let lot = (k === 'N/A' || k === 'WAITING' || k === '') ? generateLotNo() : k;
+                         let exp = pLots[k].exp ? pLots[k].exp.replace(/-/g, '') : generateExpDate();
+
                          data.push([hospCode, wCode, tName, tpuid, vName, vTax, qtyOnHand, pSize, bUnit, pCost, vOnHand, lot, exp, dateOnHand, dateSend]);
                      }
                  });
