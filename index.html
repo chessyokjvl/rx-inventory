@@ -21,7 +21,6 @@
     .login-card { border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: none; overflow: hidden; width: 100%; max-width: 420px; margin: 15px; }
     .login-header { background-color: #0d6efd; color: white; padding: 30px 20px; text-align: center; }
     
-    /* แก้ปัญหา Bug 3: ล็อกขนาด Sidebar และบีบ Content ไว้ */
     .sidebar { min-height: 100vh; background: #1e293b; color: white; z-index: 1050; flex-shrink: 0; min-width: 260px; max-width: 260px; }
     .content-wrapper { min-width: 0; width: 100%; padding-top: 20px; }
     
@@ -36,7 +35,6 @@
     th.sortable:hover { background-color: #e2e6ea !important; }
     .sort-icon { font-size: 0.7em; color: #6c757d; position: absolute; right: 5px; top: 50%; transform: translateY(-50%); }
     
-    /* Bug 4: Cursor pointer สำหรับ Dashboard Cards */
     .metric-card { cursor: pointer; }
     .metric-card:hover { transform: translateY(-3px); transition: 0.2s; }
     .alert-table-container { max-height: 250px; overflow-y: auto; }
@@ -188,10 +186,20 @@
         </div>
 
         <div class="row g-3 mb-4">
-            <div class="col-12">
-                <div class="card card-shadow p-3">
-                    <h6 class="fw-bold text-primary mb-3">📊 สัดส่วนมูลค่ายาในคลัง (ED vs NED)</h6>
-                    <div v-if="edTotal + nedTotal > 0" class="progress shadow-sm" style="height: 35px; font-size: 1rem; font-weight: bold; border-radius: 10px;">
+            <div class="col-12 col-lg-6">
+                <div class="card card-shadow p-3 h-100">
+                    <h6 class="fw-bold text-primary mb-3">🛒 มูลค่าจัดซื้อสะสมทั้งหมด (ED vs NED)</h6>
+                    <div v-if="purchasedEdTotal + purchasedNedTotal > 0" class="progress shadow-sm mb-1" style="height: 35px; font-size: 1rem; font-weight: bold; border-radius: 10px;">
+                        <div class="progress-bar" style="background-color: #0d6efd;" role="progressbar" :style="{width: purchasedEdPercent + '%'}" title="จัดซื้อยาในบัญชี (ED)">ED: {{ formatCurrency(purchasedEdTotal) }} ({{ purchasedEdPercent }}%)</div>
+                        <div class="progress-bar" style="background-color: #ffc107; color: #000;" role="progressbar" :style="{width: purchasedNedPercent + '%'}" title="จัดซื้อยานอกบัญชี (NED)">NED: {{ formatCurrency(purchasedNedTotal) }} ({{ purchasedNedPercent }}%)</div>
+                    </div>
+                    <div v-else class="text-center text-muted small">ไม่มีประวัติการจัดซื้อยา ED/NED</div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
+                <div class="card card-shadow p-3 h-100">
+                    <h6 class="fw-bold text-success mb-3">📊 มูลค่ายาคงคลังปัจจุบัน (ED vs NED)</h6>
+                    <div v-if="edTotal + nedTotal > 0" class="progress shadow-sm mb-1" style="height: 35px; font-size: 1rem; font-weight: bold; border-radius: 10px;">
                         <div class="progress-bar bg-success" role="progressbar" :style="{width: edPercent + '%'}" title="ยาในบัญชี (ED)">ED: {{ formatCurrency(edTotal) }} ({{ edPercent }}%)</div>
                         <div class="progress-bar bg-danger" role="progressbar" :style="{width: nedPercent + '%'}" title="ยานอกบัญชี (NED)">NED: {{ formatCurrency(nedTotal) }} ({{ nedPercent }}%)</div>
                     </div>
@@ -1445,7 +1453,6 @@ createApp({
     }
   },
   computed: {
-     // --- COMPUTED PROPERTIES ---
      products() { 
          if(!this.rawData.products) return []; 
          return this.rawData.products.map(r=>({ 
@@ -1521,7 +1528,6 @@ createApp({
          }); 
      },
 
-     // คำนวณมูลค่ายารอตรวจรับ (อัปเดต Bug 4: นับเฉพาะที่บิลยังเป็น Pending เท่านั้น)
      pendingBills() { return this.bills.filter(b => b.status === 'Pending'); },
      dashPendingValue() { 
          let pendingBillIds = this.bills.filter(b => b.status === 'Pending').map(b => b.id);
@@ -1574,7 +1580,7 @@ createApp({
      },
      
      // --------------------------------------------------------------------------
-     // BUG 2: คำนวณสัดส่วน ED vs NED แบบหลอด 100%
+     // ED vs NED Percentages (สำหรับกราฟแท่ง)
      // --------------------------------------------------------------------------
      edTotal() {
          return this.dashFilteredInventory.filter(i => i.objType === 'ยา' && i.drugClass === 'ED').reduce((sum, i) => sum + i.totalVal, 0);
@@ -1589,6 +1595,29 @@ createApp({
      nedPercent() {
          let total = this.edTotal + this.nedTotal;
          return total > 0 ? ((this.nedTotal / total) * 100).toFixed(1) : 0;
+     },
+     
+     purchasedEdTotal() {
+         return this.transactions.filter(t => t.type === 'IN' && t.status === 'Completed').reduce((sum, t) => {
+             let p = this.products.find(x => x.id === t.productId);
+             if (p && p.objType === 'ยา' && p.drugClass === 'ED') return sum + t.totalPrice;
+             return sum;
+         }, 0);
+     },
+     purchasedNedTotal() {
+         return this.transactions.filter(t => t.type === 'IN' && t.status === 'Completed').reduce((sum, t) => {
+             let p = this.products.find(x => x.id === t.productId);
+             if (p && p.objType === 'ยา' && p.drugClass === 'NED') return sum + t.totalPrice;
+             return sum;
+         }, 0);
+     },
+     purchasedEdPercent() {
+         let total = this.purchasedEdTotal + this.purchasedNedTotal;
+         return total > 0 ? ((this.purchasedEdTotal / total) * 100).toFixed(1) : 0;
+     },
+     purchasedNedPercent() {
+         let total = this.purchasedEdTotal + this.purchasedNedTotal;
+         return total > 0 ? ((this.purchasedNedTotal / total) * 100).toFixed(1) : 0;
      },
 
      pendingRequestsList() { return this.requests.filter(r => r.status === 'Pending'); },
@@ -1769,14 +1798,12 @@ createApp({
         if(u) { 
             this.currentUser = { user:u[0], role:u[2], name:u[3] }; 
             this.loginForm = { user: '', pass: '' }; 
-            // Bug 1: บังคับวาดกราฟหลังจากล็อกอินเข้าสู่หน้า Dashboard
             this.$nextTick(() => { if (this.page === 'dashboard') this.renderCharts(); });
         } else {
             alert('ชื่อผู้ใช้งาน หรือ รหัสผ่าน ไม่ถูกต้อง'); 
         }
      },
      
-     // Bug 4: นำทางจาก Card Dashboard ไปยังหน้ารายละเอียดต่างๆ
      navigateFromDash(type) {
          if (type === 'inventory') { this.page = 'reports'; this.reportFilter.type = 'inventory'; }
          if (type === 'pending') { this.page = 'inspect'; }
@@ -1829,7 +1856,6 @@ createApp({
         if(this.chartInstTurnover) this.chartInstTurnover.destroy();
         this.chartInstTurnover = new Chart(document.getElementById('turnoverChart'), { type: 'bar', data: { labels: top10.map(x=>x.n.substring(0,15)+'...'), datasets: [{ data: top10.map(x=>x.v), backgroundColor: '#0d6efd', borderRadius: 4 }] }, options: { plugins:{legend:{display:false}} } });
 
-        // กราฟสัดส่วนมูลค่าตามแหล่งงบประมาณ
         let budgetStats = {'เงินบำรุง': 0, 'เงินงบประมาณ': 0, 'งบยาเสพติด': 0};
         this.bills.filter(b => b.status === 'Completed').forEach(b => {
             if(b.budgetSource === 'ผสม (Split)') {
@@ -1892,7 +1918,6 @@ createApp({
      },
      
      openInspectModal(bill) { 
-         // ดึงยอดรวมของบิลนี้มาแสดงใน Modal กรณีแบ่งจ่ายงบประมาณ
          let totalVal = this.transactions.filter(t => t.billId === bill.id).reduce((sum, t) => sum + t.totalPrice, 0);
          this.formInspect = { 
              billId: bill.id, refBillNo: bill.refBillNo, vendor: bill.vendor, docNo: '', 
@@ -1945,7 +1970,6 @@ createApp({
          alert('ระบบโหลดรายการแล้ว กรุณาระบุ เลขที่เอกสาร ประเภทบิล และ Lot สินค้าก่อนบันทึก'); 
      },
 
-     // Plan Management
      getProductName(id) { let p = this.products.find(x=>x.id===id); return p ? p.name : id; },
      onPlanProdSelect() { let p=this.products.find(x=>x.name===this.modalForm.tempProductName); if(p) this.modalForm.productId=p.id; },
      openPlanModal(plan) { 
@@ -2001,7 +2025,6 @@ createApp({
          this.loading=false; 
      },
 
-     // MOPH 5 FILES EXPORT LOGIC - Unified Function for CSV & XLSX
      exportMophFile(fileNum, format) {
          if(!this.mophPeriod) return alert('กรุณาระบุปีและเดือนที่ต้องการรายงาน (PERIOD_RPT) ก่อนดาวน์โหลด');
          const hospCode = 'EA0014644'; 
@@ -2012,7 +2035,7 @@ createApp({
          let data = [];
          let filename = '';
 
-         if(fileNum === 1) { // DRUGLIST
+         if(fileNum === 1) {
              filename = `DRUGLIST_${hospCode}_${periodRpt}`;
              data.push(["HOSP_CODE","WORKING_CODE","GENERIC_NAME","GPUID","NLEM","PRODUCT_CAT","BASE_UNIT","STATUS","DATE_STATUS","PERIOD_RPT","DATE_SEND"]);
              const drugProducts = this.products.filter(p => p.objType === 'ยา');
@@ -2028,7 +2051,7 @@ createApp({
                  data.push([hospCode, wCode, gName, gpuid, nlem, pCat, bUnit, status, dStatus, periodRpt, dateSend]);
              });
          }
-         else if(fileNum === 2) { // PURCHASEPLAN
+         else if(fileNum === 2) {
              filename = `PURCHASEPLAN_${hospCode}_${periodRpt}`;
              data.push(["HOSP_CODE","YEARBUDGET","WORKING_CODE","GENERIC_NAME","GPUID","NLEM","QTY_USE_YEAR3","QTY_USE_YEAR2","QTY_USE_YEAR1","QTY_THIS_YEAR","PACK_SIZE","BASE_UNIT","PACK_COST","VALUE_THIS_YEAR","QTY_PLAN_TRIMES1","QTY_PLAN_TRIMES2","QTY_PLAN_TRIMES3","QTY_PLAN_TRIMES4","PERIOD_RPT","DATE_SEND"]);
              this.purchasePlans.forEach(plan => {
@@ -2041,7 +2064,7 @@ createApp({
                  data.push([hospCode, plan.yearBudget, wCode, gName, gpuid, nlem, plan.qtyUseY3, plan.qtyUseY2, plan.qtyUseY1, plan.qtyThisYear, plan.packSize, bUnit, packCost, valueThisYear, plan.qtyQ1, plan.qtyQ2, plan.qtyQ3, plan.qtyQ4, periodRpt, dateSend]);
              });
          }
-         else if(fileNum === 3) { // RECEIPT
+         else if(fileNum === 3) {
              filename = `RECEIPT_${hospCode}_${periodRpt}`;
              data.push(["HOSP_CODE","WORKING_CODE","TRADE_NAME","TPUID","VENDOR_NAME","VENDOR_TAX_ID","QTY_RCV","PACK_SIZE","BASE_UNIT","PACK_COST","TOTAL_VALUE","LOT_NO","EXPIRE_DATE","RCV_NO","PO_NO","CNT_NO","DATE_RCV","BUY_METHOD_ID","CO_PURCHASE_ID","RCV_FLAG","PERIOD_RPT","DATE_SEND"]);
              let receipts = this.transactions.filter(t => t.type === 'IN' && t.date.startsWith(this.mophPeriod) && t.status === 'Completed');
@@ -2063,7 +2086,7 @@ createApp({
                  data.push([hospCode, wCode, tName, tpuid, vName, vTax, qtyRcv, pSize, bUnit, pCost, tVal, lot, exp, rcvNo, poNo, cntNo, dRcv, bMethod, coPur, rFlag, periodRpt, dateSend]);
              });
          }
-         else if(fileNum === 4) { // DISTRIBUTION
+         else if(fileNum === 4) {
              filename = `DISTRIBUTION_${hospCode}_${periodRpt}`;
              data.push(["HOSP_CODE","WORKING_CODE","TRADE_NAME","TPUID","QTY_DIS","PACK_SIZE","BASE_UNIT","VALUE","DIS_DEPT_GROUP","PERIOD_RPT","DATE_SEND"]);
              let distributions = this.transactions.filter(t => t.type === 'OUT' && t.date.startsWith(this.mophPeriod) && t.status === 'Completed');
@@ -2077,7 +2100,7 @@ createApp({
                  data.push([hospCode, wCode, tName, tpuid, qtyDis, pSize, bUnit, val, deptGroup, periodRpt, dateSend]);
              });
          }
-         else if(fileNum === 5) { // INVENTORY
+         else if(fileNum === 5) {
              const dateOnHand = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}`;
              filename = `INVENTORY_${hospCode}_${dateOnHand}`;
              data.push(["HOSP_CODE","WORKING_CODE","TRADE_NAME","TPUID","VENDOR_NAME","VENDOR_TAX_ID","QTY_ONHAND","PACK_SIZE","BASE_UNIT","PACK_COST","VALUE_ONHAND","LOT_NO","EXPIRE_DATE","DATE_ONHAND","DATE_SEND"]);
@@ -2107,7 +2130,6 @@ createApp({
              });
          }
 
-         // Trigger Download
          if(format === 'csv') {
              let csvContent = '\uFEFF' + data.map(e => e.join("|")).join("\n");
              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -2139,14 +2161,11 @@ createApp({
         
         let container = document.getElementById(elementId);
         if(!container) return alert('ไม่พบข้อมูล');
-        
         let table = container.getElementsByTagName('table')[0];
         if(!table) return alert('ไม่พบตาราง');
         
         let cloneTable = table.cloneNode(true);
         let rows = cloneTable.rows;
-        
-        // กรองเอา Column ออกเพื่อไม่ให้ปุ่ม หรือคำว่า Action ไปโผล่ใน Excel
         for(let i=0; i<rows.length; i++) { 
             let lastCell = rows[i].cells[rows[i].cells.length - 1]; 
             if(lastCell && (lastCell.innerText.includes('Action') || lastCell.innerText.includes('Print') || lastCell.innerText.includes('จัดการ') || lastCell.innerText.includes('ลบ') || lastCell.innerHTML.includes('<button'))) {
