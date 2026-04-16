@@ -75,6 +75,7 @@
         <a v-if="currentUser.role==='Admin'" @click="page='inspect'" class="nav-link" :class="{active: page==='inspect'}"><i class="bi bi-clipboard-check me-2"></i> ตรวจรับเข้าคลัง</a>
         <a v-if="currentUser.role==='Admin'" @click="page='stockOut'" class="nav-link" :class="{active: page==='stockOut'}"><i class="bi bi-box-arrow-up me-2"></i> จ่ายสินค้า / ตัดสต็อก</a>
         <a v-if="currentUser.role==='Admin'" @click="page='stockTake'" class="nav-link text-danger" :class="{active: page==='stockTake'}"><i class="bi bi-clipboard-data me-2"></i> ปรับปรุงสต็อก (Stock Take)</a>
+        <a v-if="currentUser.role==='Admin'" @click="page='valueCheck'" class="nav-link text-warning" :class="{active: page==='valueCheck'}"><i class="bi bi-currency-dollar me-2"></i> ตรวจสอบ/ปรับมูลค่า</a>
         <a v-if="currentUser.role==='Admin'" @click="page='approveReq'" class="nav-link" :class="{active: page==='approveReq'}"><i class="bi bi-check2-square me-2"></i> อนุมัติเบิก <span v-if="pendingRequestsCount>0" class="badge bg-danger rounded-pill ms-auto">{{ pendingRequestsCount }}</span></a>
         <a v-if="currentUser.role==='Admin'" @click="page='outboundList'" class="nav-link" :class="{active: page==='outboundList'}"><i class="bi bi-card-list me-2"></i> ทะเบียนใบเบิก</a>
         <a v-if="currentUser.role==='Admin'" @click="page='history'" class="nav-link" :class="{active: page==='history'}"><i class="bi bi-clock-history me-2"></i> ประวัติรับจ่าย</a>
@@ -158,6 +159,72 @@
          <div v-if="cartStockTake.length > 0" class="card card-shadow p-3"><div class="table-responsive"><table class="table table-sm table-bordered align-middle text-nowrap"><thead class="table-light text-center"><tr><th>สินค้า</th><th>ยอดในระบบ</th><th>ยอดนับจริง</th><th>ผลต่าง</th><th>มูลค่าที่เปลี่ยน</th><th>ลบ</th></tr></thead><tbody><tr v-for="(item, idx) in cartStockTake"><td class="fw-bold">{{ item.productName }}</td><td class="text-center text-muted">{{ formatNumber(item.currentQty) }}</td><td class="text-center text-primary fw-bold">{{ formatNumber(item.actualQty) }}</td><td class="text-center fw-bold" :class="item.diff > 0 ? 'text-success' : 'text-danger'">{{ item.diff > 0 ? '+' : '' }}{{ formatNumber(item.diff) }}</td><td class="text-end">{{ formatCurrency(item.diff * item.unitPrice) }}</td><td class="text-center"><button @click="cartStockTake.splice(idx,1)" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></td></tr></tbody></table></div><button @click="submitStockTake" class="btn btn-danger btn-lg w-100 mt-2 fw-bold shadow"><i class="bi bi-save me-2"></i> ยืนยันการปรับปรุงสต็อก</button></div>
       </div>
 
+      <div v-if="page === 'valueCheck'">
+         <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3"><h3 class="mb-2 mb-md-0 fw-bold text-warning"><i class="bi bi-currency-dollar text-warning"></i> ตรวจสอบ/ปรับมูลค่ายาคงคลัง</h3><button class="btn btn-success shadow-sm fw-bold" @click="exportExcel('valueCheckTable', 'InventoryValueCheck')"><i class="bi bi-file-excel"></i> Export Excel</button></div>
+         <div class="card card-shadow p-3 mb-3 bg-light border-warning border-top border-4 no-print"><div class="row g-2 align-items-center"><div class="col-12 col-md-4"><input type="text" v-model="valueCheckSearch" class="form-control" placeholder="🔍 ค้นหาชื่อยา, รหัส..."></div><div class="col-12 col-md-4"><select v-model="valueCheckFilter" class="form-select"><option value="all">แสดงทั้งหมด</option><option value="negative">เฉพาะมูลค่าติดลบ</option><option value="zeroQtyHasValue">ของหมดแต่มูลค่าไม่เป็น 0</option></select></div></div></div>
+         <div class="card card-shadow p-3" id="valueCheckTable">
+             <div class="table-responsive">
+                 <table class="table table-hover align-middle table-bordered text-nowrap">
+                     <thead class="table-dark text-center">
+                         <tr>
+                             <th @click="sortBy('id')" class="sortable text-start">รหัสสินค้า <span class="sort-icon text-white">{{sortIcon('id')}}</span></th>
+                             <th @click="sortBy('name')" class="sortable text-start">รายการสินค้า <span class="sort-icon text-white">{{sortIcon('name')}}</span></th>
+                             <th @click="sortBy('qty')" class="sortable text-end">จำนวนคงเหลือ <span class="sort-icon text-white">{{sortIcon('qty')}}</span></th>
+                             <th @click="sortBy('totalVal')" class="sortable text-end">มูลค่าในระบบ (บาท) <span class="sort-icon text-white">{{sortIcon('totalVal')}}</span></th>
+                             <th class="text-center no-print">ปรับมูลค่า</th>
+                         </tr>
+                     </thead>
+                     <tbody>
+                         <tr v-for="item in sortedValueCheckList" :key="item.id">
+                             <td class="text-start">{{ item.id }}</td>
+                             <td class="text-start fw-bold">{{ item.name }}</td>
+                             <td class="text-end fw-bold" :class="item.qty <= 0 ? 'text-danger' : 'text-primary'">{{ formatNumber(item.qty) }} {{ item.unit }}</td>
+                             <td class="text-end fw-bold" :class="item.totalVal < 0 ? 'text-danger' : ''">{{ formatCurrency(item.totalVal) }}</td>
+                             <td class="text-center no-print">
+                                 <button @click="openAdjustValueModal(item)" class="btn btn-sm btn-outline-warning shadow-sm"><i class="bi bi-pencil-fill"></i> แก้ไข</button>
+                             </td>
+                         </tr>
+                         <tr v-if="sortedValueCheckList.length===0"><td colspan="5" class="text-center text-muted p-4">-- ไม่พบรายการ --</td></tr>
+                     </tbody>
+                 </table>
+             </div>
+         </div>
+         
+         <div v-if="showAdjustValModal" class="loading-overlay" style="background: rgba(0,0,0,0.6);">
+            <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 500px; border-radius:15px;">
+                <h4 class="mb-4 text-warning fw-bold"><i class="bi bi-pencil-square me-2"></i> ปรับปรุงมูลค่ายาคงคลัง</h4>
+                <div class="bg-light p-3 rounded mb-3">
+                    <p class="mb-1 fw-bold">{{ adjustValForm.productName }}</p>
+                    <small class="text-muted">จำนวนคงเหลือ: <span class="fw-bold" :class="adjustValForm.qty <= 0 ? 'text-danger' : 'text-primary'">{{ formatNumber(adjustValForm.qty) }}</span> {{ adjustValForm.unit }}</small>
+                </div>
+                
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <label class="small text-muted fw-bold">มูลค่าเดิมในระบบ (บาท)</label>
+                        <input type="text" :value="formatCurrency(adjustValForm.currentValue)" class="form-control bg-light text-end" readonly>
+                    </div>
+                    <div class="col-6">
+                        <label class="small text-primary fw-bold">มูลค่าที่ถูกต้อง (บาท)</label>
+                        <input type="number" v-model.number="adjustValForm.newValue" class="form-control border-primary text-end fw-bold">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="small text-muted fw-bold">หมายเหตุการปรับปรุง</label>
+                    <input type="text" v-model="adjustValForm.note" class="form-control" placeholder="เช่น เคลียร์ยอดติดลบ, ปรับยอดเศษสตางค์">
+                </div>
+                
+                <div class="alert alert-warning small py-2 mb-4">
+                    * การปรับมูลค่าจะไม่กระทบจำนวนยาคงเหลือ ระบบจะสร้าง Transaction พิเศษเพื่อบวก/ลบยอดเงินส่วนต่างให้ตรงกับมูลค่าใหม่
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button @click="submitValueAdjustment" class="btn btn-warning flex-grow-1 py-2 fw-bold shadow-sm text-dark"><i class="bi bi-save"></i> บันทึกมูลค่าใหม่</button> 
+                    <button @click="showAdjustValModal=false" class="btn btn-outline-secondary py-2">ยกเลิก</button>
+                </div>
+            </div>
+         </div>
+      </div>
       <div v-if="page === 'approveReq'">
          <h3 class="mb-3 fw-bold">ตรวจสอบและอนุมัติใบขอเบิก</h3>
          <div class="card card-shadow p-3"><div class="table-responsive"><table class="table table-hover text-nowrap"><thead><tr class="table-light"><th @click="sortBy('id')" class="sortable">เลขที่ <span class="sort-icon">{{sortIcon('id')}}</span></th><th @click="sortBy('date')" class="sortable">วันที่ <span class="sort-icon">{{sortIcon('date')}}</span></th><th @click="sortBy('dept')" class="sortable">หน่วยงาน <span class="sort-icon">{{sortIcon('dept')}}</span></th><th>ผู้ขอ</th><th>สถานะ</th><th>Action</th></tr></thead><tbody><tr v-for="req in sortedPendingRequests" :key="req.id"><td><span class="fw-bold text-primary">{{ req.id }}</span></td><td>{{ req.date }}</td><td><span class="badge bg-info text-dark">{{ req.dept }}</span></td><td>{{ req.user }}</td><td><span class="badge bg-warning text-dark shadow-sm">รออนุมัติ</span></td><td><button @click="loadRequestToStockOut(req)" class="btn btn-sm btn-primary shadow-sm"><i class="bi bi-box-arrow-up-right me-1"></i> จัดการจ่ายยา</button></td></tr><tr v-if="sortedPendingRequests.length===0"><td colspan="6" class="text-center text-muted p-4">-- ไม่มีรายการใบขอเบิกค้าง --</td></tr></tbody></table></div></div>
@@ -252,6 +319,7 @@ createApp({
       showInspectModal: false, formInspect: { billId: '', refBillNo: '', vendor: '', docNo: '', inspectDate: new Date().toISOString().slice(0,10), budgetSource: 'เงินบำรุง', budgetBumrung: 0, budgetNgob: 0, budgetNarcotic: 0, totalBillVal: 0 },
       formOut: { date: new Date().toISOString().slice(0,10), dept: '', reqId: '', reqType: 'เบิกจริง', docNo: '' }, tempOut: { productName: '', productId: '', qty: 1, selectedLotIdx: -1, unitPrice: 0, stockSource: 'Completed' }, cartOut: [],
       formStockTake: { date: new Date().toISOString().slice(0,10), refDoc: 'STK-' + new Date().toISOString().slice(0,7).replace(/-/g,'') }, tempStockTake: { productId: '', productName: '', currentQty: 0, actualQty: 0, unitPrice: 0, packSize: 1 }, cartStockTake: [],
+      valueCheckSearch: '', valueCheckFilter: 'all', showAdjustValModal: false, adjustValForm: { productId: '', productName: '', qty: 0, unit: '', currentValue: 0, newValue: 0, note: 'ปรับปรุงมูลค่ายาคงคลัง' },
       tempReq: { productName: '', productId: '', qty: 1, unit: '' }, cartReq: [], reqDept: '',
       reportFilter: { type: 'inventory', start: '', end: '' }, historyFilterType: '', outFilter: { start: '', end: '', dept: '', type: '', search: '' },
       showModal: false, modalForm: {}, printDoc: null, sortKey: '', sortAsc: true, dashFilter: { objType: '', category: '', drugClass: '' },
@@ -295,7 +363,15 @@ createApp({
      dashInventoryValue() { return this.inventory.reduce((s,i)=>s+i.totalVal, 0); },
      dashFilteredInventory() { return this.inventory.filter(i => { if(this.dashFilter.objType && i.objType !== this.dashFilter.objType) return false; if(this.dashFilter.category && i.category !== this.dashFilter.category) return false; if(this.dashFilter.drugClass && i.drugClass !== this.dashFilter.drugClass) return false; return true; }); },
      dashReorderItems() { return this.dashFilteredInventory.filter(i => i.qty <= parseFloat(i.min) || i.qty <= 0); },
-     dashNearExpiry() { let sixM = new Date(); sixM.setMonth(sixM.getMonth()+6); let pIds = this.dashFilteredInventory.map(i=>i.id); return this.allLots.filter(l => l.qty>0 && pIds.includes(l.pid) && l.exp && new Date(l.exp) <= sixM).sort((a,b)=> new Date(a.exp)-new Date(b.exp)); },
+     dashNearExpiry() { 
+         let sixM = new Date(); sixM.setMonth(sixM.getMonth()+6); 
+         let pIds = this.dashFilteredInventory.map(i=>i.id); 
+         return this.allLots.filter(l => { 
+             if(l.qty<=0 || !pIds.includes(l.pid)) return false; // <--- ของหมด (qty<=0) จะข้ามไปเลย
+             if(!l.exp) return false; 
+             return new Date(l.exp) <= sixM; 
+         }).sort((a,b)=> new Date(a.exp)-new Date(b.exp)); 
+     },
      waitMetrics() { let arr=[]; let td=new Date(); this.bills.forEach(b=>{ let d1=new Date(b.receivedDate); let d2=b.status==='Completed'&&b.inspectDate?new Date(b.inspectDate):td; arr.push(Math.ceil(Math.abs(d2-d1)/(1000*60*60*24))); }); if(arr.length===0) return {max:0,min:0,avg:0}; return { max:Math.max(...arr), min:Math.min(...arr), avg:(arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(1) }; },
      emergencyReqCount() { return this.transactions.filter(t => t.type === 'OUT' && t.note && t.note.includes('ฉุกเฉิน')).length; },
      
@@ -420,7 +496,20 @@ createApp({
          if(this.searchQuery)l=l.filter(g=>g.id.includes(this.searchQuery)||g.entity.includes(this.searchQuery)); 
          return l; 
      },
-
+      filteredValueCheckList() {
+         let list = this.inventory;
+         if(this.valueCheckSearch) {
+             const searchStr = this.valueCheckSearch.toLowerCase();
+             list = list.filter(i => i.name.toLowerCase().includes(searchStr) || String(i.id).toLowerCase().includes(searchStr));
+         }
+         if(this.valueCheckFilter === 'negative') {
+             list = list.filter(i => i.totalVal < 0);
+         } else if(this.valueCheckFilter === 'zeroQtyHasValue') {
+             list = list.filter(i => i.qty <= 0 && Math.abs(i.totalVal) > 0.01); // ใช้ 0.01 เพื่อเผื่อเศษทศนิยม
+         }
+         return list;
+     },
+     sortedValueCheckList() { return this.applySort(this.filteredValueCheckList); },
      sortedFilteredInventory() { return this.applySort(this.filteredInventory); }, 
      sortedActiveLots() { return this.applySort(this.activeLots); }, 
      sortedFilteredHistory() { return this.applySort(this.filteredHistory); }, 
@@ -466,6 +555,43 @@ createApp({
          this.loading = false; 
      },
 
+    // --- ฟังก์ชันสำหรับหน้าตรวจสอบมูลค่า ---
+     openAdjustValueModal(item) {
+         // เซ็ตค่าเริ่มต้นให้ newValue เป็น 0 ถ้ายาหมดแล้ว เพื่อความสะดวกรวดเร็ว
+         let suggestedVal = item.qty <= 0 ? 0 : item.totalVal; 
+         this.adjustValForm = {
+             productId: item.id,
+             productName: item.name,
+             qty: item.qty,
+             unit: item.unit,
+             currentValue: item.totalVal,
+             newValue: suggestedVal,
+             note: item.qty <= 0 ? 'เคลียร์มูลค่าค้าง (ของหมด)' : 'ปรับปรุงมูลค่ายาคงคลัง'
+         };
+         this.showAdjustValModal = true;
+     },
+     
+     async submitValueAdjustment() {
+         if(!confirm(`ยืนยันการปรับมูลค่า ${this.adjustValForm.productName} จาก ${this.formatCurrency(this.adjustValForm.currentValue)} เป็น ${this.formatCurrency(this.adjustValForm.newValue)} หรือไม่?`)) return;
+         
+         this.loading = true;
+         const res = await this.apiCall("saveValueAdjustment", {
+             user: this.currentUser.name,
+             date: new Date().toISOString().slice(0,10),
+             productId: this.adjustValForm.productId,
+             currentValue: this.adjustValForm.currentValue,
+             newValue: this.adjustValForm.newValue,
+             note: this.adjustValForm.note
+         });
+         
+         if(res) {
+             alert(res);
+             this.showAdjustValModal = false;
+             await this.loadData();
+         }
+         this.loading = false;
+     },
+    
      doLogin() { 
         if(!this.loginForm.user || !this.loginForm.pass) return alert('กรุณากรอกข้อมูลให้ครบถ้วน');
         let uStr = String(this.loginForm.user).trim(); 
