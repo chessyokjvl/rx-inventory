@@ -1676,1207 +1676,1209 @@
     </div>
 </div>
 <script>
-    // URL ของ Google Apps Script Web App
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwsMwNbbLEf8SoHkcvog2H5nymUAKtsyw6pTPmymSLYcBC4oYM_zPxShPHPvXnEKt3S/exec"; 
+// ⚠️ URL ของ Google Apps Script Web App (อัปเดตแล้ว) ⚠️
+const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwsMwNbbLEf8SoHkcvog2H5nymUAKtsyw6pTPmymSLYcBC4oYM_zPxShPHPvXnEKt3S/exec"; 
 
-    const { createApp } = Vue;
+const { createApp } = Vue;
 
-    createApp({
-        data() {
-            return {
-                loading: true,
-                isSidebarOpen: false,
-                currentUser: {},
-                loginForm: { user: '', pass: '' },
-                page: 'dashboard',
-                searchQuery: '',
-                
-                // ข้อมูลดิบจากฐานข้อมูล
-                rawData: { 
-                    users: [], products: [], vendors: [], depts: [], categories: [], 
-                    units: [], transactions: [], requests: [], budget: [], bills: [], purchasePlans: [] 
-                },
-                
-                // ฟอร์มยอดยกมา
-                formOpen: { date: new Date().toISOString().slice(0, 10), refDoc: 'ยอดยกมาปีปัจจุบัน' }, 
-                tempOpen: { productId: '', productName: '', qty: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: 'บันทึกยอดยกมาต้นปี' }, 
-                cartOpen: [],
-                
-                // ฟอร์มรับยา
-                formRec: { 
-                    refBillNo: '', vendor: '', receivedDate: new Date().toISOString().slice(0, 10), 
-                    poNo: '', cntNo: '', buyMethod: '32', coPurchase: '1', rcvFlag: '1' 
-                }, 
-                tempRec: { 
-                    productId: '', productName: '', qty: 1, packSize: 1, 
-                    totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: '' 
-                }, 
-                cartRec: [],
-                
-                // ฟอร์มตรวจรับเข้าคลัง (และงบประมาณผสม)
-                showInspectModal: false, 
-                formInspect: { 
-                    billId: '', refBillNo: '', vendor: '', docNo: '', inspectDate: new Date().toISOString().slice(0, 10), 
-                    budgetSource: 'เงินบำรุง', budgetBumrung: 0, budgetNgob: 0, budgetNarcotic: 0, totalBillVal: 0 
-                },
-                
-                // ฟอร์มจ่ายยา
-                formOut: { date: new Date().toISOString().slice(0, 10), dept: '', reqId: '', reqType: 'เบิกจริง', docNo: '' }, 
-                tempOut: { productName: '', productId: '', qty: 1, selectedLotIdx: -1, unitPrice: 0, stockSource: 'Completed' }, 
-                cartOut: [],
-                
-                // ฟอร์มตรวจนับสต็อก (Stock Take)
-                formStockTake: { 
-                    date: new Date().toISOString().slice(0, 10), 
-                    refDoc: 'STK-' + new Date().toISOString().slice(0, 7).replace(/-/g, '') 
-                }, 
-                tempStockTake: { productId: '', productName: '', currentQty: 0, actualQty: 0, unitPrice: 0, packSize: 1 }, 
-                cartStockTake: [],
+const app = createApp({
+    data() {
+        return {
+            loading: true,
+            isSidebarOpen: false,
+            currentUser: {},
+            loginForm: { user: '', pass: '' },
+            page: 'dashboard',
+            searchQuery: '',
+            
+            // ข้อมูลดิบจากฐานข้อมูล
+            rawData: { 
+                users: [], products: [], vendors: [], depts: [], categories: [], 
+                units: [], transactions: [], requests: [], budget: [], bills: [], purchasePlans: [] 
+            },
+            
+            // ฟอร์มยอดยกมา
+            formOpen: { date: new Date().toISOString().slice(0, 10), refDoc: 'ยอดยกมาปีปัจจุบัน' }, 
+            tempOpen: { productId: '', productName: '', qty: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: 'บันทึกยอดยกมาต้นปี' }, 
+            cartOpen: [],
+            
+            // ฟอร์มรับยา
+            formRec: { 
+                refBillNo: '', vendor: '', receivedDate: new Date().toISOString().slice(0, 10), 
+                poNo: '', cntNo: '', buyMethod: '32', coPurchase: '1', rcvFlag: '1' 
+            }, 
+            tempRec: { 
+                productId: '', productName: '', qty: 1, packSize: 1, 
+                totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: '' 
+            }, 
+            cartRec: [],
+            
+            // ฟอร์มตรวจรับเข้าคลัง (และงบประมาณผสม)
+            showInspectModal: false, 
+            formInspect: { 
+                billId: '', refBillNo: '', vendor: '', docNo: '', inspectDate: new Date().toISOString().slice(0, 10), 
+                budgetSource: 'เงินบำรุง', budgetBumrung: 0, budgetNgob: 0, budgetNarcotic: 0, totalBillVal: 0 
+            },
+            
+            // ฟอร์มจ่ายยา
+            formOut: { date: new Date().toISOString().slice(0, 10), dept: '', reqId: '', reqType: 'เบิกจริง', docNo: '' }, 
+            tempOut: { productName: '', productId: '', qty: 1, selectedLotIdx: -1, unitPrice: 0, stockSource: 'Completed' }, 
+            cartOut: [],
+            
+            // ฟอร์มตรวจนับสต็อก (Stock Take)
+            formStockTake: { 
+                date: new Date().toISOString().slice(0, 10), 
+                refDoc: 'STK-' + new Date().toISOString().slice(0, 7).replace(/-/g, '') 
+            }, 
+            tempStockTake: { productId: '', productName: '', currentQty: 0, actualQty: 0, unitPrice: 0, packSize: 1 }, 
+            cartStockTake: [],
 
-                // ฟอร์มตรวจสอบ/ปรับมูลค่า (Value Check)
-                valueCheckSearch: '', 
-                valueCheckFilter: 'all',
-                showAdjustValModal: false, 
-                adjustValForm: { 
-                    productId: '', productName: '', qty: 0, unit: '', 
-                    currentValue: 0, newValue: 0, note: 'ปรับปรุงมูลค่ายาคงคลัง' 
-                },
-                
-                // ฟอร์มขอเบิกหน่วยงาน
-                tempReq: { productName: '', productId: '', qty: 1, unit: '' }, 
-                cartReq: [], 
-                reqDept: '',
-                
-                // ฟิลเตอร์และตัวกรองต่างๆ
-                reportFilter: { type: 'inventory', start: '', end: '' }, 
-                historyFilterType: '', 
-                outFilter: { start: '', end: '', dept: '', type: '', search: '' },
-                dashFilter: { objType: '', category: '', drugClass: '' }, 
-                
-                // ตั้งค่าระบบ (Admin Setup)
-                showModal: false, 
-                modalForm: {}, 
-                showBudgetModal: false, 
-                budgetForm: {}, 
-                printDoc: null,
-                
-                sortKey: '', 
-                sortAsc: true, 
-                
-                // MOPH 5 แฟ้ม
-                mophPeriod: new Date().toISOString().slice(0, 7),
-                
-                // Chart & TomSelect Instances
-                chartInstTurnover: null, 
-                chartInstCat: null, 
-                chartInstDept: null,
-                tsVendor: null, 
-                tsProduct: null, 
-                tsOpenProduct: null, 
-                tsStockOutDept: null, 
-                tsStockTakeProd: null
+            // ฟอร์มตรวจสอบ/ปรับมูลค่า (Value Check)
+            valueCheckSearch: '', 
+            valueCheckFilter: 'all',
+            showAdjustValModal: false, 
+            adjustValForm: { 
+                productId: '', productName: '', qty: 0, unit: '', 
+                currentValue: 0, newValue: 0, note: 'ปรับปรุงมูลค่ายาคงคลัง' 
+            },
+            
+            // ฟอร์มขอเบิกหน่วยงาน
+            tempReq: { productName: '', productId: '', qty: 1, unit: '' }, 
+            cartReq: [], 
+            reqDept: '',
+            
+            // ฟิลเตอร์และตัวกรองต่างๆ
+            reportFilter: { type: 'inventory', start: '', end: '' }, 
+            historyFilterType: '', 
+            outFilter: { start: '', end: '', dept: '', type: '', search: '' },
+            dashFilter: { objType: '', category: '', drugClass: '' }, 
+            
+            // ตั้งค่าระบบ (Admin Setup)
+            showModal: false, 
+            modalForm: {}, 
+            showBudgetModal: false, 
+            budgetForm: {}, 
+            printDoc: null,
+            
+            sortKey: '', 
+            sortAsc: true, 
+            
+            // MOPH 5 แฟ้ม
+            mophPeriod: new Date().toISOString().slice(0, 7),
+            
+            // Chart & TomSelect Instances
+            chartInstTurnover: null, 
+            chartInstCat: null, 
+            chartInstDept: null,
+            tsVendor: null, 
+            tsProduct: null, 
+            tsOpenProduct: null, 
+            tsStockOutDept: null, 
+            tsStockTakeProd: null
+        }
+    },
+    computed: {
+        // ====================================================================
+        // 1. DATA MAPPING (แปลงข้อมูลดิบจาก Array เป็น Object)
+        // ====================================================================
+        products() { 
+            if (!this.rawData.products) return []; 
+            return this.rawData.products.map(r => ({ 
+                id: r[0], name: r[1], category: r[2], unit: r[3], 
+                min: r[4], max: r[5] || '', objType: r[6] || 'เวชภัณฑ์มิใช่ยา', 
+                drugClass: r[7] || '', controlList: r[8] || 'General list',
+                workingCode: r[9] || '', gpuid: r[10] || '', productCat: r[11] || '1', 
+                drugStatus: r[12] || '1', dateStatus: r[13] || '', tpuid: r[14] || '99'
+            })); 
+        },
+        vendors() { 
+            if (!this.rawData.vendors) return [];
+            return this.rawData.vendors.map(r => ({ 
+                id: r[0], name: r[1], address: r[2], contact: r[3], taxId: r[4] || '' 
+            })); 
+        },
+        depts() { 
+            if (!this.rawData.depts) return [];
+            return this.rawData.depts.map(r => ({ 
+                id: r[0], name: r[1], deptGroup: r[2] || '4' 
+            })); 
+        },
+        categories() { 
+            return (this.rawData.categories || []).map(r => ({ name: r[0] })); 
+        },
+        units() { 
+            return (this.rawData.units || []).map(r => ({ name: r[0] })); 
+        },
+        users() { 
+            return (this.rawData.users || []).map(u => ({ 
+                user: u[0], name: u[3], role: u[2] 
+            })); 
+        },
+        bills() { 
+            if (!this.rawData.bills) return [];
+            return this.rawData.bills.map(r => ({ 
+                id: r[0], refBillNo: r[1], vendor: r[2], receivedDate: r[3], status: r[4], 
+                docNo: r[5], inspectDate: r[6], budgetSource: r[7], poNo: r[8] || '', cntNo: r[9] || '', 
+                buyMethod: r[10] || '32', coPurchase: r[11] || '1', rcvFlag: r[12] || '1',
+                budgetBumrung: parseFloat(r[13]) || 0, budgetNgob: parseFloat(r[14]) || 0, budgetNarcotic: parseFloat(r[15]) || 0 
+            })).reverse(); 
+        },
+        transactions() { 
+            if (!this.rawData.transactions) return [];
+            return this.rawData.transactions.map(r => ({ 
+                transId: r[0], date: r[1], type: r[2], billId: r[3], vendorOrDept: r[4], 
+                productId: r[5], lotNo: r[6], mfgDate: r[7], expDate: r[8], 
+                qty: parseFloat(r[9]) || 0, totalPrice: parseFloat(r[10]) || 0, 
+                unitPrice: parseFloat(r[11]) || 0, user: r[12], status: r[13], 
+                note: r[14], packSize: parseFloat(r[15]) || 1 
+            })); 
+        },
+        requests() { 
+            if (!this.rawData.requests) return [];
+            return this.rawData.requests.map(r => { 
+                let items = []; 
+                try { items = JSON.parse(r[4]); } catch(e) {} 
+                return { id: r[0], date: r[1], dept: r[2], status: r[3], items: items, user: r[5] }; 
+            }); 
+        },
+        purchasePlans() {
+            if (!this.rawData.purchasePlans) return [];
+            return this.rawData.purchasePlans.map(r => ({
+                id: r[0], yearBudget: r[1], productId: r[2], 
+                packSize: parseFloat(r[3]) || 1, packCost: parseFloat(r[4]) || 0,
+                qtyUseY3: parseFloat(r[5]) || 0, qtyUseY2: parseFloat(r[6]) || 0, qtyUseY1: parseFloat(r[7]) || 0, 
+                qtyThisYear: parseFloat(r[8]) || 0, qtyQ1: parseFloat(r[9]) || 0, qtyQ2: parseFloat(r[10]) || 0, 
+                qtyQ3: parseFloat(r[11]) || 0, qtyQ4: parseFloat(r[12]) || 0
+            }));
+        },
+        
+        // ====================================================================
+        // 2. INVENTORY CALCULATION (คำนวณสินค้าคงคลัง)
+        // ====================================================================
+        inventory() { 
+            let inv = {}; 
+            this.products.forEach(p => {
+                inv[p.id] = { ...p, qty: 0, totalVal: 0, daysLeft: 'N/A' };
+            }); 
+            
+            // คำนวณบวกลบยอดจาก Transaction (แปลงเป็นตัวเลขเพื่อป้องกัน Bug)
+            this.transactions.filter(t => t.status === 'Completed').forEach(t => { 
+                if (inv[t.productId]) { 
+                    let q = parseFloat(t.qty) || 0;
+                    let tv = parseFloat(t.totalPrice) || 0;
+                    
+                    if (t.type === 'IN') { 
+                        inv[t.productId].qty += q; 
+                        inv[t.productId].totalVal += tv; 
+                    } else if (t.type === 'OUT') { 
+                        inv[t.productId].qty -= q; 
+                        inv[t.productId].totalVal -= tv; 
+                    } 
+                } 
+            }); 
+            
+            // คำนวณวันคงเหลือ (Days of Stock)
+            return Object.values(inv).map(item => {
+                let minVal = parseFloat(item.min) || 0;
+                if (minVal > 0 && item.qty > 0) {
+                    let dailyRate = minVal / 45; 
+                    item.daysLeft = Math.round(item.qty / dailyRate); 
+                } else if (item.qty <= 0) {
+                    item.daysLeft = 0;
+                }
+                return item;
+            }); 
+        },
+
+        // ====================================================================
+        // 3. DASHBOARD & METRICS
+        // ====================================================================
+        pendingBills() { 
+            return this.bills.filter(b => b.status === 'Pending'); 
+        },
+        dashPendingValue() { 
+            let pendingBillIds = this.bills.filter(b => b.status === 'Pending').map(b => b.id);
+            return this.transactions.filter(t => t.type === 'IN' && pendingBillIds.includes(t.billId))
+                                    .reduce((sum, t) => sum + (parseFloat(t.totalPrice) || 0), 0); 
+        },
+        dashInventoryValue() { 
+            let v = 0; 
+            this.inventory.forEach(i => v += i.totalVal); 
+            return v > 0 ? v : 0; 
+        },
+        dashFilteredInventory() { 
+            return this.inventory.filter(i => { 
+                if (this.dashFilter.objType && i.objType !== this.dashFilter.objType) return false; 
+                if (this.dashFilter.category && i.category !== this.dashFilter.category) return false; 
+                if (this.dashFilter.drugClass && i.drugClass !== this.dashFilter.drugClass) return false; 
+                return true; 
+            }); 
+        },
+        dashReorderItems() { 
+            return this.dashFilteredInventory.filter(i => i.qty <= parseFloat(i.min) || i.qty <= 0); 
+        },
+        dashNearExpiry() { 
+            let sixM = new Date(); 
+            sixM.setMonth(sixM.getMonth() + 6); 
+            let pIds = this.dashFilteredInventory.map(i => i.id); 
+            
+            // แก้ไข Bug: กรองเอาเฉพาะตัวที่ยังมียาเหลืออยู่ (qty > 0)
+            return this.allLots.filter(l => {
+                if (l.qty <= 0 || !pIds.includes(l.pid)) return false;
+                if (!l.exp) return false;
+                return new Date(l.exp) <= sixM;
+            }).sort((a, b) => new Date(a.exp) - new Date(b.exp)); 
+        },
+        waitMetrics() { 
+            let arr = []; 
+            let td = new Date(); 
+            this.bills.forEach(b => { 
+                let d1 = new Date(b.receivedDate); 
+                let d2 = b.status === 'Completed' && b.inspectDate ? new Date(b.inspectDate) : td; 
+                arr.push(Math.ceil(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24))); 
+            }); 
+            if (arr.length === 0) return { max: 0, min: 0, avg: 0 }; 
+            return { 
+                max: Math.max(...arr), 
+                min: Math.min(...arr), 
+                avg: (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) 
+            }; 
+        },
+        emergencyReqCount() { 
+            let eSet = new Set(); 
+            this.transactions.filter(t => t.type === 'OUT' && t.note && t.note.includes('ฉุกเฉิน'))
+                             .forEach(t => eSet.add(t.transId)); 
+            return eSet.size; 
+        },
+        
+        // ====================================================================
+        // 4. ED vs NED CALCULATION (100% BAR)
+        // ====================================================================
+        edTotal() { 
+            return this.dashFilteredInventory.filter(i => i.objType === 'ยา' && i.drugClass === 'ED').reduce((sum, i) => sum + i.totalVal, 0); 
+        },
+        nedTotal() { 
+            return this.dashFilteredInventory.filter(i => i.objType === 'ยา' && i.drugClass === 'NED').reduce((sum, i) => sum + i.totalVal, 0); 
+        },
+        edPercent() { 
+            let total = this.edTotal + this.nedTotal; 
+            return total > 0 ? ((this.edTotal / total) * 100).toFixed(1) : 0; 
+        },
+        nedPercent() { 
+            let total = this.edTotal + this.nedTotal; 
+            return total > 0 ? ((this.nedTotal / total) * 100).toFixed(1) : 0; 
+        },
+        
+        purchasedEdTotal() {
+            return this.transactions.filter(t => t.type === 'IN' && t.status === 'Completed').reduce((sum, t) => {
+                let p = this.products.find(x => x.id === t.productId);
+                if (p && p.objType === 'ยา' && p.drugClass === 'ED') return sum + (parseFloat(t.totalPrice) || 0);
+                return sum;
+            }, 0);
+        },
+        purchasedNedTotal() {
+            return this.transactions.filter(t => t.type === 'IN' && t.status === 'Completed').reduce((sum, t) => {
+                let p = this.products.find(x => x.id === t.productId);
+                if (p && p.objType === 'ยา' && p.drugClass === 'NED') return sum + (parseFloat(t.totalPrice) || 0);
+                return sum;
+            }, 0);
+        },
+        purchasedEdPercent() { 
+            let total = this.purchasedEdTotal + this.purchasedNedTotal; 
+            return total > 0 ? ((this.purchasedEdTotal / total) * 100).toFixed(1) : 0; 
+        },
+        purchasedNedPercent() { 
+            let total = this.purchasedEdTotal + this.purchasedNedTotal; 
+            return total > 0 ? ((this.purchasedNedTotal / total) * 100).toFixed(1) : 0; 
+        },
+
+        // ====================================================================
+        // 5. LOT MANAGEMENT
+        // ====================================================================
+        allLots() { 
+            let lots = []; 
+            this.products.forEach(p => { 
+                let pLots = {}; 
+                this.transactions.filter(t => t.productId == p.id && t.status === 'Completed').forEach(t => { 
+                    let k = t.lotNo; 
+                    if (!pLots[k]) pLots[k] = { pid: p.id, productName: p.name, lot: k, exp: t.expDate, unitPrice: t.unitPrice, qty: 0 }; 
+                    pLots[k].qty += (t.type === 'IN' ? 1 : -1) * (parseFloat(t.qty) || 0); 
+                }); 
+                lots.push(...Object.values(pLots)); 
+            }); 
+            return lots; 
+        },
+        allPendingLots() { 
+            let lots = []; 
+            this.products.forEach(p => { 
+                let pLots = {}; 
+                this.transactions.filter(t => t.productId == p.id && t.status === 'Pending').forEach(t => { 
+                    let k = t.lotNo; 
+                    if (!pLots[k]) pLots[k] = { pid: p.id, productName: p.name, lot: k, exp: t.expDate, unitPrice: t.unitPrice, qty: 0 }; 
+                    pLots[k].qty += (t.type === 'IN' ? 1 : -1) * (parseFloat(t.qty) || 0); 
+                }); 
+                lots.push(...Object.values(pLots)); 
+            }); 
+            return lots; 
+        },
+        activeLots() { 
+            return this.allLots.filter(l => l.qty > 0); 
+        },
+        availableLotsOut() { 
+            if (!this.tempOut.productId) return []; 
+            let targetLots = this.tempOut.stockSource === 'Pending' ? this.allPendingLots : this.allLots; 
+            return targetLots.filter(l => l.pid === this.tempOut.productId && l.qty > 0)
+                             .sort((a, b) => new Date(a.exp) - new Date(b.exp)); 
+        },
+
+        // ====================================================================
+        // 6. REPORTS & VALUE CHECK
+        // ====================================================================
+        filteredValueCheckList() {
+            let list = this.inventory;
+            if (this.valueCheckSearch) {
+                const searchStr = this.valueCheckSearch.toLowerCase();
+                list = list.filter(i => i.name.toLowerCase().includes(searchStr) || String(i.id).toLowerCase().includes(searchStr));
+            }
+            if (this.valueCheckFilter === 'negative') {
+                list = list.filter(i => i.totalVal < 0);
+            } else if (this.valueCheckFilter === 'zeroQtyHasValue') {
+                list = list.filter(i => i.qty <= 0 && Math.abs(i.totalVal) > 0.01);
+            }
+            return list;
+        },
+        
+        categoryReport() { 
+            let stats = { 'ยา': { 'ED': 0, 'NED': 0, 'Total': 0 }, 'เวชภัณฑ์มิใช่ยา': { 'Total': 0 }, 'วัสดุ': { 'Total': 0 } }; 
+            this.inventory.forEach(i => { 
+                let t = i.objType || 'เวชภัณฑ์มิใช่ยา', c = i.drugClass || 'Total'; 
+                if (!stats[t]) stats[t] = { 'Total': 0 }; 
+                if (t === 'ยา') { 
+                    if (!stats['ยา'][c]) stats['ยา'][c] = 0; 
+                    stats['ยา'][c] += i.totalVal; 
+                } 
+                stats[t]['Total'] += i.totalVal; 
+            }); 
+            
+            let rows = []; 
+            let g = this.totalInventoryValue || 1; 
+            
+            if (stats['ยา']['ED'] > 0) rows.push({ type: 'ยา', cls: 'ED', val: stats['ยา']['ED'], pct: parseFloat((stats['ยา']['ED'] / g * 100).toFixed(1)) }); 
+            if (stats['ยา']['NED'] > 0) rows.push({ type: 'ยา', cls: 'NED', val: stats['ยา']['NED'], pct: parseFloat((stats['ยา']['NED'] / g * 100).toFixed(1)) }); 
+            if (stats['เวชภัณฑ์มิใช่ยา'] && stats['เวชภัณฑ์มิใช่ยา']['Total'] > 0) rows.push({ type: 'เวชภัณฑ์มิใช่ยา', cls: '-', val: stats['เวชภัณฑ์มิใช่ยา']['Total'], pct: parseFloat((stats['เวชภัณฑ์มิใช่ยา']['Total'] / g * 100).toFixed(1)) }); 
+            if (stats['วัสดุ'] && stats['วัสดุ']['Total'] > 0) rows.push({ type: 'วัสดุ', cls: '-', val: stats['วัสดุ']['Total'], pct: parseFloat((stats['วัสดุ']['Total'] / g * 100).toFixed(1)) }); 
+            return rows; 
+        },
+        
+        deptUsageReport() { 
+            let r = {};
+            let s = this.reportFilter.start ? new Date(this.reportFilter.start) : new Date('2000-01-01');
+            let e = this.reportFilter.end ? new Date(this.reportFilter.end) : new Date('2099-12-31'); 
+            
+            this.transactions.filter(t => t.type === 'OUT' && t.status === 'Completed').forEach(t => {
+                let d = new Date(t.date);
+                if (d >= s && d <= e) { 
+                    let dept = t.vendorOrDept; 
+                    if (!r[dept]) r[dept] = 0; 
+                    r[dept] += (parseFloat(t.totalPrice) || 0); 
+                }
+            }); 
+            return r; 
+        },
+        
+        cartOutTotal() { return this.cartOut.reduce((sum, i) => sum + i.totalPrice, 0); },
+        
+        adminTitle() { return this.page.replace('manage_', 'ตั้งค่า').toUpperCase(); },
+        adminDataList() { 
+            if (this.page === 'manage_prod') return this.products; 
+            if (this.page === 'manage_vendor') return this.vendors; 
+            if (this.page === 'manage_dept') return this.depts; 
+            if (this.page === 'manage_cat') return this.categories; 
+            if (this.page === 'manage_unit') return this.units; 
+            if (this.page === 'manage_user') return this.users; 
+        },
+        
+        outboundList() { 
+            let groups = {}; 
+            this.transactions.filter(t => t.type === 'OUT').forEach(t => { 
+                let id = t.transId; 
+                if (!groups[id]) { 
+                    groups[id] = { batchId: id, date: t.date, dept: t.vendorOrDept, docNo: t.refDoc || '-', reqType: t.note || 'เบิกจริง', totalQty: 0, totalVal: 0 }; 
+                } 
+                groups[id].totalQty += (parseFloat(t.qty) || 0); 
+                groups[id].totalVal += (parseFloat(t.totalPrice) || 0); 
+            }); 
+            
+            let list = Object.values(groups).sort((a, b) => new Date(b.date) - new Date(a.date)); 
+            let start = this.outFilter.start ? new Date(this.outFilter.start) : new Date('2000-01-01'); 
+            let end = this.outFilter.end ? new Date(this.outFilter.end) : new Date('2099-12-31'); 
+            
+            return list.filter(g => { 
+                let d = new Date(g.date); 
+                if (d < start || d > end) return false; 
+                if (this.outFilter.dept && g.dept !== this.outFilter.dept) return false; 
+                if (this.outFilter.type && g.reqType !== this.outFilter.type) return false; 
+                if (this.outFilter.search && !g.docNo.includes(this.outFilter.search)) return false; 
+                return true; 
+            }); 
+        },
+        outboundSummary() { 
+            return { 
+                qty: this.sortedOutboundList.reduce((s, i) => s + i.totalQty, 0), 
+                val: this.sortedOutboundList.reduce((s, i) => s + i.totalVal, 0) 
+            }; 
+        },
+        
+        historyGroups() { 
+            let g = {}; 
+            this.transactions.forEach(t => { 
+                let id = t.transId.startsWith('RCV-') || t.transId.startsWith('ISS-') || t.transId.startsWith('STK-') || t.transId.startsWith('ADJ-') ? t.transId : t.billId; 
+                if (!g[id]) {
+                    g[id] = { id: id, date: t.date, type: t.type, ref: t.refDoc || '-', entity: t.vendorOrDept, user: t.user, items: [], total: 0 }; 
+                }
+                let p = this.products.find(x => x.id == t.productId); 
+                g[id].items.push({ name: p ? p.name : t.productId, lot: t.lotNo, qty: t.qty, unit: p ? p.unit : '', price: t.unitPrice, total: t.totalPrice }); 
+                g[id].total += (parseFloat(t.totalPrice) || 0); 
+            }); 
+            return Object.values(g).sort((a, b) => new Date(b.date) - new Date(a.date)); 
+        },
+        filteredHistory() { 
+            let l = this.historyGroups; 
+            if (this.historyFilterType) l = l.filter(g => g.type === this.historyFilterType); 
+            if (this.searchQuery) l = l.filter(g => g.id.includes(this.searchQuery) || g.entity.includes(this.searchQuery)); 
+            return l; 
+        },
+
+        // --- Misc Computed ---
+        pendingRequestsList() { return this.requests.filter(r => r.status === 'Pending'); },
+        filteredInventory() { return this.inventory.filter(i => i.name.toLowerCase().includes(this.searchQuery.toLowerCase())); },
+        totalInventoryValue() { return this.inventory.reduce((sum, i) => sum + i.totalVal, 0); },
+        pendingRequestsCount() { return this.pendingRequestsList.length; },
+        currentBudgetYear() { return new Date().getFullYear() + 543; },
+        totalBudgetYear() { 
+            if (!this.rawData.budget) return 0; 
+            let b = this.rawData.budget.find(r => r[0] == this.currentBudgetYear); 
+            return b ? parseFloat(b[1]) : 0; 
+        },
+
+        // --- Sorted Lists ---
+        sortedFilteredInventory() { return this.applySort(this.filteredInventory); }, 
+        sortedActiveLots() { return this.applySort(this.activeLots); }, 
+        sortedFilteredHistory() { return this.applySort(this.filteredHistory); }, 
+        sortedPendingRequests() { return this.applySort(this.pendingRequestsList); }, 
+        sortedCategoryReport() { return this.applySort(this.categoryReport); }, 
+        sortedBills() { return this.applySort(this.bills); }, 
+        sortedOutboundList() { return this.applySort(this.outboundList); },
+        sortedValueCheckList() { return this.applySort(this.filteredValueCheckList); }
+    },
+    watch: {
+        page(val) { 
+            this.isSidebarOpen = false; // ซ่อน Sidebar อัตโนมัติเมื่อกดเมนู (มือถือ)
+            if (val === 'dashboard') {
+                this.$nextTick(() => this.renderCharts()); 
+            }
+            if (['receive', 'opening', 'manage_plan', 'userReq', 'stockOut', 'stockTake'].includes(val)) {
+                this.$nextTick(() => this.initTomSelects()); 
             }
         },
-        computed: {
-            // ====================================================================
-            // 1. DATA MAPPING (แปลงข้อมูลดิบจาก Array เป็น Object)
-            // ====================================================================
-            products() { 
-                if (!this.rawData.products) return []; 
-                return this.rawData.products.map(r => ({ 
-                    id: r[0], name: r[1], category: r[2], unit: r[3], 
-                    min: r[4], max: r[5] || '', objType: r[6] || 'เวชภัณฑ์มิใช่ยา', 
-                    drugClass: r[7] || '', controlList: r[8] || 'General list',
-                    workingCode: r[9] || '', gpuid: r[10] || '', productCat: r[11] || '1', 
-                    drugStatus: r[12] || '1', dateStatus: r[13] || '', tpuid: r[14] || '99'
-                })); 
-            },
-            vendors() { 
-                if (!this.rawData.vendors) return [];
-                return this.rawData.vendors.map(r => ({ 
-                    id: r[0], name: r[1], address: r[2], contact: r[3], taxId: r[4] || '' 
-                })); 
-            },
-            depts() { 
-                if (!this.rawData.depts) return [];
-                return this.rawData.depts.map(r => ({ 
-                    id: r[0], name: r[1], deptGroup: r[2] || '4' 
-                })); 
-            },
-            categories() { 
-                return (this.rawData.categories || []).map(r => ({ name: r[0] })); 
-            },
-            units() { 
-                return (this.rawData.units || []).map(r => ({ name: r[0] })); 
-            },
-            users() { 
-                return (this.rawData.users || []).map(u => ({ 
-                    user: u[0], name: u[3], role: u[2] 
-                })); 
-            },
-            bills() { 
-                if (!this.rawData.bills) return [];
-                return this.rawData.bills.map(r => ({ 
-                    id: r[0], refBillNo: r[1], vendor: r[2], receivedDate: r[3], status: r[4], 
-                    docNo: r[5], inspectDate: r[6], budgetSource: r[7], poNo: r[8] || '', cntNo: r[9] || '', 
-                    buyMethod: r[10] || '32', coPurchase: r[11] || '1', rcvFlag: r[12] || '1',
-                    budgetBumrung: parseFloat(r[13]) || 0, budgetNgob: parseFloat(r[14]) || 0, budgetNarcotic: parseFloat(r[15]) || 0 
-                })).reverse(); 
-            },
-            transactions() { 
-                if (!this.rawData.transactions) return [];
-                return this.rawData.transactions.map(r => ({ 
-                    transId: r[0], date: r[1], type: r[2], billId: r[3], vendorOrDept: r[4], 
-                    productId: r[5], lotNo: r[6], mfgDate: r[7], expDate: r[8], 
-                    qty: parseFloat(r[9]) || 0, totalPrice: parseFloat(r[10]) || 0, 
-                    unitPrice: parseFloat(r[11]) || 0, user: r[12], status: r[13], 
-                    note: r[14], packSize: parseFloat(r[15]) || 1 
-                })); 
-            },
-            requests() { 
-                if (!this.rawData.requests) return [];
-                return this.rawData.requests.map(r => { 
-                    let items = []; 
-                    try { items = JSON.parse(r[4]); } catch(e) {} 
-                    return { id: r[0], date: r[1], dept: r[2], status: r[3], items: items, user: r[5] }; 
-                }); 
-            },
-            purchasePlans() {
-                if (!this.rawData.purchasePlans) return [];
-                return this.rawData.purchasePlans.map(r => ({
-                    id: r[0], yearBudget: r[1], productId: r[2], 
-                    packSize: parseFloat(r[3]) || 1, packCost: parseFloat(r[4]) || 0,
-                    qtyUseY3: parseFloat(r[5]) || 0, qtyUseY2: parseFloat(r[6]) || 0, qtyUseY1: parseFloat(r[7]) || 0, 
-                    qtyThisYear: parseFloat(r[8]) || 0, qtyQ1: parseFloat(r[9]) || 0, qtyQ2: parseFloat(r[10]) || 0, 
-                    qtyQ3: parseFloat(r[11]) || 0, qtyQ4: parseFloat(r[12]) || 0
-                }));
-            },
-            
-            // ====================================================================
-            // 2. INVENTORY CALCULATION (คำนวณสินค้าคงคลัง)
-            // ====================================================================
-            inventory() { 
-                let inv = {}; 
-                // ตั้งค่าเริ่มต้นให้สินค้าทุกตัว
-                this.products.forEach(p => {
-                    inv[p.id] = { ...p, qty: 0, totalVal: 0, daysLeft: 'N/A' };
-                }); 
-                
-                // คำนวณบวกลบยอดจาก Transaction (แปลงเป็นตัวเลขเพื่อป้องกัน Bug)
-                this.transactions.filter(t => t.status === 'Completed').forEach(t => { 
-                    if (inv[t.productId]) { 
-                        let q = parseFloat(t.qty) || 0;
-                        let tv = parseFloat(t.totalPrice) || 0;
-                        
-                        if (t.type === 'IN') { 
-                            inv[t.productId].qty += q; 
-                            inv[t.productId].totalVal += tv; 
-                        } else if (t.type === 'OUT') { 
-                            inv[t.productId].qty -= q; 
-                            inv[t.productId].totalVal -= tv; 
-                        } 
-                    } 
-                }); 
-                
-                // คำนวณวันคงเหลือ (Days of Stock)
-                return Object.values(inv).map(item => {
-                    let minVal = parseFloat(item.min) || 0;
-                    if (minVal > 0 && item.qty > 0) {
-                        let dailyRate = minVal / 45; 
-                        item.daysLeft = Math.round(item.qty / dailyRate); 
-                    } else if (item.qty <= 0) {
-                        item.daysLeft = 0;
-                    }
-                    return item;
-                }); 
-            },
+        dashFilteredInventory: { 
+            handler() { 
+                if (this.page === 'dashboard') this.$nextTick(() => this.renderCharts()); 
+            }, 
+            deep: true 
+        }
+    },
+    methods: {
+        // ====================================================================
+        // UTILITIES
+        // ====================================================================
+        formatNumber(n) { return new Intl.NumberFormat('th-TH').format(n || 0); }, 
+        formatCurrency(n) { return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(n || 0); },
+        focusPassword() { this.$refs.passInput.focus(); },
 
-            // ====================================================================
-            // 3. DASHBOARD & METRICS
-            // ====================================================================
-            pendingBills() { 
-                return this.bills.filter(b => b.status === 'Pending'); 
-            },
-            dashPendingValue() { 
-                let pendingBillIds = this.bills.filter(b => b.status === 'Pending').map(b => b.id);
-                return this.transactions.filter(t => t.type === 'IN' && pendingBillIds.includes(t.billId))
-                                        .reduce((sum, t) => sum + (parseFloat(t.totalPrice) || 0), 0); 
-            },
-            dashInventoryValue() { 
-                let v = 0; 
-                this.inventory.forEach(i => v += i.totalVal); 
-                return v > 0 ? v : 0; 
-            },
-            dashFilteredInventory() { 
-                return this.inventory.filter(i => { 
-                    if (this.dashFilter.objType && i.objType !== this.dashFilter.objType) return false; 
-                    if (this.dashFilter.category && i.category !== this.dashFilter.category) return false; 
-                    if (this.dashFilter.drugClass && i.drugClass !== this.dashFilter.drugClass) return false; 
-                    return true; 
-                }); 
-            },
-            dashReorderItems() { 
-                return this.dashFilteredInventory.filter(i => i.qty <= parseFloat(i.min) || i.qty <= 0); 
-            },
-            dashNearExpiry() { 
-                let sixM = new Date(); 
-                sixM.setMonth(sixM.getMonth() + 6); 
-                let pIds = this.dashFilteredInventory.map(i => i.id); 
-                
-                return this.allLots.filter(l => {
-                    // ต้องมียาคงเหลืออยู่เท่านั้น และอยู่ในกลุ่มที่เลือก Filter
-                    if (l.qty <= 0 || !pIds.includes(l.pid)) return false;
-                    if (!l.exp) return false;
-                    return new Date(l.exp) <= sixM;
-                }).sort((a, b) => new Date(a.exp) - new Date(b.exp)); 
-            },
-            waitMetrics() { 
-                let arr = []; 
-                let td = new Date(); 
-                this.bills.forEach(b => { 
-                    let d1 = new Date(b.receivedDate); 
-                    let d2 = b.status === 'Completed' && b.inspectDate ? new Date(b.inspectDate) : td; 
-                    arr.push(Math.ceil(Math.abs(d2 - d1) / (1000 * 60 * 60 * 24))); 
-                }); 
-                if (arr.length === 0) return { max: 0, min: 0, avg: 0 }; 
-                return { 
-                    max: Math.max(...arr), 
-                    min: Math.min(...arr), 
-                    avg: (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) 
-                }; 
-            },
-            emergencyReqCount() { 
-                let eSet = new Set(); 
-                this.transactions.filter(t => t.type === 'OUT' && t.note && t.note.includes('ฉุกเฉิน'))
-                                 .forEach(t => eSet.add(t.transId)); 
-                return eSet.size; 
-            },
-            
-            // ====================================================================
-            // 4. ED vs NED CALCULATION (100% BAR)
-            // ====================================================================
-            edTotal() { 
-                return this.dashFilteredInventory.filter(i => i.objType === 'ยา' && i.drugClass === 'ED').reduce((sum, i) => sum + i.totalVal, 0); 
-            },
-            nedTotal() { 
-                return this.dashFilteredInventory.filter(i => i.objType === 'ยา' && i.drugClass === 'NED').reduce((sum, i) => sum + i.totalVal, 0); 
-            },
-            edPercent() { 
-                let total = this.edTotal + this.nedTotal; 
-                return total > 0 ? ((this.edTotal / total) * 100).toFixed(1) : 0; 
-            },
-            nedPercent() { 
-                let total = this.edTotal + this.nedTotal; 
-                return total > 0 ? ((this.nedTotal / total) * 100).toFixed(1) : 0; 
-            },
-            
-            purchasedEdTotal() {
-                return this.transactions.filter(t => t.type === 'IN' && t.status === 'Completed').reduce((sum, t) => {
-                    let p = this.products.find(x => x.id === t.productId);
-                    if (p && p.objType === 'ยา' && p.drugClass === 'ED') return sum + (parseFloat(t.totalPrice) || 0);
-                    return sum;
-                }, 0);
-            },
-            purchasedNedTotal() {
-                return this.transactions.filter(t => t.type === 'IN' && t.status === 'Completed').reduce((sum, t) => {
-                    let p = this.products.find(x => x.id === t.productId);
-                    if (p && p.objType === 'ยา' && p.drugClass === 'NED') return sum + (parseFloat(t.totalPrice) || 0);
-                    return sum;
-                }, 0);
-            },
-            purchasedEdPercent() { 
-                let total = this.purchasedEdTotal + this.purchasedNedTotal; 
-                return total > 0 ? ((this.purchasedEdTotal / total) * 100).toFixed(1) : 0; 
-            },
-            purchasedNedPercent() { 
-                let total = this.purchasedEdTotal + this.purchasedNedTotal; 
-                return total > 0 ? ((this.purchasedNedTotal / total) * 100).toFixed(1) : 0; 
-            },
-
-            // ====================================================================
-            // 5. LOT MANAGEMENT
-            // ====================================================================
-            allLots() { 
-                let lots = []; 
-                this.products.forEach(p => { 
-                    let pLots = {}; 
-                    this.transactions.filter(t => t.productId == p.id && t.status === 'Completed').forEach(t => { 
-                        let k = t.lotNo; 
-                        if (!pLots[k]) pLots[k] = { pid: p.id, productName: p.name, lot: k, exp: t.expDate, unitPrice: t.unitPrice, qty: 0 }; 
-                        pLots[k].qty += (t.type === 'IN' ? 1 : -1) * (parseFloat(t.qty) || 0); 
-                    }); 
-                    lots.push(...Object.values(pLots)); 
-                }); 
-                return lots; 
-            },
-            allPendingLots() { 
-                let lots = []; 
-                this.products.forEach(p => { 
-                    let pLots = {}; 
-                    this.transactions.filter(t => t.productId == p.id && t.status === 'Pending').forEach(t => { 
-                        let k = t.lotNo; 
-                        if (!pLots[k]) pLots[k] = { pid: p.id, productName: p.name, lot: k, exp: t.expDate, unitPrice: t.unitPrice, qty: 0 }; 
-                        pLots[k].qty += (t.type === 'IN' ? 1 : -1) * (parseFloat(t.qty) || 0); 
-                    }); 
-                    lots.push(...Object.values(pLots)); 
-                }); 
-                return lots; 
-            },
-            activeLots() { 
-                return this.allLots.filter(l => l.qty > 0); 
-            },
-            availableLotsOut() { 
-                if (!this.tempOut.productId) return []; 
-                let targetLots = this.tempOut.stockSource === 'Pending' ? this.allPendingLots : this.allLots; 
-                return targetLots.filter(l => l.pid === this.tempOut.productId && l.qty > 0)
-                                 .sort((a, b) => new Date(a.exp) - new Date(b.exp)); 
-            },
-
-            // ====================================================================
-            // 6. REPORTS & VALUE CHECK
-            // ====================================================================
-            filteredValueCheckList() {
-                let list = this.inventory;
-                if (this.valueCheckSearch) {
-                    const searchStr = this.valueCheckSearch.toLowerCase();
-                    list = list.filter(i => i.name.toLowerCase().includes(searchStr) || String(i.id).toLowerCase().includes(searchStr));
-                }
-                if (this.valueCheckFilter === 'negative') {
-                    list = list.filter(i => i.totalVal < 0);
-                } else if (this.valueCheckFilter === 'zeroQtyHasValue') {
-                    list = list.filter(i => i.qty <= 0 && Math.abs(i.totalVal) > 0.01);
-                }
-                return list;
-            },
-            
-            categoryReport() { 
-                let stats = { 'ยา': { 'ED': 0, 'NED': 0, 'Total': 0 }, 'เวชภัณฑ์มิใช่ยา': { 'Total': 0 }, 'วัสดุ': { 'Total': 0 } }; 
-                this.inventory.forEach(i => { 
-                    let t = i.objType || 'เวชภัณฑ์มิใช่ยา', c = i.drugClass || 'Total'; 
-                    if (!stats[t]) stats[t] = { 'Total': 0 }; 
-                    if (t === 'ยา') { 
-                        if (!stats['ยา'][c]) stats['ยา'][c] = 0; 
-                        stats['ยา'][c] += i.totalVal; 
-                    } 
-                    stats[t]['Total'] += i.totalVal; 
-                }); 
-                
-                let rows = []; 
-                let g = this.totalInventoryValue || 1; 
-                
-                if (stats['ยา']['ED'] > 0) rows.push({ type: 'ยา', cls: 'ED', val: stats['ยา']['ED'], pct: parseFloat((stats['ยา']['ED'] / g * 100).toFixed(1)) }); 
-                if (stats['ยา']['NED'] > 0) rows.push({ type: 'ยา', cls: 'NED', val: stats['ยา']['NED'], pct: parseFloat((stats['ยา']['NED'] / g * 100).toFixed(1)) }); 
-                if (stats['เวชภัณฑ์มิใช่ยา'] && stats['เวชภัณฑ์มิใช่ยา']['Total'] > 0) rows.push({ type: 'เวชภัณฑ์มิใช่ยา', cls: '-', val: stats['เวชภัณฑ์มิใช่ยา']['Total'], pct: parseFloat((stats['เวชภัณฑ์มิใช่ยา']['Total'] / g * 100).toFixed(1)) }); 
-                if (stats['วัสดุ'] && stats['วัสดุ']['Total'] > 0) rows.push({ type: 'วัสดุ', cls: '-', val: stats['วัสดุ']['Total'], pct: parseFloat((stats['วัสดุ']['Total'] / g * 100).toFixed(1)) }); 
-                return rows; 
-            },
-            
-            deptUsageReport() { 
-                let r = {};
-                let s = this.reportFilter.start ? new Date(this.reportFilter.start) : new Date('2000-01-01');
-                let e = this.reportFilter.end ? new Date(this.reportFilter.end) : new Date('2099-12-31'); 
-                
-                this.transactions.filter(t => t.type === 'OUT' && t.status === 'Completed').forEach(t => {
-                    let d = new Date(t.date);
-                    if (d >= s && d <= e) { 
-                        let dept = t.vendorOrDept; 
-                        if (!r[dept]) r[dept] = 0; 
-                        r[dept] += (parseFloat(t.totalPrice) || 0); 
-                    }
-                }); 
-                return r; 
-            },
-            
-            outboundList() { 
-                let groups = {}; 
-                this.transactions.filter(t => t.type === 'OUT').forEach(t => { 
-                    let id = t.transId; 
-                    if (!groups[id]) { 
-                        groups[id] = { batchId: id, date: t.date, dept: t.vendorOrDept, docNo: t.refDoc || '-', reqType: t.note || 'เบิกจริง', totalQty: 0, totalVal: 0 }; 
-                    } 
-                    groups[id].totalQty += (parseFloat(t.qty) || 0); 
-                    groups[id].totalVal += (parseFloat(t.totalPrice) || 0); 
-                }); 
-                
-                let list = Object.values(groups).sort((a, b) => new Date(b.date) - new Date(a.date)); 
-                let start = this.outFilter.start ? new Date(this.outFilter.start) : new Date('2000-01-01'); 
-                let end = this.outFilter.end ? new Date(this.outFilter.end) : new Date('2099-12-31'); 
-                
-                return list.filter(g => { 
-                    let d = new Date(g.date); 
-                    if (d < start || d > end) return false; 
-                    if (this.outFilter.dept && g.dept !== this.outFilter.dept) return false; 
-                    if (this.outFilter.type && g.reqType !== this.outFilter.type) return false; 
-                    if (this.outFilter.search && !g.docNo.includes(this.outFilter.search)) return false; 
-                    return true; 
-                }); 
-            },
-            outboundSummary() { 
-                return { 
-                    qty: this.sortedOutboundList.reduce((s, i) => s + i.totalQty, 0), 
-                    val: this.sortedOutboundList.reduce((s, i) => s + i.totalVal, 0) 
-                }; 
-            },
-            
-            historyGroups() { 
-                let g = {}; 
-                this.transactions.forEach(t => { 
-                    let id = t.transId.startsWith('RCV-') || t.transId.startsWith('ISS-') || t.transId.startsWith('STK-') || t.transId.startsWith('ADJ-') ? t.transId : t.billId; 
-                    if (!g[id]) {
-                        g[id] = { id: id, date: t.date, type: t.type, ref: t.refDoc || '-', entity: t.vendorOrDept, user: t.user, items: [], total: 0 }; 
-                    }
-                    let p = this.products.find(x => x.id == t.productId); 
-                    g[id].items.push({ name: p ? p.name : t.productId, lot: t.lotNo, qty: t.qty, unit: p ? p.unit : '', price: t.unitPrice, total: t.totalPrice }); 
-                    g[id].total += (parseFloat(t.totalPrice) || 0); 
-                }); 
-                return Object.values(g).sort((a, b) => new Date(b.date) - new Date(a.date)); 
-            },
-            filteredHistory() { 
-                let l = this.historyGroups; 
-                if (this.historyFilterType) l = l.filter(g => g.type === this.historyFilterType); 
-                if (this.searchQuery) l = l.filter(g => g.id.includes(this.searchQuery) || g.entity.includes(this.searchQuery)); 
-                return l; 
-            },
-
-            // --- Misc Computed ---
-            pendingRequestsList() { return this.requests.filter(r => r.status === 'Pending'); },
-            filteredInventory() { return this.inventory.filter(i => i.name.toLowerCase().includes(this.searchQuery.toLowerCase())); },
-            totalInventoryValue() { return this.inventory.reduce((sum, i) => sum + i.totalVal, 0); },
-            pendingRequestsCount() { return this.pendingRequestsList.length; },
-            currentBudgetYear() { return new Date().getFullYear() + 543; },
-            totalBudgetYear() { 
-                if (!this.rawData.budget) return 0; 
-                let b = this.rawData.budget.find(r => r[0] == this.currentBudgetYear); 
-                return b ? parseFloat(b[1]) : 0; 
-            },
-            cartInTotal() { return this.cartIn.reduce((sum, i) => sum + i.totalPrice, 0); }, 
-            cartOutTotal() { return this.cartOut.reduce((sum, i) => sum + i.totalPrice, 0); },
-            adminTitle() { return this.page.replace('manage_', 'ตั้งค่า').toUpperCase(); },
-            adminDataList() { 
-                if (this.page === 'manage_prod') return this.products; 
-                if (this.page === 'manage_vendor') return this.vendors; 
-                if (this.page === 'manage_dept') return this.depts; 
-                if (this.page === 'manage_cat') return this.categories; 
-                if (this.page === 'manage_unit') return this.units; 
-                if (this.page === 'manage_user') return this.users; 
-            },
-
-            // --- Sorted Lists ---
-            sortedFilteredInventory() { return this.applySort(this.filteredInventory); }, 
-            sortedActiveLots() { return this.applySort(this.activeLots); }, 
-            sortedFilteredHistory() { return this.applySort(this.filteredHistory); }, 
-            sortedPendingRequests() { return this.applySort(this.pendingRequestsList); }, 
-            sortedCategoryReport() { return this.applySort(this.categoryReport); }, 
-            sortedBills() { return this.applySort(this.bills); }, 
-            sortedOutboundList() { return this.applySort(this.outboundList); },
-            sortedValueCheckList() { return this.applySort(this.filteredValueCheckList); }
+        sortBy(key) { 
+            if (this.sortKey === key) {
+                this.sortAsc = !this.sortAsc; 
+            } else { 
+                this.sortKey = key; 
+                this.sortAsc = true; 
+            } 
         },
-        watch: {
-            page(val) { 
-                this.isSidebarOpen = false; // ซ่อน Sidebar อัตโนมัติเมื่อกดเมนู (มือถือ)
-                if (val === 'dashboard') {
-                    this.$nextTick(() => this.renderCharts()); 
-                }
-                if (['receive', 'opening', 'manage_plan', 'userReq', 'stockOut', 'stockTake'].includes(val)) {
+        sortIcon(key) { return this.sortKey === key ? (this.sortAsc ? '▲' : '▼') : '↕'; },
+        applySort(arr) { 
+            if (!this.sortKey) return arr; 
+            return arr.slice().sort((a, b) => { 
+                let m = this.sortAsc ? 1 : -1; 
+                let vA = a[this.sortKey], vB = b[this.sortKey]; 
+                if (!isNaN(vA) && !isNaN(vB)) { vA = parseFloat(vA); vB = parseFloat(vB); } 
+                if (vA < vB) return -1 * m; 
+                if (vA > vB) return 1 * m; 
+                return 0; 
+            }); 
+        },
+
+        // ====================================================================
+        // API & INIT
+        // ====================================================================
+        async apiCall(action, dataObj = {}) {
+            try { 
+                const res = await fetch(GAS_API_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ action: action, data: dataObj }) 
+                }); 
+                const json = await res.json(); 
+                if (json.status === 'error') throw new Error(json.message); 
+                return json.data;
+            } catch(e) { 
+                alert("Error: " + e.message); 
+                return null; 
+            }
+        },
+
+        async loadData() { 
+            this.loading = true; 
+            const data = await this.apiCall("getData"); 
+            if (data) { 
+                this.rawData = data; 
+                if (this.page === 'dashboard') this.$nextTick(() => this.renderCharts()); 
+                if (['receive', 'opening', 'manage_plan', 'userReq', 'stockOut', 'stockTake'].includes(this.page)) {
                     this.$nextTick(() => this.initTomSelects()); 
                 }
-            },
-            dashFilteredInventory: { 
-                handler() { 
-                    if (this.page === 'dashboard') this.$nextTick(() => this.renderCharts()); 
+            } 
+            this.loading = false; 
+        },
+
+        doLogin() { 
+            if (!this.loginForm.user || !this.loginForm.pass) return alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+            let uStr = String(this.loginForm.user).trim(); 
+            let pStr = String(this.loginForm.pass).trim();
+            let u = (this.rawData.users || []).find(x => String(x[0]).trim() === uStr && String(x[1]).trim() === pStr); 
+            if (u) { 
+                this.currentUser = { user: u[0], role: u[2], name: u[3] }; 
+                this.loginForm = { user: '', pass: '' }; 
+                this.$nextTick(() => { if (this.page === 'dashboard') this.renderCharts(); });
+            } else {
+                alert('ชื่อผู้ใช้งาน หรือ รหัสผ่าน ไม่ถูกต้อง'); 
+            }
+        },
+        
+        navigateFromDash(type) {
+            if (type === 'inventory') { this.page = 'reports'; this.reportFilter.type = 'inventory'; }
+            if (type === 'pending') { this.page = 'inspect'; }
+            if (type === 'emergency') { this.page = 'outboundList'; this.outFilter.type = 'เบิกฉุกเฉิน'; }
+            window.scrollTo(0, 0);
+        },
+
+        // ====================================================================
+        // TOM SELECTS & CHARTS
+        // ====================================================================
+        initTomSelects() {
+            if (this.tsVendor) this.tsVendor.destroy(); 
+            if (this.tsProduct) this.tsProduct.destroy(); 
+            if (this.tsOpenProduct) this.tsOpenProduct.destroy();
+            if (this.tsStockOutDept) this.tsStockOutDept.destroy();
+            if (this.tsStockTakeProd) this.tsStockTakeProd.destroy();
+            
+            let vEl = document.getElementById('vendorSelect'); 
+            if (vEl) this.tsVendor = new TomSelect(vEl, { 
+                valueField: 'name', labelField: 'name', searchField: 'name', 
+                options: this.vendors, onChange: (v) => { this.formRec.vendor = v; } 
+            });
+            
+            let pEl = document.getElementById('productSelect'); 
+            if (pEl) this.tsProduct = new TomSelect(pEl, { 
+                valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode'], 
+                options: this.products, 
+                render: { 
+                    option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small></div>`; }, 
+                    item: function(d, e) { return `<div>${e(d.name)}</div>`; } 
                 }, 
-                deep: true 
+                onChange: (v) => { 
+                    let p = this.products.find(x => x.id == v); 
+                    if (p) { this.tempRec.productId = p.id; this.tempRec.productName = p.name; } 
+                } 
+            });
+            
+            let oEl = document.getElementById('openProductSelect'); 
+            if (oEl) this.tsOpenProduct = new TomSelect(oEl, { 
+                valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode'], 
+                options: this.products, 
+                render: { 
+                    option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small></div>`; }, 
+                    item: function(d, e) { return `<div>${e(d.name)}</div>`; } 
+                }, 
+                onChange: (v) => { 
+                    let p = this.products.find(x => x.id == v); 
+                    if (p) { this.tempOpen.productId = p.id; this.tempOpen.productName = p.name; } 
+                } 
+            });
+
+            let sEl = document.getElementById('stockOutDeptSelect');
+            if (sEl) this.tsStockOutDept = new TomSelect(sEl, { 
+                valueField: 'name', labelField: 'name', searchField: 'name', 
+                options: this.depts, onChange: (v) => { this.formOut.dept = v; } 
+            });
+
+            let stEl = document.getElementById('stockTakeProductSelect');
+            if (stEl) this.tsStockTakeProd = new TomSelect(stEl, {
+                valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode'], 
+                options: this.products,
+                render: { 
+                    option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small></div>`; }, 
+                    item: function(d, e) { return `<div>${e(d.name)}</div>`; } 
+                },
+                onChange: (v) => {
+                    let p = this.products.find(x => x.id == v);
+                    if (p) {
+                        this.tempStockTake.productId = p.id; 
+                        this.tempStockTake.productName = p.name;
+                        let invItem = this.inventory.find(i => i.id === p.id);
+                        this.tempStockTake.currentQty = invItem ? invItem.qty : 0;
+                        this.tempStockTake.unitPrice = invItem && invItem.qty > 0 ? (invItem.totalVal / invItem.qty).toFixed(2) : 0;
+                        this.tempStockTake.actualQty = this.tempStockTake.currentQty;
+                    }
+                }
+            });
+        },
+
+        renderCharts() {
+            if (!document.getElementById('turnoverChart')) return;
+            
+            const tooltipCallback = function(context) {
+                let label = context.label || '';
+                let value = context.parsed || 0;
+                let dataset = context.dataset;
+                let total = 0;
+                dataset.data.forEach((val, i) => {
+                    let meta = context.chart.getDatasetMeta(context.datasetIndex);
+                    if (!meta.data[i].hidden) total += val;
+                });
+                let percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+                return label + ': ' + new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(value) + ' (' + percentage + ')';
+            };
+
+            // Chart 1: Turnover
+            let usage = {}; 
+            let pIds = this.dashFilteredInventory.map(i => i.id);
+            this.transactions.filter(t => t.type === 'OUT' && t.status === 'Completed').forEach(t => { 
+                if (pIds.includes(t.productId)) { 
+                    let p = this.products.find(x => x.id == t.productId); 
+                    let name = p ? p.name : t.productId; 
+                    if (!usage[name]) usage[name] = 0; 
+                    usage[name] += t.totalPrice; 
+                } 
+            });
+            let top10 = Object.keys(usage).map(k => ({ n: k, v: usage[k] })).sort((a, b) => b.v - a.v).slice(0, 10);
+            if (this.chartInstTurnover) this.chartInstTurnover.destroy();
+            this.chartInstTurnover = new Chart(document.getElementById('turnoverChart'), { 
+                type: 'bar', 
+                data: { 
+                    labels: top10.map(x => x.n.substring(0, 15) + '...'), 
+                    datasets: [{ data: top10.map(x => x.v), backgroundColor: '#0d6efd', borderRadius: 4 }] 
+                }, 
+                options: { plugins: { legend: { display: false } } } 
+            });
+
+            // Chart 2: Budget Source
+            let budgetStats = { 'เงินบำรุง': 0, 'เงินงบประมาณ': 0, 'งบยาเสพติด': 0 };
+            this.bills.filter(b => b.status === 'Completed').forEach(b => {
+                if (b.budgetSource === 'ผสม (Split)') {
+                    budgetStats['เงินบำรุง'] += b.budgetBumrung;
+                    budgetStats['เงินงบประมาณ'] += b.budgetNgob;
+                    budgetStats['งบยาเสพติด'] += b.budgetNarcotic;
+                } else {
+                    let totalVal = this.transactions.filter(t => t.billId === b.id).reduce((sum, t) => sum + (parseFloat(t.totalPrice) || 0), 0);
+                    if (b.budgetSource === 'เงินบำรุง') budgetStats['เงินบำรุง'] += totalVal;
+                    else if (b.budgetSource === 'เงินงบประมาณ') budgetStats['เงินงบประมาณ'] += totalVal;
+                    else if (b.budgetSource === 'เงินงบประมาณพิเศษหมวดยาเสพติด') budgetStats['งบยาเสพติด'] += totalVal;
+                }
+            });
+            
+            if (this.chartInstCat) this.chartInstCat.destroy();
+            this.chartInstCat = new Chart(document.getElementById('categoryChart'), { 
+                type: 'doughnut', 
+                data: { 
+                    labels: Object.keys(budgetStats), 
+                    datasets: [{ data: Object.values(budgetStats), backgroundColor: ['#0d6efd', '#ffc107', '#6f42c1'] }] 
+                }, 
+                options: { plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: tooltipCallback } } } } 
+            });
+
+            // Chart 3: Dept Usage
+            let deptUsage = {};
+            this.transactions.filter(t => t.type === 'OUT' && t.status === 'Completed').forEach(t => {
+                let dept = t.vendorOrDept;
+                if (!deptUsage[dept]) deptUsage[dept] = 0;
+                deptUsage[dept] += t.totalPrice;
+            });
+            
+            if (this.chartInstDept) this.chartInstDept.destroy();
+            this.chartInstDept = new Chart(document.getElementById('deptChart'), {
+                type: 'doughnut', 
+                data: { 
+                    labels: Object.keys(deptUsage), 
+                    datasets: [{ 
+                        data: Object.values(deptUsage), 
+                        backgroundColor: ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545', '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'] 
+                    }] 
+                },
+                options: { 
+                    plugins: { 
+                        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } }, 
+                        tooltip: { callbacks: { label: tooltipCallback } } 
+                    } 
+                }
+            });
+        },
+
+        // ====================================================================
+        // INVENTORY OPERATIONS
+        // ====================================================================
+        calcOpenTotal() { this.tempOpen.totalPrice = parseFloat((this.tempOpen.qty * this.tempOpen.unitPrice).toFixed(2)) || 0; },
+        calcRecTotal() { this.tempRec.totalPrice = parseFloat((this.tempRec.qty * this.tempRec.unitPrice).toFixed(2)) || 0; },
+
+        addToOpenCart() { 
+            if (!this.tempOpen.productId) return alert("ระบุสินค้า"); 
+            this.cartOpen.push({ ...this.tempOpen }); 
+            this.tempOpen = { productId: '', productName: '', qty: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: 'บันทึกยอดยกมาต้นปี' }; 
+            if (this.tsOpenProduct) this.tsOpenProduct.clear(); 
+        },
+        async submitOpeningBalance() { 
+            if (this.cartOpen.length === 0 || !confirm('ยืนยันบันทึกยอดยกมา?')) return; 
+            this.loading = true; 
+            const res = await this.apiCall("saveBatchTransaction", { 
+                user: this.currentUser.name, type: 'IN', 
+                items: this.cartOpen.map(i => ({ ...i, date: this.formOpen.date, refDoc: this.formOpen.refDoc, vendorOrDept: 'ยอดยกมา', status: 'Completed' })) 
+            }); 
+            if (res) { alert('บันทึกสำเร็จ'); this.cartOpen = []; await this.loadData(); } 
+            this.loading = false; 
+        },
+
+        addToReceiveCart() { 
+            if (!this.tempRec.productId || !this.formRec.vendor || !this.formRec.refBillNo) return alert("ระบุข้อมูลให้ครบ"); 
+            this.cartRec.push({ ...this.tempRec }); 
+            this.tempRec = { productId: '', productName: '', qty: 1, packSize: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: '' }; 
+            if (this.tsProduct) this.tsProduct.clear(); 
+        },
+        async submitPendingBill() { 
+            if (this.cartRec.length === 0 || !confirm('สร้างบิลรอตรวจรับ?')) return; 
+            this.loading = true; 
+            const res = await this.apiCall("savePendingBill", { 
+                user: this.currentUser.name, refBillNo: this.formRec.refBillNo, vendor: this.formRec.vendor, 
+                receivedDate: this.formRec.receivedDate, items: this.cartRec,
+                poNo: this.formRec.poNo, cntNo: this.formRec.cntNo, buyMethod: this.formRec.buyMethod, 
+                coPurchase: this.formRec.coPurchase, rcvFlag: this.formRec.rcvFlag
+            }); 
+            if (res) { 
+                alert(res); this.cartRec = []; this.formRec.refBillNo = ''; this.formRec.poNo = ''; 
+                this.formRec.cntNo = ''; if (this.tsVendor) this.tsVendor.clear(); await this.loadData(); 
+            } 
+            this.loading = false; 
+        },
+        
+        openInspectModal(bill) { 
+            let totalVal = this.transactions.filter(t => t.billId === bill.id).reduce((sum, t) => sum + (parseFloat(t.totalPrice) || 0), 0);
+            this.formInspect = { 
+                billId: bill.id, refBillNo: bill.refBillNo, vendor: bill.vendor, docNo: '', 
+                inspectDate: new Date().toISOString().slice(0, 10), budgetSource: 'เงินบำรุง',
+                budgetBumrung: totalVal, budgetNgob: 0, budgetNarcotic: 0, totalBillVal: totalVal
+            }; 
+            this.showInspectModal = true; 
+        },
+        async submitInspection() { 
+            if (!this.formInspect.docNo || !confirm('นำยาเข้าคลัง?')) return; 
+            this.loading = true; 
+            const res = await this.apiCall("approveBill", this.formInspect); 
+            if (res) { alert(res); this.showInspectModal = false; await this.loadData(); } 
+            this.loading = false; 
+        },
+
+        onTempOutProdSelect() { 
+            let p = this.products.find(x => x.name === this.tempOut.productName); 
+            if (p) { this.tempOut.productId = p.id; this.tempOut.selectedLotIdx = -1; } 
+        },
+        updateTempOutPrice() { 
+            if (this.tempOut.selectedLotIdx != -1) { 
+                let lot = this.availableLotsOut[this.tempOut.selectedLotIdx]; 
+                this.tempOut.unitPrice = lot.unitPrice; 
+            } else {
+                this.tempOut.unitPrice = 0; 
             }
         },
-        methods: {
-            // ====================================================================
-            // UTILITIES
-            // ====================================================================
-            formatNumber(n) { return new Intl.NumberFormat('th-TH').format(n || 0); }, 
-            formatCurrency(n) { return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(n || 0); },
-            focusPassword() { this.$refs.passInput.focus(); },
+        addToCartOut() { 
+            let lot = this.tempOut.selectedLotIdx == -1 ? { lot: 'WAITING', exp: '', unitPrice: 0 } : this.availableLotsOut[this.tempOut.selectedLotIdx]; 
+            let c = lot.unitPrice || 0; 
+            let outStatus = this.tempOut.stockSource === 'Pending' ? 'Pending' : 'Completed'; 
+            this.cartOut.push({ ...this.tempOut, lotNo: lot.lot, unitPrice: c, totalPrice: this.tempOut.qty * c, status: outStatus }); 
+            this.tempOut = { productName: '', qty: 1, selectedLotIdx: -1, stockSource: this.tempOut.stockSource }; 
+        },
+        async submitBatchOut() { 
+            if (!this.formOut.docNo) return alert('กรุณาระบุเลขที่เอกสาร'); 
+            if (!confirm('ยืนยันจ่ายออกและตัดสต็อก?')) return; 
+            this.loading = true; 
+            let outItems = this.cartOut.map(i => ({ ...i, date: this.formOut.date, vendorOrDept: this.formOut.dept, refDoc: this.formOut.docNo, note: this.formOut.reqType })); 
+            const res = await this.apiCall("saveBatchTransaction", { user: this.currentUser.name, type: 'OUT', reqId: this.formOut.reqId, items: outItems }); 
+            if (res) { 
+                alert('สำเร็จ'); this.cartOut = []; this.formOut.reqId = ''; this.formOut.docNo = ''; 
+                if (this.tsStockOutDept) this.tsStockOutDept.clear(); await this.loadData(); 
+            } 
+            this.loading = false; 
+        },
 
-            sortBy(key) { 
-                if (this.sortKey === key) {
-                    this.sortAsc = !this.sortAsc; 
-                } else { 
-                    this.sortKey = key; 
-                    this.sortAsc = true; 
-                } 
-            },
-            sortIcon(key) { return this.sortKey === key ? (this.sortAsc ? '▲' : '▼') : '↕'; },
-            applySort(arr) { 
-                if (!this.sortKey) return arr; 
-                return arr.slice().sort((a, b) => { 
-                    let m = this.sortAsc ? 1 : -1; 
-                    let vA = a[this.sortKey], vB = b[this.sortKey]; 
-                    if (!isNaN(vA) && !isNaN(vB)) { vA = parseFloat(vA); vB = parseFloat(vB); } 
-                    if (vA < vB) return -1 * m; 
-                    if (vA > vB) return 1 * m; 
-                    return 0; 
-                }); 
-            },
+        addToStockTakeCart() {
+            if (!this.tempStockTake.productId) return alert('ระบุสินค้า');
+            let diff = this.tempStockTake.actualQty - this.tempStockTake.currentQty;
+            if (diff === 0) return alert('ยอดนับจริงเท่ากับยอดในระบบ ไม่ต้องปรับปรุงครับ');
+            this.cartStockTake.push({ ...this.tempStockTake, diff: diff });
+            this.tempStockTake = { productId: '', productName: '', currentQty: 0, actualQty: 0, unitPrice: 0, packSize: 1 };
+            if (this.tsStockTakeProd) this.tsStockTakeProd.clear();
+        },
+        async submitStockTake() {
+            if (!this.formStockTake.refDoc) return alert('ระบุเลขอ้างอิง');
+            if (this.cartStockTake.length === 0 || !confirm('ยืนยันการปรับปรุงสต็อก?')) return;
+            this.loading = true;
+            const res = await this.apiCall("saveStockTake", { 
+                user: this.currentUser.name, date: this.formStockTake.date, 
+                refDoc: this.formStockTake.refDoc, items: this.cartStockTake 
+            });
+            if (res) { alert(res); this.cartStockTake = []; await this.loadData(); }
+            this.loading = false;
+        },
 
-            // ====================================================================
-            // API & INIT
-            // ====================================================================
-            async apiCall(action, dataObj = {}) {
-                try { 
-                    const res = await fetch(GAS_API_URL, { 
-                        method: 'POST', 
-                        body: JSON.stringify({ action: action, data: dataObj }) 
-                    }); 
-                    const json = await res.json(); 
-                    if (json.status === 'error') throw new Error(json.message); 
-                    return json.data;
-                } catch(e) { 
-                    alert("Error: " + e.message); 
-                    return null; 
-                }
-            },
+        // --- Value Check (ตรวจสอบมูลค่า) ---
+        openAdjustValueModal(item) {
+            let suggestedVal = item.qty <= 0 ? 0 : item.totalVal; 
+            this.adjustValForm = {
+                productId: item.id,
+                productName: item.name,
+                qty: item.qty,
+                unit: item.unit,
+                currentValue: item.totalVal,
+                newValue: suggestedVal,
+                note: item.qty <= 0 ? 'เคลียร์มูลค่าค้าง (ของหมด)' : 'ปรับปรุงมูลค่ายาคงคลัง'
+            };
+            this.showAdjustValModal = true;
+        },
+        async submitValueAdjustment() {
+            if (!confirm(`ยืนยันการปรับมูลค่า ${this.adjustValForm.productName} จาก ${this.formatCurrency(this.adjustValForm.currentValue)} เป็น ${this.formatCurrency(this.adjustValForm.newValue)} หรือไม่?`)) return;
+            this.loading = true;
+            const res = await this.apiCall("saveValueAdjustment", {
+                user: this.currentUser.name,
+                date: new Date().toISOString().slice(0, 10),
+                productId: this.adjustValForm.productId,
+                currentValue: this.adjustValForm.currentValue,
+                newValue: this.adjustValForm.newValue,
+                note: this.adjustValForm.note
+            });
+            if (res) { alert(res); this.showAdjustValModal = false; await this.loadData(); }
+            this.loading = false;
+        },
 
-            async loadData() { 
-                this.loading = true; 
-                const data = await this.apiCall("getData"); 
-                if (data) { 
-                    this.rawData = data; 
-                    if (this.page === 'dashboard') this.$nextTick(() => this.renderCharts()); 
-                    if (['receive', 'opening', 'manage_plan', 'userReq', 'stockOut', 'stockTake'].includes(this.page)) {
-                        this.$nextTick(() => this.initTomSelects()); 
-                    }
-                } 
-                this.loading = false; 
-            },
+        onTempReqProdSelect() { 
+            let p = this.products.find(x => x.name === this.tempReq.productName); 
+            if (p) { this.tempReq.productId = p.id; this.tempReq.unit = p.unit; } 
+        },
+        addToReqCart() { 
+            this.cartReq.push({ ...this.tempReq }); 
+            this.tempReq = { productName: '', qty: 1, unit: '' }; 
+        },
+        async submitRequest() { 
+            if (!this.reqDept) return alert('ระบุหน่วยงาน'); 
+            this.loading = true; 
+            const res = await this.apiCall("saveRequest", { 
+                user: this.currentUser.name, dept: this.reqDept, 
+                date: new Date().toISOString().slice(0, 10), items: this.cartReq 
+            }); 
+            if (res) { alert('ส่งคำขอเบิกแล้ว'); this.cartReq = []; await this.loadData(); } 
+            this.loading = false; 
+        },
+        loadRequestToStockOut(req) { 
+            this.page = 'stockOut'; 
+            this.formOut.dept = req.dept; 
+            this.formOut.reqId = req.id; 
+            this.cartOut = req.items.map(i => ({ productName: i.productName, productId: i.productId, qty: i.qty, lotNo: '', totalPrice: 0, status: 'Completed' })); 
+            alert('ระบบโหลดรายการแล้ว กรุณาระบุ เลขที่เอกสาร ประเภทบิล และ Lot สินค้าก่อนบันทึก'); 
+        },
 
-            doLogin() { 
-                if (!this.loginForm.user || !this.loginForm.pass) return alert('กรุณากรอกข้อมูลให้ครบถ้วน');
-                let uStr = String(this.loginForm.user).trim(); 
-                let pStr = String(this.loginForm.pass).trim();
-                let u = (this.rawData.users || []).find(x => String(x[0]).trim() === uStr && String(x[1]).trim() === pStr); 
-                if (u) { 
-                    this.currentUser = { user: u[0], role: u[2], name: u[3] }; 
-                    this.loginForm = { user: '', pass: '' }; 
-                    this.$nextTick(() => { if (this.page === 'dashboard') this.renderCharts(); });
-                } else {
-                    alert('ชื่อผู้ใช้งาน หรือ รหัสผ่าน ไม่ถูกต้อง'); 
-                }
-            },
-            
-            navigateFromDash(type) {
-                if (type === 'inventory') { this.page = 'reports'; this.reportFilter.type = 'inventory'; }
-                if (type === 'pending') { this.page = 'inspect'; }
-                if (type === 'emergency') { this.page = 'outboundList'; this.outFilter.type = 'เบิกฉุกเฉิน'; }
-                window.scrollTo(0, 0);
-            },
-
-            // ====================================================================
-            // TOM SELECTS & CHARTS
-            // ====================================================================
-            initTomSelects() {
-                if (this.tsVendor) this.tsVendor.destroy(); 
-                if (this.tsProduct) this.tsProduct.destroy(); 
-                if (this.tsOpenProduct) this.tsOpenProduct.destroy();
-                if (this.tsStockOutDept) this.tsStockOutDept.destroy();
-                if (this.tsStockTakeProd) this.tsStockTakeProd.destroy();
-                
-                let vEl = document.getElementById('vendorSelect'); 
-                if (vEl) this.tsVendor = new TomSelect(vEl, { 
-                    valueField: 'name', labelField: 'name', searchField: 'name', 
-                    options: this.vendors, onChange: (v) => { this.formRec.vendor = v; } 
-                });
-                
-                let pEl = document.getElementById('productSelect'); 
-                if (pEl) this.tsProduct = new TomSelect(pEl, { 
-                    valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode'], 
-                    options: this.products, 
-                    render: { 
-                        option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small></div>`; }, 
-                        item: function(d, e) { return `<div>${e(d.name)}</div>`; } 
-                    }, 
-                    onChange: (v) => { 
-                        let p = this.products.find(x => x.id == v); 
-                        if (p) { this.tempRec.productId = p.id; this.tempRec.productName = p.name; } 
-                    } 
-                });
-                
-                let oEl = document.getElementById('openProductSelect'); 
-                if (oEl) this.tsOpenProduct = new TomSelect(oEl, { 
-                    valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode'], 
-                    options: this.products, 
-                    render: { 
-                        option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small></div>`; }, 
-                        item: function(d, e) { return `<div>${e(d.name)}</div>`; } 
-                    }, 
-                    onChange: (v) => { 
-                        let p = this.products.find(x => x.id == v); 
-                        if (p) { this.tempOpen.productId = p.id; this.tempOpen.productName = p.name; } 
-                    } 
-                });
-
-                let sEl = document.getElementById('stockOutDeptSelect');
-                if (sEl) this.tsStockOutDept = new TomSelect(sEl, { 
-                    valueField: 'name', labelField: 'name', searchField: 'name', 
-                    options: this.depts, onChange: (v) => { this.formOut.dept = v; } 
-                });
-
-                let stEl = document.getElementById('stockTakeProductSelect');
-                if (stEl) this.tsStockTakeProd = new TomSelect(stEl, {
-                    valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode'], 
-                    options: this.products,
-                    render: { 
-                        option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small></div>`; }, 
-                        item: function(d, e) { return `<div>${e(d.name)}</div>`; } 
-                    },
-                    onChange: (v) => {
-                        let p = this.products.find(x => x.id == v);
-                        if (p) {
-                            this.tempStockTake.productId = p.id; 
-                            this.tempStockTake.productName = p.name;
-                            let invItem = this.inventory.find(i => i.id === p.id);
-                            this.tempStockTake.currentQty = invItem ? invItem.qty : 0;
-                            this.tempStockTake.unitPrice = invItem && invItem.qty > 0 ? (invItem.totalVal / invItem.qty).toFixed(2) : 0;
-                            this.tempStockTake.actualQty = this.tempStockTake.currentQty;
-                        }
-                    }
-                });
-            },
-
-            renderCharts() {
-                if (!document.getElementById('turnoverChart')) return;
-                
-                const tooltipCallback = function(context) {
-                    let label = context.label || '';
-                    let value = context.parsed || 0;
-                    let dataset = context.dataset;
-                    let total = 0;
-                    dataset.data.forEach((val, i) => {
-                        let meta = context.chart.getDatasetMeta(context.datasetIndex);
-                        if (!meta.data[i].hidden) total += val;
-                    });
-                    let percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
-                    return label + ': ' + new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(value) + ' (' + percentage + ')';
-                };
-
-                // Chart 1: Turnover
-                let usage = {}; 
-                let pIds = this.dashFilteredInventory.map(i => i.id);
-                this.transactions.filter(t => t.type === 'OUT' && t.status === 'Completed').forEach(t => { 
-                    if (pIds.includes(t.productId)) { 
-                        let p = this.products.find(x => x.id == t.productId); 
-                        let name = p ? p.name : t.productId; 
-                        if (!usage[name]) usage[name] = 0; 
-                        usage[name] += t.totalPrice; 
-                    } 
-                });
-                let top10 = Object.keys(usage).map(k => ({ n: k, v: usage[k] })).sort((a, b) => b.v - a.v).slice(0, 10);
-                if (this.chartInstTurnover) this.chartInstTurnover.destroy();
-                this.chartInstTurnover = new Chart(document.getElementById('turnoverChart'), { 
-                    type: 'bar', 
-                    data: { 
-                        labels: top10.map(x => x.n.substring(0, 15) + '...'), 
-                        datasets: [{ data: top10.map(x => x.v), backgroundColor: '#0d6efd', borderRadius: 4 }] 
-                    }, 
-                    options: { plugins: { legend: { display: false } } } 
-                });
-
-                // Chart 2: Budget Source
-                let budgetStats = { 'เงินบำรุง': 0, 'เงินงบประมาณ': 0, 'งบยาเสพติด': 0 };
-                this.bills.filter(b => b.status === 'Completed').forEach(b => {
-                    if (b.budgetSource === 'ผสม (Split)') {
-                        budgetStats['เงินบำรุง'] += b.budgetBumrung;
-                        budgetStats['เงินงบประมาณ'] += b.budgetNgob;
-                        budgetStats['งบยาเสพติด'] += b.budgetNarcotic;
-                    } else {
-                        let totalVal = this.transactions.filter(t => t.billId === b.id).reduce((sum, t) => sum + (parseFloat(t.totalPrice) || 0), 0);
-                        if (b.budgetSource === 'เงินบำรุง') budgetStats['เงินบำรุง'] += totalVal;
-                        else if (b.budgetSource === 'เงินงบประมาณ') budgetStats['เงินงบประมาณ'] += totalVal;
-                        else if (b.budgetSource === 'เงินงบประมาณพิเศษหมวดยาเสพติด') budgetStats['งบยาเสพติด'] += totalVal;
-                    }
-                });
-                
-                if (this.chartInstCat) this.chartInstCat.destroy();
-                this.chartInstCat = new Chart(document.getElementById('categoryChart'), { 
-                    type: 'doughnut', 
-                    data: { 
-                        labels: Object.keys(budgetStats), 
-                        datasets: [{ data: Object.values(budgetStats), backgroundColor: ['#0d6efd', '#ffc107', '#6f42c1'] }] 
-                    }, 
-                    options: { plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: tooltipCallback } } } } 
-                });
-
-                // Chart 3: Dept Usage
-                let deptUsage = {};
-                this.transactions.filter(t => t.type === 'OUT' && t.status === 'Completed').forEach(t => {
-                    let dept = t.vendorOrDept;
-                    if (!deptUsage[dept]) deptUsage[dept] = 0;
-                    deptUsage[dept] += t.totalPrice;
-                });
-                
-                if (this.chartInstDept) this.chartInstDept.destroy();
-                this.chartInstDept = new Chart(document.getElementById('deptChart'), {
-                    type: 'doughnut', 
-                    data: { 
-                        labels: Object.keys(deptUsage), 
-                        datasets: [{ 
-                            data: Object.values(deptUsage), 
-                            backgroundColor: ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545', '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'] 
-                        }] 
-                    },
-                    options: { 
-                        plugins: { 
-                            legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } }, 
-                            tooltip: { callbacks: { label: tooltipCallback } } 
-                        } 
-                    }
-                });
-            },
-
-            // ====================================================================
-            // INVENTORY OPERATIONS
-            // ====================================================================
-            calcOpenTotal() { this.tempOpen.totalPrice = parseFloat((this.tempOpen.qty * this.tempOpen.unitPrice).toFixed(2)) || 0; },
-            calcRecTotal() { this.tempRec.totalPrice = parseFloat((this.tempRec.qty * this.tempRec.unitPrice).toFixed(2)) || 0; },
-
-            addToOpenCart() { 
-                if (!this.tempOpen.productId) return alert("ระบุสินค้า"); 
-                this.cartOpen.push({ ...this.tempOpen }); 
-                this.tempOpen = { productId: '', productName: '', qty: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: 'บันทึกยอดยกมาต้นปี' }; 
-                if (this.tsOpenProduct) this.tsOpenProduct.clear(); 
-            },
-            async submitOpeningBalance() { 
-                if (this.cartOpen.length === 0 || !confirm('ยืนยันบันทึกยอดยกมา?')) return; 
-                this.loading = true; 
-                const res = await this.apiCall("saveBatchTransaction", { 
-                    user: this.currentUser.name, type: 'IN', 
-                    items: this.cartOpen.map(i => ({ ...i, date: this.formOpen.date, refDoc: this.formOpen.refDoc, vendorOrDept: 'ยอดยกมา', status: 'Completed' })) 
-                }); 
-                if (res) { alert('บันทึกสำเร็จ'); this.cartOpen = []; await this.loadData(); } 
-                this.loading = false; 
-            },
-
-            addToReceiveCart() { 
-                if (!this.tempRec.productId || !this.formRec.vendor || !this.formRec.refBillNo) return alert("ระบุข้อมูลให้ครบ"); 
-                this.cartRec.push({ ...this.tempRec }); 
-                this.tempRec = { productId: '', productName: '', qty: 1, packSize: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: '' }; 
-                if (this.tsProduct) this.tsProduct.clear(); 
-            },
-            async submitPendingBill() { 
-                if (this.cartRec.length === 0 || !confirm('สร้างบิลรอตรวจรับ?')) return; 
-                this.loading = true; 
-                const res = await this.apiCall("savePendingBill", { 
-                    user: this.currentUser.name, refBillNo: this.formRec.refBillNo, vendor: this.formRec.vendor, 
-                    receivedDate: this.formRec.receivedDate, items: this.cartRec,
-                    poNo: this.formRec.poNo, cntNo: this.formRec.cntNo, buyMethod: this.formRec.buyMethod, 
-                    coPurchase: this.formRec.coPurchase, rcvFlag: this.formRec.rcvFlag
-                }); 
-                if (res) { 
-                    alert(res); this.cartRec = []; this.formRec.refBillNo = ''; this.formRec.poNo = ''; 
-                    this.formRec.cntNo = ''; if (this.tsVendor) this.tsVendor.clear(); await this.loadData(); 
-                } 
-                this.loading = false; 
-            },
-            
-            openInspectModal(bill) { 
-                let totalVal = this.transactions.filter(t => t.billId === bill.id).reduce((sum, t) => sum + (parseFloat(t.totalPrice) || 0), 0);
-                this.formInspect = { 
-                    billId: bill.id, refBillNo: bill.refBillNo, vendor: bill.vendor, docNo: '', 
-                    inspectDate: new Date().toISOString().slice(0, 10), budgetSource: 'เงินบำรุง',
-                    budgetBumrung: totalVal, budgetNgob: 0, budgetNarcotic: 0, totalBillVal: totalVal
+        // ====================================================================
+        // SETUP & MASTER DATA
+        // ====================================================================
+        getProductName(id) { 
+            let p = this.products.find(x => x.id === id); 
+            return p ? p.name : id; 
+        },
+        onPlanProdSelect() { 
+            let p = this.products.find(x => x.name === this.modalForm.tempProductName); 
+            if (p) this.modalForm.productId = p.id; 
+        },
+        openPlanModal(plan) { 
+            this.showModal = true; 
+            if (plan) { 
+                this.modalForm = { ...plan, isEdit: true, tempProductName: this.getProductName(plan.productId) }; 
+            } else { 
+                this.modalForm = { 
+                    isEdit: false, yearBudget: this.currentBudgetYear, packSize: 1, packCost: 0, 
+                    qtyThisYear: 0, qtyUseY1: 0, qtyUseY2: 0, qtyUseY3: 0, qtyQ1: 0, qtyQ2: 0, qtyQ3: 0, qtyQ4: 0 
                 }; 
-                this.showInspectModal = true; 
-            },
-            async submitInspection() { 
-                if (!this.formInspect.docNo || !confirm('นำยาเข้าคลัง?')) return; 
-                this.loading = true; 
-                const res = await this.apiCall("approveBill", this.formInspect); 
-                if (res) { alert(res); this.showInspectModal = false; await this.loadData(); } 
-                this.loading = false; 
-            },
+            } 
+        },
+        async savePlanData() { 
+            this.loading = true; 
+            const res = await this.apiCall("saveMasterData", { type: 'plan', data: this.modalForm }); 
+            if (res) { alert('บันทึกแผนจัดซื้อเรียบร้อย'); this.showModal = false; await this.loadData(); } 
+            this.loading = false; 
+        },
 
-            onTempOutProdSelect() { 
-                let p = this.products.find(x => x.name === this.tempOut.productName); 
-                if (p) { this.tempOut.productId = p.id; this.tempOut.selectedLotIdx = -1; } 
-            },
-            updateTempOutPrice() { 
-                if (this.tempOut.selectedLotIdx != -1) { 
-                    let lot = this.availableLotsOut[this.tempOut.selectedLotIdx]; 
-                    this.tempOut.unitPrice = lot.unitPrice; 
-                } else {
-                    this.tempOut.unitPrice = 0; 
-                }
-            },
-            addToCartOut() { 
-                let lot = this.tempOut.selectedLotIdx == -1 ? { lot: 'WAITING', exp: '', unitPrice: 0 } : this.availableLotsOut[this.tempOut.selectedLotIdx]; 
-                let c = lot.unitPrice || 0; 
-                let outStatus = this.tempOut.stockSource === 'Pending' ? 'Pending' : 'Completed'; 
-                this.cartOut.push({ ...this.tempOut, lotNo: lot.lot, unitPrice: c, totalPrice: this.tempOut.qty * c, status: outStatus }); 
-                this.tempOut = { productName: '', qty: 1, selectedLotIdx: -1, stockSource: this.tempOut.stockSource }; 
-            },
-            async submitBatchOut() { 
-                if (!this.formOut.docNo) return alert('กรุณาระบุเลขที่เอกสาร'); 
-                if (!confirm('ยืนยันจ่ายออกและตัดสต็อก?')) return; 
-                this.loading = true; 
-                let outItems = this.cartOut.map(i => ({ ...i, date: this.formOut.date, vendorOrDept: this.formOut.dept, refDoc: this.formOut.docNo, note: this.formOut.reqType })); 
-                const res = await this.apiCall("saveBatchTransaction", { user: this.currentUser.name, type: 'OUT', reqId: this.formOut.reqId, items: outItems }); 
-                if (res) { 
-                    alert('สำเร็จ'); this.cartOut = []; this.formOut.reqId = ''; this.formOut.docNo = ''; 
-                    if (this.tsStockOutDept) this.tsStockOutDept.clear(); await this.loadData(); 
+        openAdminModal(item) { 
+            this.showModal = true; 
+            if (item) { 
+                this.modalForm = { ...item, isEdit: true }; 
+                if (this.page === 'manage_user') this.modalForm.user = item.user; 
+            } else { 
+                this.modalForm = { 
+                    isEdit: false, objType: 'เวชภัณฑ์มิใช่ยา', drugClass: 'ED', 
+                    controlList: 'General list', productCat: '1', drugStatus: '1' 
+                }; 
+                if (this.page === 'manage_dept') this.modalForm.deptGroup = '4';
+            } 
+        },
+        async saveAdminData() { 
+            let type = this.page.replace('manage_', ''); 
+            if (type == 'cat') type = 'category'; 
+            this.loading = true; 
+            const res = await this.apiCall("saveMasterData", { type: type, data: this.modalForm }); 
+            if (res) { alert('บันทึกข้อมูลเรียบร้อย'); this.showModal = false; await this.loadData(); } 
+            this.loading = false; 
+        },
+        async deleteItem(type, id) { 
+            if (confirm('ต้องการลบข้อมูลนี้?')) { 
+                if (confirm('ยืนยันลบถาวร (ลบแล้วกู้คืนไม่ได้)?')) { 
+                    let t = type.replace('manage_', ''); 
+                    if (t == 'cat') t = 'category'; 
+                    this.loading = true; 
+                    const res = await this.apiCall("deleteMasterData", { type: t, id: id }); 
+                    if (res) await this.loadData(); 
+                    this.loading = false; 
                 } 
-                this.loading = false; 
-            },
+            } 
+        },
+        openBudgetModal() { 
+            this.showBudgetModal = true; 
+            this.budgetForm = { year: this.currentBudgetYear, amount: this.totalBudgetYear }; 
+        },
+        async saveBudget() { 
+            this.loading = true; 
+            const res = await this.apiCall("saveMasterData", { type: 'budget', data: this.budgetForm }); 
+            if (res) { this.showBudgetModal = false; await this.loadData(); } 
+            this.loading = false; 
+        },
 
-            addToStockTakeCart() {
-                if (!this.tempStockTake.productId) return alert('ระบุสินค้า');
-                let diff = this.tempStockTake.actualQty - this.tempStockTake.currentQty;
-                if (diff === 0) return alert('ยอดนับจริงเท่ากับยอดในระบบ ไม่ต้องปรับปรุงครับ');
-                this.cartStockTake.push({ ...this.tempStockTake, diff: diff });
-                this.tempStockTake = { productId: '', productName: '', currentQty: 0, actualQty: 0, unitPrice: 0, packSize: 1 };
-                if (this.tsStockTakeProd) this.tsStockTakeProd.clear();
-            },
-            async submitStockTake() {
-                if (!this.formStockTake.refDoc) return alert('ระบุเลขอ้างอิง');
-                if (this.cartStockTake.length === 0 || !confirm('ยืนยันการปรับปรุงสต็อก?')) return;
-                this.loading = true;
-                const res = await this.apiCall("saveStockTake", { 
-                    user: this.currentUser.name, date: this.formStockTake.date, 
-                    refDoc: this.formStockTake.refDoc, items: this.cartStockTake 
-                });
-                if (res) { alert(res); this.cartStockTake = []; await this.loadData(); }
-                this.loading = false;
-            },
-
-            // --- Value Check (ตรวจสอบมูลค่า) ---
-            openAdjustValueModal(item) {
-                let suggestedVal = item.qty <= 0 ? 0 : item.totalVal; 
-                this.adjustValForm = {
-                    productId: item.id,
-                    productName: item.name,
-                    qty: item.qty,
-                    unit: item.unit,
-                    currentValue: item.totalVal,
-                    newValue: suggestedVal,
-                    note: item.qty <= 0 ? 'เคลียร์มูลค่าค้าง (ของหมด)' : 'ปรับปรุงมูลค่ายาคงคลัง'
-                };
-                this.showAdjustValModal = true;
-            },
-            async submitValueAdjustment() {
-                if (!confirm(`ยืนยันการปรับมูลค่า ${this.adjustValForm.productName} จาก ${this.formatCurrency(this.adjustValForm.currentValue)} เป็น ${this.formatCurrency(this.adjustValForm.newValue)} หรือไม่?`)) return;
-                this.loading = true;
-                const res = await this.apiCall("saveValueAdjustment", {
-                    user: this.currentUser.name,
-                    date: new Date().toISOString().slice(0, 10),
-                    productId: this.adjustValForm.productId,
-                    currentValue: this.adjustValForm.currentValue,
-                    newValue: this.adjustValForm.newValue,
-                    note: this.adjustValForm.note
-                });
-                if (res) { alert(res); this.showAdjustValModal = false; await this.loadData(); }
-                this.loading = false;
-            },
-
-            onTempReqProdSelect() { 
-                let p = this.products.find(x => x.name === this.tempReq.productName); 
-                if (p) { this.tempReq.productId = p.id; this.tempReq.unit = p.unit; } 
-            },
-            addToReqCart() { 
-                this.cartReq.push({ ...this.tempReq }); 
-                this.tempReq = { productName: '', qty: 1, unit: '' }; 
-            },
-            async submitRequest() { 
-                if (!this.reqDept) return alert('ระบุหน่วยงาน'); 
-                this.loading = true; 
-                const res = await this.apiCall("saveRequest", { 
-                    user: this.currentUser.name, dept: this.reqDept, 
-                    date: new Date().toISOString().slice(0, 10), items: this.cartReq 
-                }); 
-                if (res) { alert('ส่งคำขอเบิกแล้ว'); this.cartReq = []; await this.loadData(); } 
-                this.loading = false; 
-            },
-            loadRequestToStockOut(req) { 
-                this.page = 'stockOut'; 
-                this.formOut.dept = req.dept; 
-                this.formOut.reqId = req.id; 
-                this.cartOut = req.items.map(i => ({ productName: i.productName, productId: i.productId, qty: i.qty, lotNo: '', totalPrice: 0, status: 'Completed' })); 
-                alert('ระบบโหลดรายการแล้ว กรุณาระบุ เลขที่เอกสาร ประเภทบิล และ Lot สินค้าก่อนบันทึก'); 
-            },
-
-            // ====================================================================
-            // SETUP & MASTER DATA
-            // ====================================================================
-            getProductName(id) { 
-                let p = this.products.find(x => x.id === id); 
-                return p ? p.name : id; 
-            },
-            onPlanProdSelect() { 
-                let p = this.products.find(x => x.name === this.modalForm.tempProductName); 
-                if (p) this.modalForm.productId = p.id; 
-            },
-            openPlanModal(plan) { 
-                this.showModal = true; 
-                if (plan) { 
-                    this.modalForm = { ...plan, isEdit: true, tempProductName: this.getProductName(plan.productId) }; 
-                } else { 
-                    this.modalForm = { 
-                        isEdit: false, yearBudget: this.currentBudgetYear, packSize: 1, packCost: 0, 
-                        qtyThisYear: 0, qtyUseY1: 0, qtyUseY2: 0, qtyUseY3: 0, qtyQ1: 0, qtyQ2: 0, qtyQ3: 0, qtyQ4: 0 
-                    }; 
-                } 
-            },
-            async savePlanData() { 
-                this.loading = true; 
-                const res = await this.apiCall("saveMasterData", { type: 'plan', data: this.modalForm }); 
-                if (res) { alert('บันทึกแผนจัดซื้อเรียบร้อย'); this.showModal = false; await this.loadData(); } 
-                this.loading = false; 
-            },
-
-            openAdminModal(item) { 
-                this.showModal = true; 
-                if (item) { 
-                    this.modalForm = { ...item, isEdit: true }; 
-                    if (this.page === 'manage_user') this.modalForm.user = item.user; 
-                } else { 
-                    this.modalForm = { 
-                        isEdit: false, objType: 'เวชภัณฑ์มิใช่ยา', drugClass: 'ED', 
-                        controlList: 'General list', productCat: '1', drugStatus: '1' 
-                    }; 
-                    if (this.page === 'manage_dept') this.modalForm.deptGroup = '4';
-                } 
-            },
-            async saveAdminData() { 
-                let type = this.page.replace('manage_', ''); 
-                if (type == 'cat') type = 'category'; 
-                this.loading = true; 
-                const res = await this.apiCall("saveMasterData", { type: type, data: this.modalForm }); 
-                if (res) { alert('บันทึกข้อมูลเรียบร้อย'); this.showModal = false; await this.loadData(); } 
-                this.loading = false; 
-            },
-            async deleteItem(type, id) { 
-                if (confirm('ต้องการลบข้อมูลนี้?')) { 
-                    if (confirm('ยืนยันลบถาวร (ลบแล้วกู้คืนไม่ได้)?')) { 
-                        let t = type.replace('manage_', ''); 
-                        if (t == 'cat') t = 'category'; 
-                        this.loading = true; 
-                        const res = await this.apiCall("deleteMasterData", { type: t, id: id }); 
-                        if (res) await this.loadData(); 
-                        this.loading = false; 
-                    } 
-                } 
-            },
-            openBudgetModal() { 
-                this.showBudgetModal = true; 
-                this.budgetForm = { year: this.currentBudgetYear, amount: this.totalBudgetYear }; 
-            },
-            async saveBudget() { 
-                this.loading = true; 
-                const res = await this.apiCall("saveMasterData", { type: 'budget', data: this.budgetForm }); 
-                if (res) { this.showBudgetModal = false; await this.loadData(); } 
-                this.loading = false; 
-            },
-
-            // ====================================================================
-            // 5 FILES EXPORT (MOPH)
-            // ====================================================================
-            exportMophFile(fileNum, format) {
-                if (!this.mophPeriod) return alert('กรุณาระบุปีและเดือนที่ต้องการรายงาน (PERIOD_RPT) ก่อนดาวน์โหลด');
-                const hospCode = 'EA0014644'; 
-                const now = new Date(); 
-                const pad = (n) => n.toString().padStart(2, '0');
-                const dateSend = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-                const periodRpt = this.mophPeriod.replace(/-/g, '');
-                
-                const generateLotNo = () => {
-                    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-                    const randomLetter = letters.charAt(Math.floor(Math.random() * letters.length));
-                    const randomNumbers = Math.floor(100000 + Math.random() * 900000);
-                    return randomLetter + randomNumbers;
-                };
-                const generateExpDate = () => { return `${now.getFullYear() + 2}${pad(now.getMonth() + 1)}${pad(now.getDate())}`; };
-                
-                let data = [];
-                let filename = '';
-
-                if (fileNum === 1) { // DRUGLIST
-                    filename = `DRUGLIST_${hospCode}_${periodRpt}`;
-                    data.push(["HOSP_CODE", "WORKING_CODE", "GENERIC_NAME", "GPUID", "NLEM", "PRODUCT_CAT", "BASE_UNIT", "STATUS", "DATE_STATUS", "PERIOD_RPT", "DATE_SEND"]);
-                    this.products.filter(p => p.objType === 'ยา').forEach(p => {
-                        let wCode = p.workingCode || p.id; 
-                        let gName = p.name; 
-                        let gpuid = p.gpuid || '99';
-                        let nlem = p.drugClass.includes('NED') ? 'N' : 'E'; 
-                        let pCat = p.productCat || '1';
-                        let bUnit = p.unit || ''; 
-                        let status = p.drugStatus || '1';
-                        let dStatus = p.dateStatus ? p.dateStatus.replace(/-/g, '') : `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`; 
-                        data.push([hospCode, wCode, gName, gpuid, nlem, pCat, bUnit, status, dStatus, periodRpt, dateSend]);
-                    });
-                }
-                else if (fileNum === 2) { // PURCHASEPLAN
-                    filename = `PURCHASEPLAN_${hospCode}_${periodRpt}`;
-                    data.push(["HOSP_CODE", "YEARBUDGET", "WORKING_CODE", "GENERIC_NAME", "GPUID", "NLEM", "QTY_USE_YEAR3", "QTY_USE_YEAR2", "QTY_USE_YEAR1", "QTY_THIS_YEAR", "PACK_SIZE", "BASE_UNIT", "PACK_COST", "VALUE_THIS_YEAR", "QTY_PLAN_TRIMES1", "QTY_PLAN_TRIMES2", "QTY_PLAN_TRIMES3", "QTY_PLAN_TRIMES4", "PERIOD_RPT", "DATE_SEND"]);
-                    this.purchasePlans.forEach(plan => {
-                        let p = this.products.find(x => x.id === plan.productId);
-                        if (!p) return;
-                        let wCode = p.workingCode || p.id; 
-                        let gName = p.name; 
-                        let gpuid = p.gpuid || '99';
-                        let nlem = p.drugClass.includes('NED') ? 'N' : 'E'; 
-                        let bUnit = p.unit || '';
-                        let valueThisYear = (parseFloat(plan.qtyThisYear) * parseFloat(plan.packCost)).toFixed(2);
-                        let packCost = parseFloat(plan.packCost).toFixed(2);
-                        data.push([hospCode, plan.yearBudget, wCode, gName, gpuid, nlem, plan.qtyUseY3, plan.qtyUseY2, plan.qtyUseY1, plan.qtyThisYear, plan.packSize, bUnit, packCost, valueThisYear, plan.qtyQ1, plan.qtyQ2, plan.qtyQ3, plan.qtyQ4, periodRpt, dateSend]);
-                    });
-                }
-                else if (fileNum === 3) { // RECEIPT
-                    filename = `RECEIPT_${hospCode}_${periodRpt}`;
-                    data.push(["HOSP_CODE", "WORKING_CODE", "TRADE_NAME", "TPUID", "VENDOR_NAME", "VENDOR_TAX_ID", "QTY_RCV", "PACK_SIZE", "BASE_UNIT", "PACK_COST", "TOTAL_VALUE", "LOT_NO", "EXPIRE_DATE", "RCV_NO", "PO_NO", "CNT_NO", "DATE_RCV", "BUY_METHOD_ID", "CO_PURCHASE_ID", "RCV_FLAG", "PERIOD_RPT", "DATE_SEND"]);
-                    this.transactions.filter(t => t.type === 'IN' && t.date.startsWith(this.mophPeriod) && t.status === 'Completed').forEach(t => {
-                        let p = this.products.find(x => x.id === t.productId);
-                        if (!p || p.objType !== 'ยา') return; 
-                        let b = this.bills.find(x => x.id === t.billId) || {};
-                        let v = this.vendors.find(x => x.name === t.vendorOrDept) || {};
-                        let wCode = p.workingCode || p.id; 
-                        let tName = p.name; 
-                        let tpuid = p.tpuid || '99';
-                        let vName = t.vendorOrDept; 
-                        let vTax = v.taxId || '';
-                        let qtyRcv = t.qty; 
-                        let pSize = t.packSize || 1; 
-                        let bUnit = p.unit || '';
-                        let pCost = parseFloat(t.unitPrice).toFixed(2); 
-                        let tVal = parseFloat(t.totalPrice).toFixed(2);
-                        let lot = t.lotNo ? t.lotNo.trim() : ''; 
-                        if (!lot || lot === 'WAITING' || lot === 'ADJUST') lot = generateLotNo();
-                        let exp = t.expDate ? t.expDate.replace(/-/g, '') : generateExpDate();
-                        let rcvNo = b.docNo || b.refBillNo || t.refDoc || t.billId; 
-                        let poNo = b.poNo || ''; 
-                        let cntNo = b.cntNo || '';
-                        let dRcv = t.date ? t.date.replace(/-/g, '') : '';
-                        let bMethod = b.buyMethod || '32'; 
-                        let coPur = b.coPurchase || '1';
-                        let rFlag = b.rcvFlag || (t.vendorOrDept === 'ยอดยกมา' ? '9' : '1');
-                        data.push([hospCode, wCode, tName, tpuid, vName, vTax, qtyRcv, pSize, bUnit, pCost, tVal, lot, exp, rcvNo, poNo, cntNo, dRcv, bMethod, coPur, rFlag, periodRpt, dateSend]);
-                    });
-                }
-                else if (fileNum === 4) { // DISTRIBUTION
-                    filename = `DISTRIBUTION_${hospCode}_${periodRpt}`;
-                    data.push(["HOSP_CODE", "WORKING_CODE", "TRADE_NAME", "TPUID", "QTY_DIS", "PACK_SIZE", "BASE_UNIT", "VALUE", "DIS_DEPT_GROUP", "PERIOD_RPT", "DATE_SEND"]);
-                    this.transactions.filter(t => t.type === 'OUT' && t.date.startsWith(this.mophPeriod) && t.status === 'Completed').forEach(t => {
-                        let p = this.products.find(x => x.id === t.productId);
-                        if (!p || p.objType !== 'ยา') return; 
-                        let d = this.depts.find(x => x.name === t.vendorOrDept) || {};
-                        let wCode = p.workingCode || p.id; 
-                        let tName = p.name; 
-                        let tpuid = p.tpuid || '99';
-                        let qtyDis = t.qty; 
-                        let pSize = t.packSize || 1; 
-                        let bUnit = p.unit || '';
-                        let val = parseFloat(t.totalPrice).toFixed(2); 
-                        let deptGroup = d.deptGroup || '4';
-                        data.push([hospCode, wCode, tName, tpuid, qtyDis, pSize, bUnit, val, deptGroup, periodRpt, dateSend]);
-                    });
-                }
-                else if (fileNum === 5) { // INVENTORY
-                    const dateOnHand = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
-                    filename = `INVENTORY_${hospCode}_${dateOnHand}`;
-                    data.push(["HOSP_CODE", "WORKING_CODE", "TRADE_NAME", "TPUID", "VENDOR_NAME", "VENDOR_TAX_ID", "QTY_ONHAND", "PACK_SIZE", "BASE_UNIT", "PACK_COST", "VALUE_ONHAND", "LOT_NO", "EXPIRE_DATE", "DATE_ONHAND", "DATE_SEND"]);
-                    this.products.forEach(p => {
-                        if (p.objType !== 'ยา') return; 
-                        let pLots = {};
-                        this.transactions.filter(t => t.productId === p.id && t.status === 'Completed').forEach(t => {
-                            let k = t.lotNo ? t.lotNo.trim() : 'N/A';
-                            if (!pLots[k]) pLots[k] = { qty: 0, vendor: '', packSize: 1, unitPrice: 0, exp: t.expDate || '' };
-                            if (t.type === 'IN') { 
-                                pLots[k].vendor = t.vendorOrDept; 
-                                pLots[k].packSize = t.packSize || 1; 
-                                pLots[k].unitPrice = t.unitPrice || 0; 
-                                if (t.expDate) pLots[k].exp = t.expDate; 
-                            }
-                            pLots[k].qty += (t.type === 'IN' ? 1 : -1) * (parseFloat(t.qty) || 0);
-                        });
-                        Object.keys(pLots).forEach(k => {
-                            if (pLots[k].qty > 0) { 
-                                let v = this.vendors.find(x => x.name === pLots[k].vendor) || {};
-                                let wCode = p.workingCode || p.id; 
-                                let tName = p.name; 
-                                let tpuid = p.tpuid || '99';
-                                let vName = pLots[k].vendor || ''; 
-                                let vTax = v.taxId || '';
-                                let qtyOnHand = pLots[k].qty; 
-                                let pSize = pLots[k].packSize; 
-                                let bUnit = p.unit || '';
-                                let pCost = parseFloat(pLots[k].unitPrice).toFixed(2); 
-                                let vOnHand = (qtyOnHand * parseFloat(pLots[k].unitPrice)).toFixed(2);
-                                let lot = (k === 'N/A' || k === 'WAITING' || k === '' || k === 'ADJUST') ? generateLotNo() : k;
-                                let exp = pLots[k].exp ? pLots[k].exp.replace(/-/g, '') : generateExpDate();
-                                data.push([hospCode, wCode, tName, tpuid, vName, vTax, qtyOnHand, pSize, bUnit, pCost, vOnHand, lot, exp, dateOnHand, dateSend]);
-                            }
-                        });
-                    });
-                }
-
-                if (format === 'csv') {
-                    let csvContent = '\uFEFF' + data.map(e => e.join("|")).join("\n");
-                    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                    const link = document.createElement("a"); 
-                    link.href = URL.createObjectURL(blob); 
-                    link.download = filename + '.csv'; 
-                    link.click();
-                } else if (format === 'xlsx') {
-                    const ws = XLSX.utils.aoa_to_sheet(data);
-                    const wb = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-                    XLSX.writeFile(wb, filename + '.xlsx');
-                }
-            },
-
-            getReportTitle() { 
-                if (this.reportFilter.type === 'inventory') return 'รายงานสินค้าคงคลังปัจจุบัน'; 
-                if (this.reportFilter.type === 'category_val') return 'สรุปมูลค่าคงคลังตามประเภท (ED/NED)'; 
-                if (this.reportFilter.type === 'expiry') return 'รายงานวันหมดอายุ (Expiry Report)'; 
-                if (this.reportFilter.type === 'usage') return 'สรุปการเบิกจ่ายแยกรายหน่วยงาน'; 
-                return ''; 
-            },
-            isExpired(d) { return d ? new Date(d) < new Date() : false; },
-            isNearExp(d) { 
-                if (!d) return false; 
-                let diff = (new Date(d) - new Date()) / (1000 * 60 * 60 * 24); 
-                return diff > 0 && diff <= 180; 
-            },
-            openPrintModal(doc) { this.printDoc = doc; },
+        // ====================================================================
+        // 5 FILES EXPORT (MOPH)
+        // ====================================================================
+        exportMophFile(fileNum, format) {
+            if (!this.mophPeriod) return alert('กรุณาระบุปีและเดือนที่ต้องการรายงาน (PERIOD_RPT) ก่อนดาวน์โหลด');
+            const hospCode = 'EA0014644'; 
+            const now = new Date(); 
+            const pad = (n) => n.toString().padStart(2, '0');
+            const dateSend = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+            const periodRpt = this.mophPeriod.replace(/-/g, '');
             
-            exportExcel(elementId, filename) {
-                let uri = 'data:application/vnd.ms-excel;base64,';
-                let template = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"></head><body><table>{table}</table></body></html>';
-                let base64 = function(s) { return window.btoa(unescape(encodeURIComponent(s))) };
-                let format = function(s, c) { return s.replace(/{(\w+)}/g, function(m, p) { return c[p]; }) };
-                
-                let container = document.getElementById(elementId);
-                if (!container) return alert('ไม่พบข้อมูล');
-                let table = container.getElementsByTagName('table')[0];
-                if (!table) return alert('ไม่พบตาราง');
-                
-                let cloneTable = table.cloneNode(true);
-                let rows = cloneTable.rows;
-                
-                for (let i = 0; i < rows.length; i++) { 
-                    let lastCell = rows[i].cells[rows[i].cells.length - 1]; 
-                    if (lastCell && (lastCell.innerText.includes('Action') || lastCell.innerText.includes('Print') || lastCell.innerText.includes('จัดการ') || lastCell.innerText.includes('ปรับมูลค่า') || lastCell.innerText.includes('ลบ') || lastCell.innerHTML.includes('<button'))) {
-                        rows[i].deleteCell(rows[i].cells.length - 1); 
-                    }
-                }
-                
-                let ctx = { worksheet: 'Sheet1', table: cloneTable.innerHTML };
-                let link = document.createElement("a"); 
-                link.href = uri + base64(format(template, ctx)); 
-                link.download = filename + "_" + new Date().toISOString().slice(0, 10) + ".xls"; 
+            const generateLotNo = () => {
+                const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                const randomLetter = letters.charAt(Math.floor(Math.random() * letters.length));
+                const randomNumbers = Math.floor(100000 + Math.random() * 900000);
+                return randomLetter + randomNumbers;
+            };
+            const generateExpDate = () => { return `${now.getFullYear() + 2}${pad(now.getMonth() + 1)}${pad(now.getDate())}`; };
+            
+            let data = [];
+            let filename = '';
+
+            if (fileNum === 1) { // DRUGLIST
+                filename = `DRUGLIST_${hospCode}_${periodRpt}`;
+                data.push(["HOSP_CODE", "WORKING_CODE", "GENERIC_NAME", "GPUID", "NLEM", "PRODUCT_CAT", "BASE_UNIT", "STATUS", "DATE_STATUS", "PERIOD_RPT", "DATE_SEND"]);
+                this.products.filter(p => p.objType === 'ยา').forEach(p => {
+                    let wCode = p.workingCode || p.id; 
+                    let gName = p.name; 
+                    let gpuid = p.gpuid || '99';
+                    let nlem = p.drugClass.includes('NED') ? 'N' : 'E'; 
+                    let pCat = p.productCat || '1';
+                    let bUnit = p.unit || ''; 
+                    let status = p.drugStatus || '1';
+                    let dStatus = p.dateStatus ? p.dateStatus.replace(/-/g, '') : `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`; 
+                    data.push([hospCode, wCode, gName, gpuid, nlem, pCat, bUnit, status, dStatus, periodRpt, dateSend]);
+                });
+            }
+            else if (fileNum === 2) { // PURCHASEPLAN
+                filename = `PURCHASEPLAN_${hospCode}_${periodRpt}`;
+                data.push(["HOSP_CODE", "YEARBUDGET", "WORKING_CODE", "GENERIC_NAME", "GPUID", "NLEM", "QTY_USE_YEAR3", "QTY_USE_YEAR2", "QTY_USE_YEAR1", "QTY_THIS_YEAR", "PACK_SIZE", "BASE_UNIT", "PACK_COST", "VALUE_THIS_YEAR", "QTY_PLAN_TRIMES1", "QTY_PLAN_TRIMES2", "QTY_PLAN_TRIMES3", "QTY_PLAN_TRIMES4", "PERIOD_RPT", "DATE_SEND"]);
+                this.purchasePlans.forEach(plan => {
+                    let p = this.products.find(x => x.id === plan.productId);
+                    if (!p) return;
+                    let wCode = p.workingCode || p.id; 
+                    let gName = p.name; 
+                    let gpuid = p.gpuid || '99';
+                    let nlem = p.drugClass.includes('NED') ? 'N' : 'E'; 
+                    let bUnit = p.unit || '';
+                    let valueThisYear = (parseFloat(plan.qtyThisYear) * parseFloat(plan.packCost)).toFixed(2);
+                    let packCost = parseFloat(plan.packCost).toFixed(2);
+                    data.push([hospCode, plan.yearBudget, wCode, gName, gpuid, nlem, plan.qtyUseY3, plan.qtyUseY2, plan.qtyUseY1, plan.qtyThisYear, plan.packSize, bUnit, packCost, valueThisYear, plan.qtyQ1, plan.qtyQ2, plan.qtyQ3, plan.qtyQ4, periodRpt, dateSend]);
+                });
+            }
+            else if (fileNum === 3) { // RECEIPT
+                filename = `RECEIPT_${hospCode}_${periodRpt}`;
+                data.push(["HOSP_CODE", "WORKING_CODE", "TRADE_NAME", "TPUID", "VENDOR_NAME", "VENDOR_TAX_ID", "QTY_RCV", "PACK_SIZE", "BASE_UNIT", "PACK_COST", "TOTAL_VALUE", "LOT_NO", "EXPIRE_DATE", "RCV_NO", "PO_NO", "CNT_NO", "DATE_RCV", "BUY_METHOD_ID", "CO_PURCHASE_ID", "RCV_FLAG", "PERIOD_RPT", "DATE_SEND"]);
+                this.transactions.filter(t => t.type === 'IN' && t.date.startsWith(this.mophPeriod) && t.status === 'Completed').forEach(t => {
+                    let p = this.products.find(x => x.id === t.productId);
+                    if (!p || p.objType !== 'ยา') return; 
+                    let b = this.bills.find(x => x.id === t.billId) || {};
+                    let v = this.vendors.find(x => x.name === t.vendorOrDept) || {};
+                    let wCode = p.workingCode || p.id; 
+                    let tName = p.name; 
+                    let tpuid = p.tpuid || '99';
+                    let vName = t.vendorOrDept; 
+                    let vTax = v.taxId || '';
+                    let qtyRcv = t.qty; 
+                    let pSize = t.packSize || 1; 
+                    let bUnit = p.unit || '';
+                    let pCost = parseFloat(t.unitPrice).toFixed(2); 
+                    let tVal = parseFloat(t.totalPrice).toFixed(2);
+                    let lot = t.lotNo ? t.lotNo.trim() : ''; 
+                    if (!lot || lot === 'WAITING' || lot === 'ADJUST') lot = generateLotNo();
+                    let exp = t.expDate ? t.expDate.replace(/-/g, '') : generateExpDate();
+                    let rcvNo = b.docNo || b.refBillNo || t.refDoc || t.billId; 
+                    let poNo = b.poNo || ''; 
+                    let cntNo = b.cntNo || '';
+                    let dRcv = t.date ? t.date.replace(/-/g, '') : '';
+                    let bMethod = b.buyMethod || '32'; 
+                    let coPur = b.coPurchase || '1';
+                    let rFlag = b.rcvFlag || (t.vendorOrDept === 'ยอดยกมา' ? '9' : '1');
+                    data.push([hospCode, wCode, tName, tpuid, vName, vTax, qtyRcv, pSize, bUnit, pCost, tVal, lot, exp, rcvNo, poNo, cntNo, dRcv, bMethod, coPur, rFlag, periodRpt, dateSend]);
+                });
+            }
+            else if (fileNum === 4) { // DISTRIBUTION
+                filename = `DISTRIBUTION_${hospCode}_${periodRpt}`;
+                data.push(["HOSP_CODE", "WORKING_CODE", "TRADE_NAME", "TPUID", "QTY_DIS", "PACK_SIZE", "BASE_UNIT", "VALUE", "DIS_DEPT_GROUP", "PERIOD_RPT", "DATE_SEND"]);
+                this.transactions.filter(t => t.type === 'OUT' && t.date.startsWith(this.mophPeriod) && t.status === 'Completed').forEach(t => {
+                    let p = this.products.find(x => x.id === t.productId);
+                    if (!p || p.objType !== 'ยา') return; 
+                    let d = this.depts.find(x => x.name === t.vendorOrDept) || {};
+                    let wCode = p.workingCode || p.id; 
+                    let tName = p.name; 
+                    let tpuid = p.tpuid || '99';
+                    let qtyDis = t.qty; 
+                    let pSize = t.packSize || 1; 
+                    let bUnit = p.unit || '';
+                    let val = parseFloat(t.totalPrice).toFixed(2); 
+                    let deptGroup = d.deptGroup || '4';
+                    data.push([hospCode, wCode, tName, tpuid, qtyDis, pSize, bUnit, val, deptGroup, periodRpt, dateSend]);
+                });
+            }
+            else if (fileNum === 5) { // INVENTORY
+                const dateOnHand = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
+                filename = `INVENTORY_${hospCode}_${dateOnHand}`;
+                data.push(["HOSP_CODE", "WORKING_CODE", "TRADE_NAME", "TPUID", "VENDOR_NAME", "VENDOR_TAX_ID", "QTY_ONHAND", "PACK_SIZE", "BASE_UNIT", "PACK_COST", "VALUE_ONHAND", "LOT_NO", "EXPIRE_DATE", "DATE_ONHAND", "DATE_SEND"]);
+                this.products.forEach(p => {
+                    if (p.objType !== 'ยา') return; 
+                    let pLots = {};
+                    this.transactions.filter(t => t.productId === p.id && t.status === 'Completed').forEach(t => {
+                        let k = t.lotNo ? t.lotNo.trim() : 'N/A';
+                        if (!pLots[k]) pLots[k] = { qty: 0, vendor: '', packSize: 1, unitPrice: 0, exp: t.expDate || '' };
+                        if (t.type === 'IN') { 
+                            pLots[k].vendor = t.vendorOrDept; 
+                            pLots[k].packSize = t.packSize || 1; 
+                            pLots[k].unitPrice = t.unitPrice || 0; 
+                            if (t.expDate) pLots[k].exp = t.expDate; 
+                        }
+                        pLots[k].qty += (t.type === 'IN' ? 1 : -1) * (parseFloat(t.qty) || 0);
+                    });
+                    Object.keys(pLots).forEach(k => {
+                        if (pLots[k].qty > 0) { 
+                            let v = this.vendors.find(x => x.name === pLots[k].vendor) || {};
+                            let wCode = p.workingCode || p.id; 
+                            let tName = p.name; 
+                            let tpuid = p.tpuid || '99';
+                            let vName = pLots[k].vendor || ''; 
+                            let vTax = v.taxId || '';
+                            let qtyOnHand = pLots[k].qty; 
+                            let pSize = pLots[k].packSize; 
+                            let bUnit = p.unit || '';
+                            let pCost = parseFloat(pLots[k].unitPrice).toFixed(2); 
+                            let vOnHand = (qtyOnHand * parseFloat(pLots[k].unitPrice)).toFixed(2);
+                            let lot = (k === 'N/A' || k === 'WAITING' || k === '' || k === 'ADJUST') ? generateLotNo() : k;
+                            let exp = pLots[k].exp ? pLots[k].exp.replace(/-/g, '') : generateExpDate();
+                            data.push([hospCode, wCode, tName, tpuid, vName, vTax, qtyOnHand, pSize, bUnit, pCost, vOnHand, lot, exp, dateOnHand, dateSend]);
+                        }
+                    });
+                });
+            }
+
+            if (format === 'csv') {
+                let csvContent = '\uFEFF' + data.map(e => e.join("|")).join("\n");
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a"); 
+                link.href = URL.createObjectURL(blob); 
+                link.download = filename + '.csv'; 
                 link.click();
+            } else if (format === 'xlsx') {
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+                XLSX.writeFile(wb, filename + '.xlsx');
             }
         },
-        mounted() { 
-            this.loadData(); 
+
+        getReportTitle() { 
+            if (this.reportFilter.type === 'inventory') return 'รายงานสินค้าคงคลังปัจจุบัน'; 
+            if (this.reportFilter.type === 'category_val') return 'สรุปมูลค่าคงคลังตามประเภท (ED/NED)'; 
+            if (this.reportFilter.type === 'expiry') return 'รายงานวันหมดอายุ (Expiry Report)'; 
+            if (this.reportFilter.type === 'usage') return 'สรุปการเบิกจ่ายแยกรายหน่วยงาน'; 
+            return ''; 
+        },
+        isExpired(d) { return d ? new Date(d) < new Date() : false; },
+        isNearExp(d) { 
+            if (!d) return false; 
+            let diff = (new Date(d) - new Date()) / (1000 * 60 * 60 * 24); 
+            return diff > 0 && diff <= 180; 
+        },
+        openPrintModal(doc) { this.printDoc = doc; },
+        
+        exportExcel(elementId, filename) {
+            let uri = 'data:application/vnd.ms-excel;base64,';
+            let template = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"></head><body><table>{table}</table></body></html>';
+            let base64 = function(s) { return window.btoa(unescape(encodeURIComponent(s))) };
+            let format = function(s, c) { return s.replace(/{(\w+)}/g, function(m, p) { return c[p]; }) };
+            
+            let container = document.getElementById(elementId);
+            if (!container) return alert('ไม่พบข้อมูล');
+            let table = container.getElementsByTagName('table')[0];
+            if (!table) return alert('ไม่พบตาราง');
+            
+            let cloneTable = table.cloneNode(true);
+            let rows = cloneTable.rows;
+            
+            for (let i = 0; i < rows.length; i++) { 
+                let lastCell = rows[i].cells[rows[i].cells.length - 1]; 
+                if (lastCell && (lastCell.innerText.includes('Action') || lastCell.innerText.includes('Print') || lastCell.innerText.includes('จัดการ') || lastCell.innerText.includes('ปรับมูลค่า') || lastCell.innerText.includes('ลบ') || lastCell.innerHTML.includes('<button'))) {
+                    rows[i].deleteCell(rows[i].cells.length - 1); 
+                }
+            }
+            
+            let ctx = { worksheet: 'Sheet1', table: cloneTable.innerHTML };
+            let link = document.createElement("a"); 
+            link.href = uri + base64(format(template, ctx)); 
+            link.download = filename + "_" + new Date().toISOString().slice(0, 10) + ".xls"; 
+            link.click();
         }
-    });
-    app.mount('#app');
+    },
+    mounted() { 
+        this.loadData(); 
+    }
+});
+
+// เริ่มให้ Vue.js ทำงานครอบคุม Element ที่มี id="app"
+app.mount('#app');
 </script>
 </body>
 </html>
