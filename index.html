@@ -22,49 +22,81 @@
             font-size: 0.95rem;
             overflow-x: hidden;
         }
+
         .login-bg { background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); }
         .login-card {
-            border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: none;
-            overflow: hidden; width: 100%; max-width: 420px; margin: 15px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            border: none;
+            overflow: hidden;
+            width: 100%;
+            max-width: 420px;
+            margin: 15px;
         }
         .login-header { background-color: #0d6efd; color: white; padding: 30px 20px; text-align: center; }
-        
+
         .sidebar {
-            min-height: 100vh; background: #1e293b; color: white; z-index: 1050;
-            flex-shrink: 0; min-width: 260px; max-width: 260px; transition: 0.3s;
+            min-height: 100vh;
+            background: #1e293b;
+            color: white;
+            z-index: 1050;
+            flex-shrink: 0;
+            min-width: 260px;
+            max-width: 260px;
+            transition: 0.3s;
         }
+
         .content-wrapper { min-width: 0; width: 100%; padding-top: 20px; }
+
         .nav-link { color: rgba(255,255,255,0.7); cursor: pointer; padding: 12px 20px; border-left: 3px solid transparent; }
         .nav-link:hover, .nav-link.active { color: white; background: #334155; border-left-color: #3b82f6; }
+
         .card-shadow { box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: none; border-radius: 10px; }
         
+        /* Loading Spinner */
         .loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255,255,255,0.85); z-index: 9999;
             display: flex; justify-content: center; align-items: center; flex-direction: column;
         }
-        
+
+        /* Modal Overlay (Fix Bug ซ้อนทับ) */
+        .modal-overlay-bg {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.6); z-index: 1055;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* Print Overlay (Fix Bug ซ้อนทับ) */
+        .print-overlay-bg {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.7); z-index: 1060;
+            display: flex; justify-content: center; align-items: flex-start;
+            padding-top: 50px; overflow-y: auto;
+        }
+
         .table-sm td, .table-sm th { vertical-align: middle; }
         th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 1.5rem; }
         th.sortable:hover { background-color: #e2e6ea !important; }
         .sort-icon { font-size: 0.7em; color: #6c757d; position: absolute; right: 5px; top: 50%; transform: translateY(-50%); }
-        
+
         .metric-card { cursor: pointer; transition: 0.2s; }
         .metric-card:hover { transform: translateY(-5px); box-shadow: 0 8px 15px rgba(0,0,0,0.1); }
         .alert-table-container { max-height: 250px; overflow-y: auto; }
         .alert-table-container thead th { position: sticky; top: 0; background: #f8f9fa; z-index: 1; }
-        
+
         .progress-custom { height: 35px; border-radius: 10px; overflow: hidden; background-color: #e9ecef; }
         .progress-custom .bar-label { line-height: 35px; color: white; font-weight: bold; padding: 0 10px; white-space: nowrap; }
 
-        .mobile-header { display: none; }
+        /* Fix Bug 3: บังคับซ่อนบน Desktop เด็ดขาด */
+        .mobile-header { display: none !important; }
         .sidebar-backdrop { display: none; }
 
         @media (max-width: 768px) {
             .mobile-header {
-                display: flex; position: fixed; top: 0; left: 0; right: 0; height: 60px;
+                display: flex !important; position: fixed; top: 0; left: 0; right: 0; height: 60px;
                 background: #1e293b; color: white; z-index: 1040; align-items: center;
-                padding: 0 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                padding: 0 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); justify-content: space-between;
             }
             .sidebar { position: fixed; top: 0; left: -260px; height: 100vh; }
             .sidebar.show-sidebar { left: 0; }
@@ -116,7 +148,7 @@
 
     <div v-else class="d-flex w-100">
 
-        <div class="mobile-header justify-content-between align-items-center w-100 no-print">
+        <div class="mobile-header no-print">
             <h5 class="mb-0 fw-bold"><i class="bi bi-hospital me-2"></i>JVL Inventory</h5>
             <button class="btn btn-link text-white p-0" @click="isSidebarOpen = true"><i class="bi bi-list fs-1"></i></button>
         </div>
@@ -616,7 +648,7 @@
                     </div>
                 </div>
 
-                <div v-show="showInspectModal" class="loading-overlay" style="background: rgba(0,0,0,0.6);">
+                <div v-show="showInspectModal" class="modal-overlay-bg">
                     <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 550px; border-radius: 12px; max-height: 90vh; overflow-y: auto;">
                         <h4 class="mb-3 fw-bold text-success"><i class="bi bi-check-circle-fill me-2"></i> ตรวจรับยาเข้าคลัง</h4>
                         <div class="mb-2 text-muted p-2 bg-light rounded">
@@ -882,7 +914,7 @@
                    </div>
                </div>
                
-               <div v-if="showAdjustValModal" class="loading-overlay" style="background: rgba(0,0,0,0.6);">
+               <div v-if="showAdjustValModal" class="modal-overlay-bg">
                   <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 500px; border-radius:15px;">
                       <h4 class="mb-4 text-warning fw-bold"><i class="bi bi-pencil-square me-2"></i> ปรับปรุงมูลค่ายาคงคลัง</h4>
                       <div class="bg-light p-3 rounded mb-3">
@@ -1384,7 +1416,7 @@
                     </div>
                 </div>
 
-                <div v-if="showModal" class="loading-overlay" style="background: rgba(0,0,0,0.6);">
+                <div v-if="showModal" class="modal-overlay-bg">
                     <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 800px; border-radius:15px; max-height: 90vh; overflow-y: auto;">
                         <h4 class="mb-4 text-success fw-bold"><i class="bi bi-journal-plus me-2"></i>{{ modalForm.isEdit ? 'แก้ไขแผนจัดซื้อ' : 'สร้างแผนจัดซื้อใหม่' }}</h4>
                         <div class="row g-3">
@@ -1486,7 +1518,7 @@
                     </div>
                 </div>
 
-                <div v-if="showModal && page !== 'manage_plan'" class="loading-overlay" style="background: rgba(0,0,0,0.6);">
+                <div v-if="showModal && page !== 'manage_plan'" class="modal-overlay-bg">
                     <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 600px; border-radius:15px; max-height: 90vh; overflow-y: auto;">
                         <h4 class="mb-4 text-primary fw-bold"><i class="bi bi-pencil-square me-2"></i>{{ modalForm.isEdit ? 'แก้ไขข้อมูล' : 'เพิ่มข้อมูลใหม่' }}</h4>
                         
@@ -1527,10 +1559,8 @@
                         </div>
                         
                         <div v-else-if="page==='manage_dept'" class="d-flex flex-column gap-3">
-                            <label class="small text-muted fw-bold">รหัสหน่วยเบิก</label>
-                            <input v-model="modalForm.id" class="form-control bg-light" :readonly="modalForm.isEdit" placeholder="(เว้นว่างระบบรันออโต้)">
-                            <label class="small text-muted fw-bold">ชื่อหน่วยงาน</label>
-                            <input v-model="modalForm.name" class="form-control border-primary fw-bold">
+                            <label class="small text-muted fw-bold">รหัสหน่วยเบิก</label><input v-model="modalForm.id" class="form-control bg-light" :readonly="modalForm.isEdit" placeholder="(เว้นว่างระบบรันออโต้)">
+                            <label class="small text-muted fw-bold">ชื่อหน่วยงาน</label><input v-model="modalForm.name" class="form-control border-primary fw-bold">
                             <label class="small text-danger fw-bold">ประเภทหน่วยเบิก (DIS_DEPT_GROUP)</label>
                             <select v-model="modalForm.deptGroup" class="form-select border-danger fw-bold">
                                 <option value="1">1 - OPD และ IPD (บริการใกล้เคียงกัน)</option>
@@ -1563,7 +1593,7 @@
                 </div>
             </div>
 
-            <div v-if="showBudgetModal" class="loading-overlay" style="background: rgba(0,0,0,0.6);">
+            <div v-if="showBudgetModal" class="modal-overlay-bg">
                 <div class="card p-4 shadow-lg mx-2" style="border-radius:15px; width: 100%; max-width: 500px;">
                     <h4 class="fw-bold text-success"><i class="bi bi-cash-stack me-2"></i> ตั้งค่างบประมาณปี {{ currentBudgetYear }}</h4><hr>
                     <label class="small text-muted fw-bold mb-1">ระบุจำนวนเงินงบประมาณรวมทั้งปี (บาท)</label>
@@ -1575,7 +1605,7 @@
                 </div>
             </div>
 
-            <div v-if="printDoc" class="loading-overlay" style="background: rgba(0,0,0,0.7); align-items: start; padding-top: 50px; overflow-y: auto;">
+            <div v-if="printDoc" class="print-overlay-bg">
                 <div class="card p-4 p-md-5 bg-white shadow-lg mb-5 mx-2" style="width: 100%; max-width: 850px; min-height: 500px;" id="printSection">
                     <div class="text-center mb-4 border-bottom pb-3">
                         <h2 class="fw-bold">JVL Inventory</h2>
@@ -1645,7 +1675,6 @@
         </div>
     </div>
 </div>
-
 <script>
     // URL ของ Google Apps Script Web App
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwsMwNbbLEf8SoHkcvog2H5nymUAKtsyw6pTPmymSLYcBC4oYM_zPxShPHPvXnEKt3S/exec"; 
