@@ -147,6 +147,7 @@
         <a v-if="currentUser.role==='Admin'" @click="page='receive'" class="nav-link" :class="{active: page==='receive'}"><i class="bi bi-truck me-2"></i> รับยา (รอตรวจรับ)</a>
         <a v-if="currentUser.role==='Admin'" @click="page='inspect'" class="nav-link" :class="{active: page==='inspect'}"><i class="bi bi-clipboard-check me-2"></i> ตรวจรับเข้าคลัง</a>
         <a v-if="currentUser.role==='Admin'" @click="page='stockOut'" class="nav-link" :class="{active: page==='stockOut'}"><i class="bi bi-box-arrow-up me-2"></i> จ่ายสินค้า / ตัดสต็อก</a>
+        <a v-if="currentUser.role==='Admin'" @click="page='stockTake'" class="nav-link text-danger" :class="{active: page==='stockTake'}"><i class="bi bi-clipboard-data me-2"></i> ปรับปรุงสต็อก (Stock Take)</a>
         <a v-if="currentUser.role==='Admin'" @click="page='approveReq'" class="nav-link" :class="{active: page==='approveReq'}">
             <i class="bi bi-check2-square me-2"></i> อนุมัติเบิก 
             <span v-if="pendingRequestsCount>0" class="badge bg-danger rounded-pill ms-auto">{{ pendingRequestsCount }}</span>
@@ -751,6 +752,76 @@
          </div>
       </div>
 
+<div v-if="page === 'stockTake'">
+         <h3 class="mb-3 fw-bold text-danger"><i class="bi bi-clipboard-data"></i> ปรับปรุงสต็อก (Stock Take)</h3>
+         <div class="card card-shadow p-3 mb-3 border-top border-danger border-4">
+            <div class="row g-3">
+               <div class="col-12 col-md-4">
+                   <label class="small fw-bold text-muted">วันที่ตรวจนับ</label>
+                   <input type="date" v-model="formStockTake.date" class="form-control">
+               </div>
+               <div class="col-12 col-md-8">
+                   <label class="small fw-bold text-muted">เลขอ้างอิง / หมายเหตุรายงาน</label>
+                   <input v-model="formStockTake.refDoc" type="text" class="form-control" placeholder="เช่น ตรวจนับประจำไตรมาส 1/69">
+               </div>
+            </div>
+         </div>
+         
+         <div class="card card-shadow p-3 mb-3 bg-light border">
+            <div class="row g-2 align-items-end">
+               <div class="col-12 col-md-4">
+                   <label class="small fw-bold text-muted">ค้นหาสินค้า</label>
+                   <select id="stockTakeProductSelect" placeholder="พิมพ์ค้นหาสินค้า..."></select>
+               </div>
+               <div class="col-12 col-md-2">
+                   <label class="small fw-bold text-muted">ยอดในระบบ</label>
+                   <input type="number" :value="tempStockTake.currentQty" class="form-control bg-light text-center fw-bold" readonly>
+               </div>
+               <div class="col-12 col-md-2">
+                   <label class="small fw-bold text-primary">ยอดนับจริง (Physical)</label>
+                   <input type="number" v-model.number="tempStockTake.actualQty" class="form-control border-primary text-center fw-bold">
+               </div>
+               <div class="col-12 col-md-2">
+                   <label class="small fw-bold text-danger">ผลต่าง (Diff)</label>
+                   <input type="text" :value="tempStockTake.actualQty - tempStockTake.currentQty" class="form-control bg-white text-center fw-bold text-danger" readonly>
+               </div>
+               <div class="col-12 col-md-2">
+                   <button @click="addToStockTakeCart" class="btn btn-danger w-100 fw-bold shadow-sm" :disabled="!tempStockTake.productId">เพิ่มรายการ</button>
+               </div>
+            </div>
+         </div>
+         
+         <div v-if="cartStockTake.length > 0" class="card card-shadow p-3">
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle text-nowrap">
+                    <thead class="table-light text-center">
+                        <tr>
+                            <th>สินค้า</th>
+                            <th>ยอดในระบบ</th>
+                            <th>ยอดนับจริง</th>
+                            <th>ผลต่าง (ปรับปรุง)</th>
+                            <th>มูลค่าที่เปลี่ยน</th>
+                            <th>ลบ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(item, idx) in cartStockTake">
+                            <td class="fw-bold">{{ item.productName }}</td>
+                            <td class="text-center text-muted">{{ formatNumber(item.currentQty) }}</td>
+                            <td class="text-center text-primary fw-bold">{{ formatNumber(item.actualQty) }}</td>
+                            <td class="text-center fw-bold" :class="item.diff > 0 ? 'text-success' : 'text-danger'">
+                                {{ item.diff > 0 ? '+' : '' }}{{ formatNumber(item.diff) }}
+                            </td>
+                            <td class="text-end">{{ formatCurrency(item.diff * item.unitPrice) }}</td>
+                            <td class="text-center"><button @click="cartStockTake.splice(idx,1)" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <button @click="submitStockTake" class="btn btn-danger btn-lg w-100 mt-2 fw-bold shadow"><i class="bi bi-save me-2"></i> ยืนยันการปรับปรุงสต็อก</button>
+         </div>
+      </div>
+      
       <div v-if="page === 'approveReq'">
          <h3 class="mb-3 fw-bold">ตรวจสอบและอนุมัติใบขอเบิก</h3>
          <div class="card card-shadow p-3">
@@ -1502,6 +1573,11 @@ createApp({
       formOut: { date: new Date().toISOString().slice(0,10), dept: '', reqId: '', reqType: 'เบิกจริง', docNo: '' }, 
       tempOut: { productName: '', productId: '', qty: 1, selectedLotIdx: -1, unitPrice: 0, stockSource: 'Completed' }, 
       cartOut: [],
+
+      formStockTake: { date: new Date().toISOString().slice(0,10), refDoc: 'STK-' + new Date().toISOString().slice(0,7).replace(/-/g,'') },
+      tempStockTake: { productId: '', productName: '', currentQty: 0, actualQty: 0, unitPrice: 0, packSize: 1 },
+      cartStockTake: [],
+      tsStockTakeProd: null,
       
       tempReq: { productName: '', productId: '', qty: 1, unit: '' }, 
       cartReq: [], 
@@ -1795,7 +1871,7 @@ createApp({
      historyGroups() { 
          let g={}; 
          this.transactions.forEach(t=>{ 
-             let id=t.transId.startsWith('RCV-')||t.transId.startsWith('ISS-')?t.transId:t.billId; 
+             let id = t.transId.startsWith('RCV-') || t.transId.startsWith('ISS-') || t.transId.startsWith('STK-') ? t.transId : t.billId; 
              if(!g[id])g[id]={id:id,date:t.date,type:t.type,ref:t.refDoc||'-',entity:t.vendorOrDept,user:t.user,items:[],total:0}; 
              let p=this.products.find(x=>x.id==t.productId); 
              g[id].items.push({name:p?p.name:t.productId,lot:t.lotNo,qty:t.qty,unit:p?p.unit:'',price:t.unitPrice,total:t.totalPrice}); 
@@ -1822,7 +1898,7 @@ createApp({
      page(val) { 
          this.isSidebarOpen = false; // Auto close mobile sidebar
          if(val === 'dashboard') this.$nextTick(() => this.renderCharts()); 
-         if(['receive', 'opening', 'manage_plan', 'userReq', 'stockOut'].includes(val)) {
+         if(['receive', 'opening', 'manage_plan', 'userReq', 'stockOut', 'stockTake'].includes(val)) {
              this.$nextTick(() => this.initTomSelects()); 
          }
      },
@@ -1909,6 +1985,22 @@ createApp({
             valueField: 'name', labelField: 'name', searchField: 'name', 
             options: this.depts, 
             onChange: (v) => { this.formOut.dept = v; } 
+        if(this.tsStockTakeProd) this.tsStockTakeProd.destroy();
+        let stEl = document.getElementById('stockTakeProductSelect');
+        if(stEl) this.tsStockTakeProd = new TomSelect(stEl, {
+            valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode'], options: this.products,
+            render: { option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small></div>`; }, item: function(d, e) { return `<div>${e(d.name)}</div>`; } },
+            onChange: (v) => {
+                let p = this.products.find(x=>x.id == v);
+                if(p) {
+                    this.tempStockTake.productId = p.id;
+                    this.tempStockTake.productName = p.name;
+                    let invItem = this.inventory.find(i => i.id === p.id);
+                    this.tempStockTake.currentQty = invItem ? invItem.qty : 0;
+                    this.tempStockTake.unitPrice = invItem && invItem.qty > 0 ? (invItem.totalVal / invItem.qty).toFixed(2) : 0;
+                    this.tempStockTake.actualQty = this.tempStockTake.currentQty;
+                }
+            }
         });
      },
 
@@ -2061,6 +2153,33 @@ createApp({
          const res = await this.apiCall("saveBatchTransaction", { user:this.currentUser.name, type:'OUT', reqId:this.formOut.reqId, items: outItems }); 
          if(res){ alert('สำเร็จ'); this.cartOut=[]; this.formOut.reqId=''; this.formOut.docNo=''; if(this.tsStockOutDept) this.tsStockOutDept.clear(); await this.loadData(); } 
          this.loading=false; 
+     },
+     addToStockTakeCart() {
+         if(!this.tempStockTake.productId) return alert('ระบุสินค้า');
+         let diff = this.tempStockTake.actualQty - this.tempStockTake.currentQty;
+         if(diff === 0) return alert('ยอดนับจริงเท่ากับยอดในระบบ ไม่ต้องปรับปรุงครับ');
+         
+         this.cartStockTake.push({...this.tempStockTake, diff: diff});
+         this.tempStockTake = { productId: '', productName: '', currentQty: 0, actualQty: 0, unitPrice: 0, packSize: 1 };
+         if(this.tsStockTakeProd) this.tsStockTakeProd.clear();
+     },
+     async submitStockTake() {
+         if(!this.formStockTake.refDoc) return alert('ระบุเลขอ้างอิง');
+         if(this.cartStockTake.length === 0 || !confirm('ยืนยันการปรับปรุงสต็อก?')) return;
+         
+         this.loading = true;
+         const res = await this.apiCall("saveStockTake", {
+             user: this.currentUser.name,
+             date: this.formStockTake.date,
+             refDoc: this.formStockTake.refDoc,
+             items: this.cartStockTake
+         });
+         if(res) {
+             alert(res);
+             this.cartStockTake = [];
+             await this.loadData();
+         }
+         this.loading = false;
      },
 
      onTempReqProdSelect() { let p=this.products.find(x=>x.name===this.tempReq.productName); if(p) { this.tempReq.productId=p.id; this.tempReq.unit=p.unit; } },
