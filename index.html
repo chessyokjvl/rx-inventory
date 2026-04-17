@@ -1920,11 +1920,13 @@ const app = createApp({
         dashNearExpiry() { 
             let sixM = new Date(); 
             sixM.setMonth(sixM.getMonth() + 6); 
-            let pIds = this.dashFilteredInventory.map(i => i.id); 
             
-            // แก้ไข Bug: กรองเอาเฉพาะตัวที่ยังมียาเหลืออยู่ (qty > 0)
+            // กรองเอาเฉพาะยาที่คงเหลือในคลังจริงๆ (ใช้ > 0.01 ป้องกันบั๊กเศษทศนิยมของ JavaScript)
+            let pIds = this.dashFilteredInventory.filter(i => i.qty > 0.01).map(i => i.id); 
+            
             return this.allLots.filter(l => {
-                if (l.qty <= 0 || !pIds.includes(l.pid)) return false;
+                // เช็คว่ายาตัวนั้นยังมีในคลัง และ Lot นั้นยังมีของเหลือ
+                if (l.qty <= 0.01 || !pIds.includes(l.pid)) return false;
                 if (!l.exp) return false;
                 return new Date(l.exp) <= sixM;
             }).sort((a, b) => new Date(a.exp) - new Date(b.exp)); 
@@ -1970,14 +1972,23 @@ const app = createApp({
         },
         
         purchasedEdTotal() {
-            return this.transactions.filter(t => t.type === 'IN' && t.status === 'Completed').reduce((sum, t) => {
+            // ดึงเฉพาะ ID ของบิลที่ตรวจรับเสร็จแล้ว
+            let completedBillIds = this.bills.filter(b => b.status === 'Completed').map(b => b.id);
+            
+            // นำยอดมารวมเฉพาะ Transaction ที่ผูกกับบิลเหล่านั้น (ตัดยอดยกมา และ ปรับสต็อกทิ้ง)
+            return this.transactions.filter(t => t.type === 'IN' && t.status === 'Completed' && completedBillIds.includes(t.billId)).reduce((sum, t) => {
                 let p = this.products.find(x => x.id === t.productId);
                 if (p && p.objType === 'ยา' && p.drugClass === 'ED') return sum + (parseFloat(t.totalPrice) || 0);
                 return sum;
             }, 0);
         },
+        
         purchasedNedTotal() {
-            return this.transactions.filter(t => t.type === 'IN' && t.status === 'Completed').reduce((sum, t) => {
+            // ดึงเฉพาะ ID ของบิลที่ตรวจรับเสร็จแล้ว
+            let completedBillIds = this.bills.filter(b => b.status === 'Completed').map(b => b.id);
+            
+            // นำยอดมารวมเฉพาะ Transaction ที่ผูกกับบิลเหล่านั้น
+            return this.transactions.filter(t => t.type === 'IN' && t.status === 'Completed' && completedBillIds.includes(t.billId)).reduce((sum, t) => {
                 let p = this.products.find(x => x.id === t.productId);
                 if (p && p.objType === 'ยา' && p.drugClass === 'NED') return sum + (parseFloat(t.totalPrice) || 0);
                 return sum;
