@@ -2815,43 +2815,56 @@ const app = createApp({
                 });
             }
             else if (fileNum === 5) { // INVENTORY
-                const dateOnHand = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
-                filename = `INVENTORY_${hospCode}_${dateOnHand}`;
-                data.push(["HOSP_CODE", "WORKING_CODE", "TRADE_NAME", "TPUID", "VENDOR_NAME", "VENDOR_TAX_ID", "QTY_ONHAND", "PACK_SIZE", "BASE_UNIT", "PACK_COST", "VALUE_ONHAND", "LOT_NO", "EXPIRE_DATE", "DATE_ONHAND", "DATE_SEND"]);
-                this.products.forEach(p => {
-                    if (p.objType !== 'ยา') return; 
-                    let pLots = {};
-                    this.transactions.filter(t => t.productId === p.id && t.status === 'Completed').forEach(t => {
-                        let k = t.lotNo ? t.lotNo.trim() : 'N/A';
-                        if (!pLots[k]) pLots[k] = { qty: 0, vendor: '', packSize: 1, unitPrice: 0, exp: t.expDate || '' };
-                        if (t.type === 'IN') { 
-                            pLots[k].vendor = t.vendorOrDept; 
-                            pLots[k].packSize = t.packSize || 1; 
-                            pLots[k].unitPrice = t.unitPrice || 0; 
-                            if (t.expDate) pLots[k].exp = t.expDate; 
-                        }
-                        pLots[k].qty += (t.type === 'IN' ? 1 : -1) * (parseFloat(t.qty) || 0);
+                    // 1. คำนวณหาวันสิ้นเดือน ของเดือนที่เลือก (mophPeriod)
+                    let [year, month] = this.mophPeriod.split('-');
+                    let endOfMonth = new Date(year, month, 0); // ใส่ 0 เพื่อถอยกลับไปเป็นวันสุดท้ายของเดือนนั้น
+                    const dateOnHand = `${endOfMonth.getFullYear()}${pad(endOfMonth.getMonth() + 1)}${pad(endOfMonth.getDate())}`;
+                    
+                    filename = `INVENTORY_${hospCode}_${dateOnHand}`;
+                    data.push(["HOSP_CODE", "WORKING_CODE", "TRADE_NAME", "TPUID", "VENDOR_NAME", "VENDOR_TAX_ID", "QTY_ONHAND", "PACK_SIZE", "BASE_UNIT", "PACK_COST", "VALUE_ONHAND", "LOT_NO", "EXPIRE_DATE", "DATE_ONHAND", "DATE_SEND"]);
+                    
+                    this.products.forEach(p => {
+                        if (p.objType !== 'ยา') return; 
+                        let pLots = {};
+                        
+                        // 2. กรอง Transaction เอาเฉพาะรายการที่เกิด "ก่อนหรือภายในเดือนที่เลือก" (<= this.mophPeriod)
+                        this.transactions.filter(t => t.productId === p.id && t.status === 'Completed' && t.date.substring(0, 7) <= this.mophPeriod).forEach(t => {
+                            let k = t.lotNo ? t.lotNo.trim() : 'N/A';
+                            if (!pLots[k]) pLots[k] = { qty: 0, vendor: '', packSize: 1, unitPrice: 0, exp: t.expDate || '' };
+                            
+                            if (t.type === 'IN') { 
+                                pLots[k].vendor = t.vendorOrDept; 
+                                pLots[k].packSize = t.packSize || 1; 
+                                pLots[k].unitPrice = t.unitPrice || 0; 
+                                if (t.expDate) pLots[k].exp = t.expDate; 
+                            }
+                            // นำยอดเข้า-ออก มารวมกัน
+                            pLots[k].qty += (t.type === 'IN' ? 1 : -1) * (parseFloat(t.qty) || 0);
+                        });
+                        
+                        Object.keys(pLots).forEach(k => {
+                            // ดึงเฉพาะ Lot ที่มียอดคงเหลือ ณ สิ้นเดือนนั้น > 0
+                            if (pLots[k].qty > 0) { 
+                                let v = this.vendors.find(x => x.name === pLots[k].vendor) || {};
+                                let wCode = p.workingCode || p.id; 
+                                let tName = p.name; 
+                                let tpuid = p.tpuid || '99';
+                                let vName = pLots[k].vendor || ''; 
+                                let vTax = v.taxId || '';
+                                let qtyOnHand = pLots[k].qty; 
+                                let pSize = pLots[k].packSize; 
+                                let bUnit = p.unit || '';
+                                let pCost = parseFloat(pLots[k].unitPrice).toFixed(2); 
+                                let vOnHand = (qtyOnHand * parseFloat(pLots[k].unitPrice)).toFixed(2);
+                                
+                                let lot = (k === 'N/A' || k === 'WAITING' || k === '' || k === 'ADJUST') ? generateLotNo() : k;
+                                let exp = pLots[k].exp ? pLots[k].exp.replace(/-/g, '') : generateExpDate();
+                                
+                                data.push([hospCode, wCode, tName, tpuid, vName, vTax, qtyOnHand, pSize, bUnit, pCost, vOnHand, lot, exp, dateOnHand, dateSend]);
+                            }
+                        });
                     });
-                    Object.keys(pLots).forEach(k => {
-                        if (pLots[k].qty > 0) { 
-                            let v = this.vendors.find(x => x.name === pLots[k].vendor) || {};
-                            let wCode = p.workingCode || p.id; 
-                            let tName = p.name; 
-                            let tpuid = p.tpuid || '99';
-                            let vName = pLots[k].vendor || ''; 
-                            let vTax = v.taxId || '';
-                            let qtyOnHand = pLots[k].qty; 
-                            let pSize = pLots[k].packSize; 
-                            let bUnit = p.unit || '';
-                            let pCost = parseFloat(pLots[k].unitPrice).toFixed(2); 
-                            let vOnHand = (qtyOnHand * parseFloat(pLots[k].unitPrice)).toFixed(2);
-                            let lot = (k === 'N/A' || k === 'WAITING' || k === '' || k === 'ADJUST') ? generateLotNo() : k;
-                            let exp = pLots[k].exp ? pLots[k].exp.replace(/-/g, '') : generateExpDate();
-                            data.push([hospCode, wCode, tName, tpuid, vName, vTax, qtyOnHand, pSize, bUnit, pCost, vOnHand, lot, exp, dateOnHand, dateSend]);
-                        }
-                    });
-                });
-            }
+                }
 
             if (format === 'csv') {
                 let csvContent = '\uFEFF' + data.map(e => e.join("|")).join("\n");
