@@ -2033,7 +2033,35 @@ const app = createApp({
             return lots; 
         },
         activeLots() { 
-            return this.allLots.filter(l => l.qty > 0); 
+            let validLots = [];
+            
+            // วนลูปเช็คตามสินค้าคงเหลือจริงที่มีอยู่ในคลัง (อัปเดตล่าสุด)
+            this.inventory.forEach(invItem => {
+                // 1. ถ้าสินค้าภาพรวมหมดแล้ว (<= 0) ให้ข้ามไปเลย ไม่ต้องแสดง Lot ใดๆ
+                if (invItem.qty <= 0.01) return; 
+                
+                // 2. ดึง Lot ของสินค้านี้ที่มียอดเป็นบวก และเรียงตามวันหมดอายุ (หมดอายุก่อนขึ้นก่อน)
+                let itemLots = this.allLots.filter(l => l.pid === invItem.id && l.qty > 0.01)
+                                           .sort((a, b) => new Date(a.exp || '2099-01-01') - new Date(b.exp || '2099-01-01'));
+                
+                // ยอดคงเหลือจริงๆ ในระบบ (Total Actual Qty)
+                let remainingRealQty = invItem.qty;
+                
+                itemLots.forEach(l => {
+                    // ถ้ายอดจริงถูกจัดสรรให้ Lot ก่อนหน้าจนหมดแล้ว ให้ข้าม Lot ที่เหลือ
+                    if (remainingRealQty <= 0.01) return; 
+                    
+                    // คำนวณยอดที่จะโชว์ใน Lot นี้ (ป้องกันยอด Lot โชว์บวมเกินยอดจริง)
+                    let displayQty = l.qty > remainingRealQty ? remainingRealQty : l.qty;
+                    
+                    validLots.push({ ...l, qty: displayQty });
+                    
+                    // หักลบยอดจริงออกเพื่อคำนวณ Lot ถัดไป
+                    remainingRealQty -= displayQty;
+                });
+            });
+            
+            return validLots;
         },
         availableLotsOut() { 
             if (!this.tempOut.productId) return []; 
