@@ -311,21 +311,23 @@
                                 <table class="table table-sm table-hover mb-0 text-nowrap" style="font-size: 0.85em;">
                                     <thead class="table-light">
                                         <tr>
-                                            <th>สินค้า</th>
-                                            <th class="text-end">คงเหลือ</th>
-                                            <th class="text-end">ใช้ได้อีก (วัน)</th>
-                                            <th class="text-end">Min</th>
+                                            <th @click="sortBy('name')" class="sortable">สินค้า <span class="sort-icon">{{sortIcon('name')}}</span></th>
+                                            <th @click="sortBy('qty')" class="sortable text-end">คงเหลือ <span class="sort-icon">{{sortIcon('qty')}}</span></th>
+                                            <th @click="sortBy('diffMin')" class="sortable text-end text-danger">ต่ำกว่า Min <span class="sort-icon">{{sortIcon('diffMin')}}</span></th>
+                                            <th @click="sortBy('daysLeft')" class="sortable text-end">ใช้ได้อีก (วัน) <span class="sort-icon">{{sortIcon('daysLeft')}}</span></th>
+                                            <th @click="sortBy('min')" class="sortable text-end">Min <span class="sort-icon">{{sortIcon('min')}}</span></th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr v-for="i in dashReorderItems">
+                                        <tr v-for="i in sortedDashReorderItems" :key="i.id">
                                             <td class="text-truncate" style="max-width:180px;" :title="i.name">{{ i.name }}</td>
                                             <td class="text-end fw-bold text-danger">{{ formatNumber(i.qty) }}</td>
+                                            <td class="text-end fw-bold text-danger">-{{ formatNumber(i.diffMin) }}</td>
                                             <td class="text-end fw-bold text-warning">{{ i.daysLeft }}</td>
                                             <td class="text-end text-muted">{{ i.min }}</td>
                                         </tr>
-                                        <tr v-if="dashReorderItems.length===0">
-                                            <td colspan="4" class="text-center p-3 text-muted">สินค้าในคลังเพียงพอ</td>
+                                        <tr v-if="sortedDashReorderItems.length===0">
+                                            <td colspan="5" class="text-center p-3 text-muted">สินค้าในคลังเพียงพอ</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -1120,6 +1122,16 @@
                                 <option value="usage">4. สรุปมูลค่าการเบิกจ่ายแยกตามหน่วยงาน</option>
                             </select>
                         </div>
+						<div class="col-12 col-md-3" v-if="reportFilter.type === 'inventory'">
+                            <label class="fw-bold small text-muted mb-1">กลุ่มควบคุม (Control List)</label>
+                            <select v-model="reportFilter.controlList" class="form-select shadow-sm">
+                                <option value="all">แสดงทั้งหมด</option>
+                                <option value="Must list">Must list (ห้ามขาด)</option>
+                                <option value="Watch list">Watch list (เฝ้าระวัง)</option>
+                                <option value="General list">General list (ทั่วไป)</option>
+                            </select>
+                        </div>
+						
                         <div class="col-6 col-md-2" v-if="['usage'].includes(reportFilter.type)">
                             <label class="small fw-bold text-muted mb-1">ตั้งแต่วันที่</label>
                             <input type="date" v-model="reportFilter.start" class="form-control shadow-sm">
@@ -1770,7 +1782,7 @@ const app = createApp({
             reqDept: '',
             
             // ฟิลเตอร์และตัวกรองต่างๆ
-            reportFilter: { type: 'inventory', start: '', end: '' }, 
+            reportFilter: { type: 'inventory', start: '', end: '', controlList: 'all' }, 
             historyFilterType: '', 
             outFilter: { start: '', end: '', dept: '', type: '', search: '' },
             dashFilter: { objType: '', category: '', drugClass: '' }, 
@@ -1946,7 +1958,14 @@ const app = createApp({
             }); 
         },
         dashReorderItems() { 
-            return this.dashFilteredInventory.filter(i => i.qty <= parseFloat(i.min) || i.qty <= 0); 
+            return this.dashFilteredInventory
+                .filter(i => i.qty <= parseFloat(i.min))
+                // คำนวณจำนวนที่ต่ำกว่า Min (diffMin) เอาไว้ใช้ Sort
+                .map(i => ({ ...i, diffMin: parseFloat(i.min) - i.qty })); 
+        },
+        // เพิ่มฟังก์ชันนี้เพื่อใช้ Sort ตาราง Dashboard
+        sortedDashReorderItems() { 
+            return this.applySort(this.dashReorderItems); 
         },
         dashNearExpiry() { 
             let sixM = new Date(); 
@@ -2244,7 +2263,14 @@ const app = createApp({
 
         // --- Misc Computed ---
         pendingRequestsList() { return this.requests.filter(r => r.status === 'Pending'); },
-        filteredInventory() { return this.inventory.filter(i => i.name.toLowerCase().includes(this.searchQuery.toLowerCase())); },
+        filteredInventory() { 
+            return this.inventory.filter(i => {
+                let matchSearch = i.name.toLowerCase().includes(this.searchQuery.toLowerCase());
+                // กรองจาก Filter ในหน้ารายงาน (ถ้าเลือก all ก็โชว์หมด)
+                let matchControl = this.reportFilter.controlList === 'all' || i.controlList === this.reportFilter.controlList;
+                return matchSearch && matchControl;
+            }); 
+        },
         totalInventoryValue() { return this.inventory.reduce((sum, i) => sum + i.totalVal, 0); },
         pendingRequestsCount() { return this.pendingRequestsList.length; },
         currentBudgetYear() { return new Date().getFullYear() + 543; },
