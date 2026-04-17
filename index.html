@@ -1523,11 +1523,39 @@
                         <h4 class="mb-4 text-primary fw-bold"><i class="bi bi-pencil-square me-2"></i>{{ modalForm.isEdit ? 'แก้ไขข้อมูล' : 'เพิ่มข้อมูลใหม่' }}</h4>
                         
                         <div v-if="page==='manage_prod'" class="d-flex flex-column gap-3">
+                            <div class="row g-2 mb-3 no-print"><div class="col-12 col-md-8"><div class="input-group"><span class="input-group-text bg-primary text-white"><i class="bi bi-search"></i></span><input type="text" v-model="prodSearchQuery" class="form-control" placeholder="ค้นหาชื่อยา, รหัส, ความแรง (Working Code)..."></div></div>
+                            <div class="col-12 col-md-4"><select v-model="prodStatusFilter" class="form-select border-primary fw-bold"><option value="active">แสดงเฉพาะ: Active (ใช้งานอยู่)</option><option value="deactive">แสดงเฉพาะ: Deactive (เลิกใช้)</option><option value="all">แสดงทั้งหมด</option></select></div>
+                            </div>
+                            
                             <div class="row">
                                 <div class="col-12 col-md-6"><label class="small fw-bold">สถานะรายการ (Active Status)</label><select v-model="modalForm.drugStatus" class="form-select border-primary"><option value="1">1 - ใช้งานปกติ (Active)</option><option value="4">4 - เลิกใช้/ปิดชั่วคราว (Deactivated)</option></select></div>
                                 <div class="col-6"><label class="small text-muted fw-bold">รหัสสินค้าในระบบ</label><input v-model="modalForm.id" class="form-control bg-light fw-bold" :readonly="modalForm.isEdit"></div>
                                 <div class="col-6"><label class="small text-muted fw-bold text-info">รหัส 24 หลัก (HOSxP)</label><input v-model="modalForm.workingCode" class="form-control border-info" placeholder="WORKING_CODE"></div>
                             </div>
+                            <table class="table table-hover align-middle text-nowrap"><thead class="table-dark"><tr>
+                                <th @click="sortBy('id')" class="sortable">รหัส <span class="sort-icon">{{sortIcon('id')}}</span></th>
+                                <th @click="sortBy('name')" class="sortable">ชื่อรายการ <span class="sort-icon">{{sortIcon('name')}}</span></th>
+                                <th>หมวด/หน่วย</th>
+                                <th @click="sortBy('drugStatus')" class="sortable text-center">Status <span class="sort-icon">{{sortIcon('drugStatus')}}</span></th>
+                                <th>Min/Max</th>
+                                <th class="text-center">จัดการ</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr v-for="item in filteredAdminProds" :key="item.id">
+                                <td><span class="badge bg-light text-dark border">{{ item.id }}</span></td>
+                                <td class="fw-bold text-primary">{{ item.name }}</td>
+                                <td><span class="badge bg-info text-dark">{{ item.category }}</span></td>
+                                <td class="text-center">
+                                <span v-if="item.isActive" class="badge bg-success"><i class="bi bi-check-circle"></i> Active</span>
+                                <span v-else class="badge bg-secondary"><i class="bi bi-x-circle"></i> Deactive</span>
+                                </td>
+                                <td><span class="text-danger">Min: {{ item.min }}</span></td>
+                                <td class="text-center">
+                                </td>
+                                </tr>
+                                </tbody>
+                                </table>
                             <div><label class="small text-muted fw-bold">ชื่อสินค้า (GENERIC_NAME)</label><input v-model="modalForm.name" class="form-control border-primary fw-bold text-primary"></div>
                             <div class="row">
                                 <div class="col-12 col-md-6 mb-2 mb-md-0"><label class="small text-muted fw-bold">หมวดหมู่</label><input v-model="modalForm.cat" list="catList" class="form-control"><datalist id="catList"><option v-for="c in categories" :value="c.name"></option></datalist></div>
@@ -1764,6 +1792,10 @@ const app = createApp({
             
             sortKey: '', 
             sortAsc: true, 
+
+            // ตัวแปรสำหรับหน้าตั้งค่า PROD
+            prodSearchQuery: '',
+            prodStatusFilter: 'active', // ค่าเริ่มต้นโชว์เฉพาะที่ใช้งานอยู่
             
             // MOPH 5 แฟ้ม
             mophPeriod: new Date().toISOString().slice(0, 7),
@@ -1791,8 +1823,8 @@ const app = createApp({
                 drugClass: r[7] || '', controlList: r[8] || 'General list',
                 workingCode: r[9] || '', gpuid: r[10] || '', productCat: r[11] || '1', 
                 drugStatus: String(r[12] || '1'), // เก็บค่าเป็น String เพื่อกันพลาด
-    isActive: String(r[12]) !== '4'   // สร้างตัวแปรช่วยเช็ค: ถ้าไม่ใช่ 4 คือ True
-})); 
+                isActive: String(r[12]) !== '4'   // สร้างตัวแปรช่วยเช็ค: ถ้าไม่ใช่ 4 คือ True
+            })); 
         },
         vendors() { 
             if (!this.rawData.vendors) return [];
@@ -1905,14 +1937,16 @@ const app = createApp({
             return this.transactions.filter(t => t.type === 'IN' && pendingBillIds.includes(t.billId))
                                     .reduce((sum, t) => sum + (parseFloat(t.totalPrice) || 0), 0); 
         },
+        // 2. ปรับตัวนับจำนวนรายการด้านบนให้แสดงเฉพาะยาที่ Active
         dashInventoryValue() { 
             let v = 0; 
-            this.inventory.forEach(i => v += i.totalVal); 
+            this.inventory.filter(i => i.isActive).forEach(i => v += i.totalVal); 
             return v > 0 ? v : 0; 
         },
+        // 1. กรองยา Active สำหรับ Dashboard
         dashFilteredInventory() { 
             return this.inventory.filter(i => { 
-                if (!i.isActive) return false;
+                if (!i.isActive) return false; // ตัดยา Deactive ออกทันที
                 if (this.dashFilter.objType && i.objType !== this.dashFilter.objType) return false; 
                 if (this.dashFilter.category && i.category !== this.dashFilter.category) return false; 
                 if (this.dashFilter.drugClass && i.drugClass !== this.dashFilter.drugClass) return false; 
@@ -2091,6 +2125,28 @@ const app = createApp({
                 list = list.filter(i => i.qty <= 0 && Math.abs(i.totalVal) > 0.01);
             }
             return list;
+        },
+        filteredAdminProds() {
+            let list = this.products;
+            
+            // 1. Filter ตามสถานะ Active / Deactive
+            if (this.prodStatusFilter === 'active') {
+                list = list.filter(p => p.isActive);
+            } else if (this.prodStatusFilter === 'deactive') {
+                list = list.filter(p => !p.isActive);
+            }
+
+            // 2. Universal Search (ชื่อ, รหัส, ความแรง/WorkingCode)
+            if (this.prodSearchQuery) {
+                const s = this.prodSearchQuery.toLowerCase();
+                list = list.filter(p => 
+                    p.name.toLowerCase().includes(s) || 
+                    String(p.id).toLowerCase().includes(s) || 
+                    p.workingCode.toLowerCase().includes(s)
+                );
+            }
+            
+            return this.applySort(list);
         },
         
         categoryReport() { 
