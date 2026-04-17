@@ -173,8 +173,8 @@
                 <a v-if="currentUser.role==='Admin'" @click="page='opening'" class="nav-link text-warning" :class="{active: page==='opening'}"><i class="bi bi-box-seam me-2"></i> ยอดยกมา (ตั้งต้น)</a>
                 <a v-if="currentUser.role==='Admin'" @click="page='receive'" class="nav-link" :class="{active: page==='receive'}"><i class="bi bi-truck me-2"></i> รับยา (รอตรวจรับ)</a>
                 <a v-if="currentUser.role==='Admin'" @click="page='inspect'" class="nav-link" :class="{active: page==='inspect'}"><i class="bi bi-clipboard-check me-2"></i> ตรวจรับเข้าคลัง</a>
-                <a v-if="currentUser.role==='Admin'" @click="page='stockOut'" class="nav-link" :class="{active: page==='stockOut'}"><i class="bi bi-box-arrow-up me-2"></i> จ่ายสินค้า / ตัดสต็อก</a>
-                <a v-if="currentUser.role==='Admin'" @click="page='stockTake'" class="nav-link text-danger" :class="{active: page==='stockTake'}"><i class="bi bi-clipboard-data me-2"></i> ปรับปรุงสต็อก (Stock Take)</a>
+                <a v-if="currentUser.role==='Admin'" @click="page='stockOut'" class="nav-link" :class="{active: page==='stockOut'}"><i class="bi bi-box-arrow-up me-2"></i> จ่ายสินค้า/ตัดสต็อก</a>
+                <a v-if="currentUser.role==='Admin'" @click="page='stockTake'" class="nav-link text-danger" :class="{active: page==='stockTake'}"><i class="bi bi-clipboard-data me-2"></i> ปรับปรุงสต็อก</a>
                 <a v-if="currentUser.role==='Admin'" @click="page='valueCheck'" class="nav-link text-warning" :class="{active: page==='valueCheck'}"><i class="bi bi-currency-dollar me-2"></i> ตรวจสอบ/ปรับมูลค่า</a>
                 <a v-if="currentUser.role==='Admin'" @click="page='approveReq'" class="nav-link" :class="{active: page==='approveReq'}">
                     <i class="bi bi-check2-square me-2"></i> อนุมัติเบิก 
@@ -1308,7 +1308,7 @@
                     <div class="col-md-6">
                         <div class="card card-shadow h-100 border-0 border-start border-4 border-danger">
                             <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-md-center">
-                                <div class="mb-3 mb-md-0"><h5 class="fw-bold text-dark mb-1">5. INVENTORY</h5><p class="text-muted small mb-0">ยอดคงเหลือ ณ ปัจจุบัน (แยก Lot)</p></div>
+                                <div class="mb-3 mb-md-0"><h5 class="fw-bold text-dark mb-1">5. INVENTORY</h5><p class="text-muted small mb-0">ยอดคงเหลือ ณ สิ้นเดือนนั้นๆ</p></div>
                                 <div class="d-flex gap-2">
                                     <button @click="exportMophFile(5, 'csv')" class="btn btn-outline-danger shadow-sm px-3 fw-bold">CSV</button>
                                     <button @click="exportMophFile(5, 'xlsx')" class="btn btn-danger text-white shadow-sm px-3 fw-bold">Excel</button>
