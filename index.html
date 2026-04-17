@@ -1524,6 +1524,7 @@
                         
                         <div v-if="page==='manage_prod'" class="d-flex flex-column gap-3">
                             <div class="row">
+                                <div class="col-12 col-md-6"><label class="small fw-bold">สถานะรายการ (Active Status)</label><select v-model="modalForm.drugStatus" class="form-select border-primary"><option value="1">1 - ใช้งานปกติ (Active)</option><option value="4">4 - เลิกใช้/ปิดชั่วคราว (Deactivated)</option></select></div>
                                 <div class="col-6"><label class="small text-muted fw-bold">รหัสสินค้าในระบบ</label><input v-model="modalForm.id" class="form-control bg-light fw-bold" :readonly="modalForm.isEdit"></div>
                                 <div class="col-6"><label class="small text-muted fw-bold text-info">รหัส 24 หลัก (HOSxP)</label><input v-model="modalForm.workingCode" class="form-control border-info" placeholder="WORKING_CODE"></div>
                             </div>
@@ -1540,6 +1541,7 @@
                                 <div class="col-12 col-md-6 mb-2 mb-md-0"><label class="small fw-bold text-dark">ประเภทเวชภัณฑ์</label><select v-model="modalForm.objType" class="form-select border-primary fw-bold"><option value="เวชภัณฑ์มิใช่ยา">เวชภัณฑ์มิใช่ยา</option><option value="ยา">ยา</option><option value="วัสดุ">วัสดุอื่นๆ</option></select></div>
                                 <div class="col-12 col-md-6"><label class="small fw-bold text-danger">ระดับการควบคุม</label><select v-model="modalForm.controlList" class="form-select border-danger fw-bold"><option value="General list">General list (ทั่วไป)</option><option value="Watch list">Watch list (เฝ้าระวัง)</option><option value="Must list">Must list (ห้ามขาด)</option></select></div>
                             </div>
+                            
                             
                             <div class="row bg-info bg-opacity-10 p-3 rounded mx-0 mt-1 border border-info" v-if="modalForm.objType === 'ยา'">
                                 <div class="col-12 mb-2"><h6 class="fw-bold text-info"><i class="bi bi-database-down"></i> สำหรับรายงาน 5 แฟ้ม</h6></div>
@@ -1788,8 +1790,9 @@ const app = createApp({
                 min: r[4], max: r[5] || '', objType: r[6] || 'เวชภัณฑ์มิใช่ยา', 
                 drugClass: r[7] || '', controlList: r[8] || 'General list',
                 workingCode: r[9] || '', gpuid: r[10] || '', productCat: r[11] || '1', 
-                drugStatus: r[12] || '1', dateStatus: r[13] || '', tpuid: r[14] || '99'
-            })); 
+                drugStatus: String(r[12] || '1'), // เก็บค่าเป็น String เพื่อกันพลาด
+    isActive: String(r[12]) !== '4'   // สร้างตัวแปรช่วยเช็ค: ถ้าไม่ใช่ 4 คือ True
+})); 
         },
         vendors() { 
             if (!this.rawData.vendors) return [];
@@ -1886,6 +1889,7 @@ const app = createApp({
                 } else if (item.qty <= 0) {
                     item.daysLeft = 0;
                 }
+                item.isActive = item.drugStatus !== '4';
                 return item;
             }); 
         },
@@ -1908,6 +1912,7 @@ const app = createApp({
         },
         dashFilteredInventory() { 
             return this.inventory.filter(i => { 
+                if (!i.isActive) return false;
                 if (this.dashFilter.objType && i.objType !== this.dashFilter.objType) return false; 
                 if (this.dashFilter.category && i.category !== this.dashFilter.category) return false; 
                 if (this.dashFilter.drugClass && i.drugClass !== this.dashFilter.drugClass) return false; 
@@ -2037,6 +2042,7 @@ const app = createApp({
             
             // วนลูปเช็คตามสินค้าคงเหลือจริงที่มีอยู่ในคลัง (อัปเดตล่าสุด)
             this.inventory.forEach(invItem => {
+                if (invItem.qty <= 0.01 || !invItem.isActive) return;
                 // 1. ถ้าสินค้าภาพรวมหมดแล้ว (<= 0) ให้ข้ามไปเลย ไม่ต้องแสดง Lot ใดๆ
                 if (invItem.qty <= 0.01) return; 
                 
@@ -2327,7 +2333,7 @@ const app = createApp({
             let pEl = document.getElementById('productSelect'); 
             if (pEl) this.tsProduct = new TomSelect(pEl, { 
                 valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode'], 
-                options: this.products, 
+                options: this.products.filter(p => p.isActive), 
                 render: { 
                     option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small></div>`; }, 
                     item: function(d, e) { return `<div>${e(d.name)}</div>`; } 
@@ -2341,7 +2347,7 @@ const app = createApp({
             let oEl = document.getElementById('openProductSelect'); 
             if (oEl) this.tsOpenProduct = new TomSelect(oEl, { 
                 valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode'], 
-                options: this.products, 
+                options: this.products.filter(p => p.isActive), 
                 render: { 
                     option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small></div>`; }, 
                     item: function(d, e) { return `<div>${e(d.name)}</div>`; } 
@@ -2361,7 +2367,7 @@ const app = createApp({
             let stEl = document.getElementById('stockTakeProductSelect');
             if (stEl) this.tsStockTakeProd = new TomSelect(stEl, {
                 valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode'], 
-                options: this.products,
+                options: this.products.filter(p => p.isActive),
                 render: { 
                     option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small></div>`; }, 
                     item: function(d, e) { return `<div>${e(d.name)}</div>`; } 
