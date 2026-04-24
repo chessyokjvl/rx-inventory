@@ -734,8 +734,12 @@
                                     <td>{{ bill.docNo || '-' }}</td>
                                     <td><small class="badge bg-light text-dark">{{ bill.budgetSource || '-' }}</small></td>
                                     <td class="text-center no-print">
-                                        <button v-if="bill.status==='Pending'" @click="openInspectModal(bill)" class="btn btn-sm btn-primary shadow-sm"><i class="bi bi-clipboard-check"></i> ตรวจรับ</button>
-                                        <button v-else class="btn btn-sm btn-outline-secondary" disabled>เข้าคลังแล้ว</button>
+                                        <div class="d-flex gap-1 justify-content-center">
+    									<button v-if="bill.status==='Pending'" @click="openInspectModal(bill)" class="btn btn-sm btn-primary shadow-sm">ตรวจรับ</button>
+    									<button v-if="bill.status==='Pending'" @click="openEditBillModal(bill)" class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil"></i></button>
+    									<button v-if="bill.status==='Pending'" @click="confirmDeleteBill(bill)" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+										<button v-else class="btn btn-sm btn-outline-secondary" disabled>เข้าคลังแล้ว</button>
+										</div>
                                     </td>
                                 </tr>
                                 <tr v-if="sortedBills.length===0"><td colspan="8" class="text-center p-4 text-muted">ไม่มีข้อมูลบิล</td></tr>
@@ -1187,7 +1191,12 @@
                             <tbody>
                                 <tr v-for="doc in sortedFilteredHistory" :key="doc.id">
                                     <td>{{ doc.date.split(' ')[0] }}</td>
-                                    <td><span class="fw-bold text-primary">{{ doc.id }}</span><br><small class="text-muted" v-if="doc.ref&&doc.ref!='-'">อ้างอิง: {{doc.ref}}</small></td>
+                                    <td>
+    <a href="#" @click.prevent="openHistoryDetail(doc)" class="fw-bold text-primary text-decoration-none">
+        <i class="bi bi-search me-1"></i> {{ doc.id }}
+    </a>
+    <br><small class="text-muted" v-if="doc.ref&&doc.ref!='-'">อ้างอิง: {{doc.ref}}</small>
+</td><br><small class="text-muted" v-if="doc.ref&&doc.ref!='-'">อ้างอิง: {{doc.ref}}</small></td>
                                     <td class="text-center">
                                         <span v-if="doc.type=='IN'" class="badge bg-success">IN</span>
                                         <span v-else-if="doc.type=='OUT'" class="badge bg-warning text-dark">OUT</span>
@@ -1802,6 +1811,79 @@
 
         </div>
     </div>
+	<div v-if="showHistoryDetailModal" class="modal-overlay-bg">
+        <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; border-radius: 15px;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="fw-bold text-primary mb-0"><i class="bi bi-info-circle me-2"></i>รายละเอียดรายการ: {{ selectedHistoryDoc.id }}</h4>
+                <button class="btn-close" @click="showHistoryDetailModal = false"></button>
+            </div>
+            <div class="row mb-3 bg-light p-3 rounded mx-0">
+                <div class="col-md-6">
+                    <small class="text-muted d-block">บริษัท / หน่วยงาน</small>
+                    <span class="fw-bold fs-5">{{ selectedHistoryDoc.entity }}</span>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted d-block">วันที่</small>
+                    <span class="fw-bold">{{ selectedHistoryDoc.date }}</span>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted d-block">ประเภท</small>
+                    <span class="badge" :class="selectedHistoryDoc.type=='IN'?'bg-success':'bg-warning text-dark'">{{ selectedHistoryDoc.type }}</span>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th>รายการยา/เวชภัณฑ์</th>
+                            <th class="text-center">Lot No.</th>
+                            <th class="text-end">จำนวน</th>
+                            <th class="text-end">ราคาทุน</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="item in selectedHistoryDoc.items">
+                            <td class="fw-bold">{{ item.name }}</td>
+                            <td class="text-center">{{ item.lot }}</td>
+                            <td class="text-end text-primary fw-bold">{{ formatNumber(item.qty) }} {{ item.unit }}</td>
+                            <td class="text-end">{{ formatCurrency(item.total) }}</td>
+                        </tr>
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr class="fw-bold">
+                            <td colspan="3" class="text-end">รวมสุทธิ</td>
+                            <td class="text-end text-danger">{{ formatCurrency(selectedHistoryDoc.total) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <div class="mt-3 text-end"><button class="btn btn-secondary px-4" @click="showHistoryDetailModal = false">ปิดหน้าต่าง</button></div>
+        </div>
+    </div>
+
+    <div v-if="showEditBillModal" class="modal-overlay-bg">
+        <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 500px; border-radius: 15px;">
+            <h4 class="fw-bold text-warning mb-3"><i class="bi bi-pencil-square me-2"></i>แก้ไขข้อมูลบิลรอตรวจรับ</h4>
+            <div class="mb-3">
+                <label class="small fw-bold">เลขที่บิล/ใบส่งของ</label>
+                <input v-model="editBillForm.refBillNo" class="form-control border-primary">
+            </div>
+            <div class="mb-3">
+                <label class="small fw-bold">เลือกบริษัท</label>
+                <select v-model="editBillForm.vendor" class="form-select border-primary">
+                    <option v-for="v in vendors" :value="v.name">{{ v.name }}</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="small fw-bold">วันที่รับสินค้า</label>
+                <input type="date" v-model="editBillForm.receivedDate" class="form-control border-primary">
+            </div>
+            <div class="d-flex gap-2">
+                <button @click="submitEditBill" class="btn btn-warning flex-grow-1 fw-bold shadow-sm">บันทึกการแก้ไข</button>
+                <button @click="showEditBillModal = false" class="btn btn-outline-secondary">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
 </div>
 <script>
 // ⚠️ URL ของ Google Apps Script Web App (อัปเดตแล้ว) ⚠️
@@ -1873,6 +1955,11 @@ const app = createApp({
                 productId: '', productName: '', qty: 0, unit: '', 
                 currentValue: 0, newValue: 0, note: 'ปรับปรุงมูลค่ายาคงคลัง' 
             },
+			
+			showHistoryDetailModal: false,
+            selectedHistoryDoc: null,
+            showEditBillModal: false,
+            editBillForm: { id: '', refBillNo: '', vendor: '', receivedDate: '' },
             
             // ฟอร์มขอเบิกหน่วยงาน
             tempReq: { productName: '', productId: '', qty: 1, unit: '' }, 
@@ -3173,6 +3260,43 @@ const app = createApp({
             link.download = filename + "_" + new Date().toISOString().slice(0, 10) + ".xls"; 
             link.click();
         }
+
+		// --- ฟังก์ชันแสดงรายละเอียดประวัติ ---
+        openHistoryDetail(doc) {
+            this.selectedHistoryDoc = doc;
+            this.showHistoryDetailModal = true;
+        },
+
+        // --- ฟังก์ชันแก้ไข/ลบบิล ---
+        openEditBillModal(bill) {
+            this.editBillForm = { 
+                id: bill.id, 
+                refBillNo: bill.refBillNo, 
+                vendor: bill.vendor, 
+                receivedDate: bill.receivedDate 
+            };
+            this.showEditBillModal = true;
+        },
+        async submitEditBill() {
+            this.loading = true;
+            const res = await this.apiCall("updatePendingBill", this.editBillForm);
+            if(res) {
+                alert(res);
+                this.showEditBillModal = false;
+                await this.loadData();
+            }
+            this.loading = false;
+        },
+        async confirmDeleteBill(bill) {
+            if(!confirm(`ยืนยันการลบบิลเลขที่ ${bill.refBillNo} และรายการยาทั้งหมดในบิลนี้ใช่หรือไม่?`)) return;
+            this.loading = true;
+            const res = await this.apiCall("deletePendingBill", bill.id);
+            if(res) {
+                alert(res);
+                await this.loadData();
+            }
+            this.loading = false;
+        },
     },
     mounted() { 
         this.loadData(); 
