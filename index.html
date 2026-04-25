@@ -2151,13 +2151,28 @@ const app = createApp({
 
         exportExcel(id, name) {
             let table = document.getElementById(id);
-            const ws = XLSX.utils.table_to_sheet(table);
+            if (!table) return alert('ไม่พบข้อมูลตาราง');
+            
+            let cloneTable = table.cloneNode(true);
+            let rows = cloneTable.rows;
+            
+            // ลบคอลัมน์ "จัดการ" ออกก่อน Export
+            for (let i = 0; i < rows.length; i++) { 
+                let lastCell = rows[i].cells[rows[i].cells.length - 1]; 
+                if (lastCell && (lastCell.innerText.includes('จัดการ') || lastCell.innerText.includes('ปรับเงิน') || lastCell.innerHTML.includes('<button'))) {
+                    rows[i].deleteCell(rows[i].cells.length - 1); 
+                }
+            }
+            
+            const ws = XLSX.utils.table_to_sheet(cloneTable);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-            XLSX.writeFile(wb, name + ".xlsx");
+            XLSX.writeFile(wb, name + "_" + new Date().toISOString().slice(0, 10) + ".xlsx");
         }
     },
-    mounted() { this.loadData(); }
+    mounted() { 
+        this.loadData(); 
+    }
 });
 
 app.mount('#app');
