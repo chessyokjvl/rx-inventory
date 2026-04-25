@@ -3148,71 +3148,90 @@ const app = createApp({
         },
 
 		exportLampangCSV() {
-            const mappingData = this.rawData.map_lampang || [];
-            if (mappingData.length === 0) return alert('ไม่พบข้อมูล Mapping ใน Sheet Map_Lampang');
+    console.log("เริ่มกระบวนการ Export รายงานส่งลำปาง (Logic V2)...");
+    const mappingData = this.rawData.map_lampang || [];
+    
+    if (mappingData.length === 0) {
+        return alert('ไม่พบข้อมูล Mapping ใน Sheet Map_Lampang กรุณาตรวจสอบการตั้งค่าครับ');
+    }
 
-            // 1. ดึงข้อมูลคงคลังจาก Computed inventory
-            const currentInv = {};
-            this.inventory.forEach(item => {
-                currentInv[item.id] = { qty: item.qty, min: parseFloat(item.min) || 0 };
-            });
+    // เตรียมข้อมูลคงคลัง (ดึงจาก Computed: inventory)
+    const currentInv = {};
+    this.inventory.forEach(item => {
+        currentInv[item.id] = { 
+            qty: item.qty, 
+            min: parseFloat(item.min) || 0 
+        };
+    });
 
-            const groupedData = {};
-            mappingData.forEach(row => {
-                const drCode = row[0];
-                const drName = row[1];
-                const progId = String(row[2]).trim();
-                const factor = parseFloat(row[3]) || 1; 
-                const leadtime = row[4] || '7';
+    const groupedData = {};
+    mappingData.forEach(row => {
+        const drCode = row[0];
+        const drName = row[1];
+        const progId = String(row[2] || '').trim(); // รหัสในระบบคลังเรา
+        const factor = parseFloat(row[3]) || 1; 
+        const leadtime = row[4] || '0'; // 1. Default Leadtime เป็น 0
 
-                const itemData = currentInv[progId] || { qty: 0, min: 0 };
-                
-                // คำนวณยอดคงเหลือ (Packs -> เม็ด/ชิ้น)
-                const qtyInSubUnit = itemData.qty * factor;
-                
-                // คำนวณ Monthly Rate (นิยามลำปาง)
-                // สูตร: (ยอด Min 45 วัน / 1.5) เพื่อให้ได้ยอด 30 วัน แล้วคูณด้วย factor
-                const monthlyUsage = (itemData.min / 1.5) * factor;
+        const hasProgramId = progId !== ""; // ตรวจสอบว่ามีการระบุ program_id หรือไม่
+        const itemData = currentInv[progId] || { qty: 0, min: 0 };
+        
+        // 2. Logic อัตราการใช้ต่อเดือน: ใช้ค่า Min (ถ้าไม่มีค่าหรือเป็น 0 ให้ใช้ 1)
+        const effectiveMin = itemData.min <= 0 ? 1 : itemData.min;
+        const monthlyUsage = effectiveMin * factor;
 
-                if (!groupedData[drCode]) {
-                    groupedData[drCode] = {
-                        dr_code: drCode, dr_name: drName, current_balance: 0,
-                        daily_usage_rate: 0, status: 1, leadtime: leadtime
-                    };
-                }
-                groupedData[drCode].current_balance += qtyInSubUnit;
-                groupedData[drCode].daily_usage_rate += monthlyUsage;
-            });
+        if (!groupedData[drCode]) {
+            groupedData[drCode] = {
+                dr_code: drCode,
+                dr_name: drName,
+                current_balance: 0,
+                daily_usage_rate: 0,
+                status: hasProgramId ? 1 : 2, // 3. Status: มี ID = 1, ว่าง = 2
+                leadtime: leadtime
+            };
+        }
+        
+        // รวมยอดคงเหลือ (กรณี 1 รหัสลำปาง มาจากยาหลายรายการในคลัง)
+        groupedData[drCode].current_balance += (itemData.qty * factor);
+        groupedData[drCode].daily_usage_rate += monthlyUsage;
 
-            // 2. สร้าง Timestamp สำหรับชื่อไฟล์ (14644_YYYYMMDDHHMMSS)
-            const d = new Date();
-            const ts = d.getFullYear() +
-                       (d.getMonth() + 1).toString().padStart(2, '0') +
-                       d.getDate().toString().padStart(2, '0') +
-                       d.getHours().toString().padStart(2, '0') +
-                       d.getMinutes().toString().padStart(2, '0') +
-                       d.getSeconds().toString().padStart(2, '0');
-            const fileName = `14644_${ts}.csv`;
+        // หากรายการย่อยรายการใดรายการหนึ่งไม่มี program_id ให้ถือว่าสถานะรวมคือ 2
+        if (!hasProgramId) {
+            groupedData[drCode].status = 2;
+        }
+    });
 
-            // 3. สร้างเนื้อหา CSV (Byte Order Mark สำหรับ Excel ภาษาไทย)
-            let csv = "\uFEFFdr_code,dr_name,current_balance,daily_usage_rate,status,leadtime\n";
-            Object.values(groupedData).forEach(r => {
-                const balance = Math.floor(r.current_balance);
-                const usage = r.daily_usage_rate.toFixed(2);
-                const status = balance > 0 ? 1 : 2;
-                const safeName = r.dr_name.replace(/,/g, ' '); // ล้างคอมม่าในชื่อ
-                csv += `${r.dr_code},${safeName},${balance},${usage},${status},${r.leadtime}\n`;
-            });
+    // สร้างชื่อไฟล์ตามรูปแบบ 14644_YYYYMMDDHHMMSS.csv
+    const now = new Date();
+    const ts = now.getFullYear().toString() +
+               (now.getMonth() + 1).toString().padStart(2, '0') +
+               now.getDate().toString().padStart(2, '0') +
+               now.getHours().toString().padStart(2, '0') +
+               now.getMinutes().toString().padStart(2, '0') +
+               now.getSeconds().toString().padStart(2, '0');
+    const fileName = `14644_${ts}.csv`;
 
-            // 4. Download
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", fileName);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        },
+    // สร้างเนื้อหา CSV (ใส่ BOM เพื่อให้ Excel ภาษาไทยอ่านออก)
+    let csv = "\uFEFFdr_code,dr_name,current_balance,daily_usage_rate,status,leadtime\n";
+    
+    Object.values(groupedData).forEach(r => {
+        const balance = Math.floor(r.current_balance);
+        const usage = r.daily_usage_rate.toFixed(2);
+        const safeName = r.dr_name.replace(/,/g, ' '); // ล้างคอมม่าในชื่อยา
+        
+        csv += `${r.dr_code},${safeName},${balance},${usage},${r.status},${r.leadtime}\n`;
+    });
+
+    // กระบวนการดาวน์โหลดไฟล์
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    console.log("ดาวน์โหลดรายงานสำเร็จ: " + fileName);
+},
 		
         getReportTitle() { 
             if (this.reportFilter.type === 'inventory') return 'รายงานสินค้าคงคลังปัจจุบัน'; 
