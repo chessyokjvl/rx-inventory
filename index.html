@@ -1940,6 +1940,64 @@ const app = createApp({
         // --- AUTH HELPERS ---
         focusPassword() { this.$refs.passInput && this.$refs.passInput.focus(); },
 
+        // --- PURCHASE SUM (ใช้ใน computed) ---
+        getPurchaseSum(drugClass) {
+            return this.transactions
+                .filter(t => t.type === 'IN' && t.status === 'Completed')
+                .reduce((sum, t) => {
+                    let p = this.products.find(x => x.id == t.productId);
+                    return sum + (p && p.drugClass === drugClass ? (t.totalPrice || 0) : 0);
+                }, 0);
+        },
+
+        // --- LOAD REQUEST TO STOCK OUT ---
+        loadRequestToStockOut(req) {
+            this.page = 'stockOut';
+            this.formOut.reqId = req.id;
+            this.formOut.dept = req.dept;
+            this.cartOut = (req.items || []).map(i => {
+                let lots = this.activeLots.filter(l => l.pid === i.productId);
+                let lot = lots[0] || {};
+                return { productName: i.productName || this.getProductName(i.productId), productId: i.productId, qty: i.qty, selectedLotIdx: 0, unitPrice: lot.unitPrice || 0, lotNo: lot.lot || '', totalPrice: i.qty * (lot.unitPrice || 0), status: 'Completed' };
+            });
+            this.isSidebarOpen = false;
+            window.scrollTo(0, 0);
+        },
+
+        // --- EXPORT MOPH FILE ---
+        exportMophFile(fileNo, format) {
+            let tableId = 'mophTable' + fileNo;
+            let table = document.getElementById(tableId);
+            if (!table) return alert('ไม่พบตาราง แฟ้มที่ ' + fileNo);
+            let name = 'MOPH_File' + fileNo + '_' + (this.mophPeriod || '');
+            if (format === 'xlsx') {
+                this.exportExcel(tableId, name);
+            } else {
+                let ws = XLSX.utils.table_to_sheet(table);
+                let csv = XLSX.utils.sheet_to_csv(ws);
+                let blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+                let a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = name + '.csv';
+                a.click();
+            }
+        },
+
+        // --- DELETE ITEM ---
+        async deleteItem(type, id) {
+            if (!confirm('ยืนยันการลบข้อมูลนี้?')) return;
+            this.loading = true;
+            try {
+                let delType = type;
+                let delId = id;
+                // กรณีเรียกแบบ deleteItem(id) โดยไม่มี type
+                if (id === undefined) { delId = type; delType = this.page.replace('manage_', ''); }
+                if (delType === 'cat') delType = 'category';
+                const res = await this.apiCall("deleteMasterData", { type: delType, id: delId });
+                if (res) { alert('ลบสำเร็จ'); await this.loadData(); }
+            } finally { this.loading = false; }
+        },
+
         // --- USER REQUEST ---
         onTempReqProdSelect() {
             let p = this.products.find(x => x.name === this.tempReq.productName);
