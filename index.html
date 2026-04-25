@@ -44,6 +44,7 @@
         .metric-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
         .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 9999; display: flex; justify-content: center; align-items: center; flex-direction: column; }
         .modal-overlay-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 1060; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .print-overlay-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(255,255,255,0.98); z-index: 2000; overflow-y: auto; display: flex; justify-content: center; padding: 30px 15px; }
         
         /* Table Styles */
         .table thead th { background-color: #f8fafc; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.05em; color: #64748b; border-top: none; }
@@ -1936,6 +1937,14 @@ const app = createApp({
         requests() { return (this.rawData.requests || []).map(r => ({ id: String(r[0]), date: r[1], dept: r[2], status: r[3], items: JSON.parse(r[4]), user: r[5] })); },
         purchasePlans() { return (this.rawData.purchasePlans || []).map(p => ({ id: p[0], yearBudget: p[1], productId: p[2], packSize: p[3], packCost: p[4], qtyThisYear: p[8] })); }
     },
+    watch: {
+        page(newPage) {
+            this.$nextTick(() => {
+                this.initTomSelects();
+                if (newPage === 'dashboard') this.renderCharts();
+            });
+        }
+    },
     methods: {
         // --- AUTH HELPERS ---
         focusPassword() { this.$refs.passInput && this.$refs.passInput.focus(); },
@@ -2238,16 +2247,83 @@ const app = createApp({
 
         // --- EXTERNAL LIBS INIT ---
         initTomSelects() {
-            const config = { valueField: 'name', labelField: 'name', searchField: 'name' };
-            const prodConfig = { valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode'] };
-            if (document.getElementById('vendorSelect')) this.tsVendor = new TomSelect('#vendorSelect', { ...config, options: this.vendors });
-            if (document.getElementById('productSelect')) this.tsProduct = new TomSelect('#productSelect', { ...prodConfig, options: this.products });
+            const prodConfig = { valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode'], options: this.products };
+            const vendorConfig = { valueField: 'name', labelField: 'name', searchField: 'name', options: this.vendors };
+            const deptConfig = { valueField: 'name', labelField: 'name', searchField: 'name', options: this.depts };
+
+            const tryInit = (id, config, instanceKey, onChangeCallback) => {
+                let el = document.getElementById(id);
+                if (!el) return;
+                // Destroy existing instance first
+                if (this[instanceKey]) { try { this[instanceKey].destroy(); } catch(e) {} this[instanceKey] = null; }
+                // Also destroy if TomSelect already attached
+                if (el.tomselect) { try { el.tomselect.destroy(); } catch(e) {} }
+                this[instanceKey] = new TomSelect('#' + id, { ...config, onChange: onChangeCallback || (() => {}) });
+            };
+
+            tryInit('openProductSelect', prodConfig, 'tsOpenProduct', (val) => {
+                let p = this.products.find(x => x.id === val);
+                if (p) { this.tempOpen.productId = p.id; this.tempOpen.productName = p.name; }
+            });
+            tryInit('vendorSelect', vendorConfig, 'tsVendor', (val) => { this.formRec.vendor = val; });
+            tryInit('productSelect', prodConfig, 'tsProduct', (val) => {
+                let p = this.products.find(x => x.id === val);
+                if (p) { this.tempRec.productId = p.id; this.tempRec.productName = p.name; }
+            });
+            tryInit('stockOutDeptSelect', deptConfig, 'tsStockOutDept', (val) => { this.formOut.dept = val; });
+            tryInit('stockTakeProductSelect', prodConfig, 'tsStockTakeProd', (val) => {
+                let p = this.products.find(x => x.id === val);
+                let inv = p ? this.inventory.find(i => i.id === val) : null;
+                if (p) { this.tempStockTake.productId = p.id; this.tempStockTake.productName = p.name; this.tempStockTake.currentQty = inv ? inv.qty : 0; }
+            });
         },
 
         renderCharts() {
-            if (!document.getElementById('turnoverChart')) return;
-            if (this.chartInstTurnover) this.chartInstTurnover.destroy();
-            this.chartInstTurnover = new Chart('#turnoverChart', { type: 'bar', data: { labels: ['A', 'B'], datasets: [{ data: [10, 20], backgroundColor: '#3b82f6' }] } });
+            this.$nextTick(() => {
+                // Turnover Chart (Top 10 มูลค่าเบิกใช้)
+                if (document.getElementById('turnoverChart')) {
+                    if (this.chartInstTurnover) { this.chartInstTurnover.destroy(); this.chartInstTurnover = null; }
+                    let outMap = {};
+                    this.transactions.filter(t => t.type === 'OUT' && t.status === 'Completed').forEach(t => {
+                        let name = this.getProductName(t.productId);
+                        outMap[name] = (outMap[name] || 0) + (t.totalPrice || 0);
+                    });
+                    let sorted = Object.entries(outMap).sort((a,b) => b[1]-a[1]).slice(0,10);
+                    this.chartInstTurnover = new Chart(document.getElementById('turnoverChart'), {
+                        type: 'bar',
+                        data: { labels: sorted.map(x => x[0].length > 20 ? x[0].slice(0,20)+'…' : x[0]), datasets: [{ label: 'มูลค่าเบิก (บาท)', data: sorted.map(x => x[1]), backgroundColor: '#3b82f6' }] },
+                        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 10 } } }, y: { ticks: { font: { size: 10 } } } } }
+                    });
+                }
+                // Dept Chart (สัดส่วนเบิกตามหน่วยงาน)
+                if (document.getElementById('deptChart')) {
+                    if (this.chartInstDept) { this.chartInstDept.destroy(); this.chartInstDept = null; }
+                    let deptMap = {};
+                    this.transactions.filter(t => t.type === 'OUT' && t.status === 'Completed').forEach(t => {
+                        deptMap[t.vendorOrDept] = (deptMap[t.vendorOrDept] || 0) + (t.totalPrice || 0);
+                    });
+                    let deptEntries = Object.entries(deptMap).sort((a,b) => b[1]-a[1]).slice(0,8);
+                    const colors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16'];
+                    this.chartInstDept = new Chart(document.getElementById('deptChart'), {
+                        type: 'doughnut',
+                        data: { labels: deptEntries.map(x => x[0]), datasets: [{ data: deptEntries.map(x => x[1]), backgroundColor: colors }] },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } } }
+                    });
+                }
+                // Category Chart (แหล่งงบประมาณ)
+                if (document.getElementById('categoryChart')) {
+                    if (this.chartInstCat) { this.chartInstCat.destroy(); this.chartInstCat = null; }
+                    let catMap = {};
+                    this.inventory.forEach(i => { catMap[i.objType || 'อื่นๆ'] = (catMap[i.objType || 'อื่นๆ'] || 0) + (i.totalVal > 0 ? i.totalVal : 0); });
+                    let catEntries = Object.entries(catMap);
+                    const colors2 = ['#6366f1','#ec4899','#14b8a6','#f59e0b','#ef4444','#8b5cf6'];
+                    this.chartInstCat = new Chart(document.getElementById('categoryChart'), {
+                        type: 'doughnut',
+                        data: { labels: catEntries.map(x => x[0]), datasets: [{ data: catEntries.map(x => x[1]), backgroundColor: colors2 }] },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 12 } } } }
+                    });
+                }
+            });
         },
 
         exportExcel(id, name) {
