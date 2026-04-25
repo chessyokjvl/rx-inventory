@@ -24,18 +24,23 @@
         .login-card { border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.3); border: none; width: 100%; max-width: 450px; overflow: hidden; background: white; }
         .login-header { background: #fff; padding: 40px 20px 20px 20px; text-align: center; }
         
-        /* Layout Structure */
-        .sidebar { min-height: 100vh; background: #0f172a; color: white; z-index: 1050; flex-shrink: 0; min-width: 280px; max-width: 280px; transition: 0.3s; overflow-y: auto; display: flex; flex-direction: column; position: sticky; top: 0; }
-        .content-wrapper { min-width: 0; width: 100%; padding: 25px; transition: 0.3s; }
+        /* ================= SIDEBAR & ACCORDION FIX ================= */
+        .sidebar { 
+            min-height: 100vh; background-color: #1e293b !important; color: #f8fafc; z-index: 1050; 
+            flex-shrink: 0; min-width: 260px; max-width: 260px; transition: 0.3s; overflow-y: auto; display: flex; flex-direction: column;
+        }
+        .sidebar-profile-box {
+            background-color: #334155; border-radius: 12px; margin: 15px; padding: 15px; text-align: center; border: 1px solid #475569;
+        }
+        .sidebar .nav-link { color: #cbd5e1 !important; padding: 12px 20px; font-weight: 500; border-radius: 8px; margin: 2px 10px; transition: 0.2s; cursor: pointer; text-decoration: none;}
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { background-color: #475569 !important; color: #ffffff !important; }
         
-        /* Sidebar Navigation & Accordion */
-        .sidebar .nav-link { color: rgba(255,255,255,0.7); padding: 12px 20px; cursor: pointer; transition: 0.2s; border-radius: 8px; margin: 4px 15px; display: flex; align-items: center; text-decoration: none; border-left: 3px solid transparent; }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active { color: white; background: #1e293b; border-left-color: #3b82f6; }
-        .sidebar .accordion-button { background-color: transparent !important; color: rgba(255,255,255,0.7) !important; padding: 15px 20px; font-size: 0.95rem; font-weight: 500; border: none !important; box-shadow: none !important; }
-        .sidebar .accordion-button:not(.collapsed) { color: #60a5fa !important; background: rgba(30, 41, 59, 0.5) !important; }
-        .sidebar .accordion-button::after { filter: brightness(0) invert(1); transition: 0.3s; }
-        .sidebar .accordion-body { padding: 5px 0; background: rgba(15, 23, 42, 0.3); }
-        .sidebar .sub-nav-link { padding-left: 55px !important; font-size: 0.9rem; margin: 2px 15px !important; }
+        .sidebar .accordion-item { background-color: transparent !important; border: none !important; }
+        .sidebar .accordion-button { background-color: transparent !important; color: #cbd5e1 !important; box-shadow: none !important; padding: 15px 20px; font-weight: 500; }
+        .sidebar .accordion-button:not(.collapsed) { background-color: rgba(0,0,0,0.2) !important; color: #60a5fa !important; }
+        .sidebar .accordion-button::after { filter: invert(1) brightness(0.8); }
+        .sidebar .accordion-body { background-color: rgba(0,0,0,0.15) !important; padding: 10px 0; }
+        .sidebar .sub-nav-link { padding-left: 55px !important; font-size: 0.9rem; margin: 0 10px !important; }
 
         /* UI Components */
         .card-shadow { box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: none; border-radius: 15px; margin-bottom: 20px; }
@@ -145,94 +150,65 @@
         </div>
         <div class="sidebar-backdrop" :class="{'show': isSidebarOpen}" @click="isSidebarOpen = false"></div>
 
-        <div class="sidebar d-flex flex-column no-print" :class="{'show-sidebar': isSidebarOpen}">
-            <div class="p-3 mb-2 text-center border-bottom border-secondary d-none d-md-block">
-                <img src="https://www.rploei.go.th/ec2/wp-content/uploads/2017/08/cropped-cropped-cropped-3.png" style="max-height: 60px;" class="mb-2">
+        <div class="sidebar no-print" :class="{'show-sidebar': isSidebarOpen}">
+            <div class="p-3 text-center border-bottom border-secondary mb-2">
+                <img src="https://www.rploei.go.th/ec2/wp-content/uploads/2017/08/cropped-cropped-cropped-3.png" style="max-height: 55px;" class="mb-2 bg-white p-1 rounded">
                 <h5 class="mb-0 fw-bold text-white mt-1">JVL Inventory</h5>
             </div>
-            <div class="p-3 mb-2 text-end d-md-none border-bottom border-secondary">
-                <button class="btn btn-link text-white p-0" @click="isSidebarOpen = false"><i class="bi bi-x-lg fs-4"></i></button>
+
+            <div class="sidebar-profile-box">
+                <i class="bi bi-person-circle fs-3 text-info d-block mb-1"></i>
+                <div class="fw-bold text-white fs-6">{{ currentUser.name }}</div>
+                <span class="badge bg-primary mt-1">{{ currentUser.role }}</span>
             </div>
-            <div class="px-3 pb-3 small text-info text-center border-bottom border-secondary mb-2">
-                <i class="bi bi-person-circle"></i> {{ currentUser.name }}<br><span class="badge bg-secondary mt-1">{{ currentUser.role }}</span>
-            </div>
 
-            <nav class="nav flex-column no-print">
-                <a @click="page='dashboard'; isSidebarOpen=false" class="nav-link" :class="{active: page==='dashboard'}">
-                    <i class="bi bi-grid-fill me-2"></i> Dashboard
-                </a>
+            <nav class="nav flex-column mb-5">
+                <a @click="page='dashboard'; isSidebarOpen=false" class="nav-link" :class="{active: page==='dashboard'}"><i class="bi bi-grid-fill me-2"></i> Dashboard</a>
 
-                <div class="accordion accordion-flush mt-2" id="sidebarAccordion">
-                    
-                    <div class="accordion-item" v-if="['User', 'Admin', 'God'].includes(currentUser.role)">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#menuService">
-                                <i class="bi bi-cart-plus me-2"></i> บริการหน่วยงาน
-                            </button>
-                        </h2>
-                        <div id="menuService" class="accordion-collapse collapse" data-bs-parent="#sidebarAccordion">
-                            <div class="accordion-body">
-                                <a @click="page='userReq'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='userReq'}">ขอเบิกยา (หน่วยงาน)</a>
-                            </div>
-                        </div>
-                    </div>
-
+                <div class="accordion accordion-flush" id="sideNav">
                     <div class="accordion-item" v-if="['Admin', 'God'].includes(currentUser.role)">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#menuInventory">
-                                <i class="bi bi-box-seam me-2"></i> คลังเวชภัณฑ์
-                            </button>
-                        </h2>
-                        <div id="menuInventory" class="accordion-collapse collapse" data-bs-parent="#sidebarAccordion">
+                        <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#colInv"><i class="bi bi-box-seam me-2"></i> จัดการคลัง</button></h2>
+                        <div id="colInv" class="accordion-collapse collapse" data-bs-parent="#sideNav">
                             <div class="accordion-body">
-                                <a @click="page='opening'; isSidebarOpen=false" class="nav-link sub-nav-link text-warning" :class="{active: page==='opening'}">ยอดยกมา (ตั้งต้น)</a>
-                                <a @click="page='receive'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='receive'}">รับยา (รอตรวจรับ)</a>
+                                <a @click="page='opening'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='opening'}">ยอดยกมา</a>
+                                <a @click="page='receive'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='receive'}">รับยาเข้าระบบ</a>
                                 <a @click="page='inspect'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='inspect'}">ตรวจรับเข้าคลัง</a>
-                                <a @click="page='stockOut'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='stockOut'}">จ่ายสินค้า / ตัดสต็อก</a>
-                                <a @click="page='stockTake'; isSidebarOpen=false" class="nav-link sub-nav-link text-danger" :class="{active: page==='stockTake'}">ปรับปรุงสต็อก</a>
-                                <a @click="page='valueCheck'; isSidebarOpen=false" class="nav-link sub-nav-link text-warning" :class="{active: page==='valueCheck'}">ตรวจสอบ/ปรับมูลค่า</a>
-                                <a @click="page='approveReq'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='approveReq'}">อนุมัติเบิก <span v-if="pendingRequestsCount>0" class="badge bg-danger rounded-pill ms-auto">{{ pendingRequestsCount }}</span></a>
+                                <a @click="page='stockOut'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='stockOut'}">จ่ายยา/ตัดสต็อก</a>
+                                <a @click="page='stockTake'; isSidebarOpen=false" class="nav-link sub-nav-link text-danger" :class="{active: page==='stockTake'}">Stock Take</a>
+                                <a @click="page='valueCheck'; isSidebarOpen=false" class="nav-link sub-nav-link text-warning" :class="{active: page==='valueCheck'}">ปรับมูลค่าเงิน</a>
                             </div>
                         </div>
                     </div>
 
                     <div class="accordion-item" v-if="['Admin', 'God'].includes(currentUser.role)">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#menuReport">
-                                <i class="bi bi-bar-chart-line me-2"></i> รายงาน & 5 แฟ้ม
-                            </button>
-                        </h2>
-                        <div id="menuReport" class="accordion-collapse collapse" data-bs-parent="#sidebarAccordion">
+                        <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#colRpt"><i class="bi bi-bar-chart-line me-2"></i> รายงาน & 5 แฟ้ม</button></h2>
+                        <div id="colRpt" class="accordion-collapse collapse" data-bs-parent="#sideNav">
                             <div class="accordion-body">
-                                <a @click="page='manage_plan'; isSidebarOpen=false" class="nav-link sub-nav-link text-success" :class="{active: page==='manage_plan'}">จัดการแผนจัดซื้อ</a>
-                                <a @click="page='mophExport'; isSidebarOpen=false" class="nav-link sub-nav-link text-info" :class="{active: page==='mophExport'}">ส่งออก 5 แฟ้มมาตรฐาน</a>
-                                <a @click="page='outboundList'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='outboundList'}">ทะเบียนรายการใบเบิก</a>
-                                <a @click="page='history'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='history'}">ประวัติรับจ่าย/พิมพ์</a>
-                                <a @click="page='reports'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='reports'}">ระบบรายงานวิเคราะห์</a>
+                                <a @click="page='manage_plan'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='manage_plan'}">จัดการแผนจัดซื้อ</a>
+                                <a @click="page='reports'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='reports'}">รายงานวิเคราะห์</a>
+                                <a @click="page='mophExport'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='mophExport'}">ส่งออก 5 แฟ้ม</a>
+                                <a @click="page='outboundList'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='outboundList'}">ทะเบียนใบเบิก</a>
+                                <a @click="page='history'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='history'}">ประวัติรับจ่าย</a>
                             </div>
                         </div>
                     </div>
 
                     <div class="accordion-item" v-if="['Admin', 'God'].includes(currentUser.role)">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#menuSystem">
-                                <i class="bi bi-gear-fill me-2"></i> ตั้งค่าระบบ
-                            </button>
-                        </h2>
-                        <div id="menuSystem" class="accordion-collapse collapse" data-bs-parent="#sidebarAccordion">
+                        <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#colSet"><i class="bi bi-gear-fill me-2"></i> ตั้งค่าระบบ</button></h2>
+                        <div id="colSet" class="accordion-collapse collapse" data-bs-parent="#sideNav">
                             <div class="accordion-body">
                                 <a @click="page='manage_prod'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='manage_prod'}">จัดการสินค้า</a>
                                 <a @click="page='manage_vendor'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='manage_vendor'}">บริษัท/หน่วยเบิก</a>
-                                <a @click="page='manage_cat'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='manage_cat'}">หมวดหมู่/หน่วยนับ</a>
-                                <a v-if="currentUser.role === 'God'" @click="page='manage_user'; isSidebarOpen=false" class="nav-link sub-nav-link text-danger fw-bold" :class="{active: page==='manage_user'}">จัดการ Users (God)</a>
+                                <a @click="page='manage_cat'; isSidebarOpen=false" class="nav-link sub-nav-link" :class="{active: page==='manage_cat'}">หมวด/หน่วยนับ</a>
+                                <a v-if="currentUser.role==='God'" @click="page='manage_user'; isSidebarOpen=false" class="nav-link sub-nav-link text-info" :class="{active: page==='manage_user'}">จัดการ Users (God)</a>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <a @click="currentUser={}; loginView='login'" class="nav-link mt-auto text-danger mt-4 border-top border-secondary pt-3">
-                    <i class="bi bi-box-arrow-right me-2"></i> ออกจากระบบ
-                </a>
+                <a v-if="['User', 'Admin', 'God'].includes(currentUser.role)" @click="page='userReq'; isSidebarOpen=false" class="nav-link mt-2" :class="{active: page==='userReq'}"><i class="bi bi-cart-plus me-2"></i> ขอเบิกยา</a>
+                
+                <a @click="currentUser={}; loginView='login'" class="nav-link mt-4 text-danger border-top border-secondary pt-3"><i class="bi bi-box-arrow-right me-2"></i> ออกจากระบบ</a>
             </nav>
         </div>
 
@@ -1711,17 +1687,17 @@ const app = createApp({
     },
     computed: {
         // ===================== 1. MAPPING RAW DATA =====================
-        products() { 
-            if (!this.rawData.products) return []; 
-            return this.rawData.products.map(r => ({ 
-                id: String(r[0]), name: String(r[1]), category: String(r[2]), unit: String(r[3]), 
-                min: parseFloat(r[4]) || 0, max: parseFloat(r[5]) || 0, objType: String(r[6] || 'เวชภัณฑ์มิใช่ยา'), 
-                drugClass: String(r[7] || ''), controlList: String(r[8] || 'General list'),
-                workingCode: String(r[9] || ''), gpuid: String(r[10] || ''), productCat: String(r[11] || '1'), 
-                drugStatus: String(r[12] || '1'), dateStatus: String(r[13] || ''), tpuid: String(r[14] || '99'),
-                isAnnounced: String(r[15] || '0'), buyingStatus: String(r[16] || ''), announcementNote: String(r[17] || ''),
-                isActive: String(r[12]) !== '4' // 4 = Deactive
-            })); 
+        products() {
+            return (this.rawData.products || []).map(r => ({
+                id: r[0], name: r[1], category: r[2], unit: r[3], min: r[4], max: r[5],
+                objType: r[6], drugClass: r[7], controlList: r[8], workingCode: r[9],
+                // r[12] คือ สถานะยา (1=Active, 4=Deactive)
+                drugStatus: String(r[12] || '1'), isActive: String(r[12]) !== '4',
+                // สำคัญ!: r[15] ต้องตรงกับคอลัมน์ P (ติ๊กประกาศ), r[16]=Q, r[17]=R ใน Google Sheet
+                isAnnounced: String(r[15] || '0').trim(), 
+                buyingStatus: r[16] || '', 
+                announcementNote: r[17] || ''
+            }));
         },
         vendors() { return (this.rawData.vendors || []).map(r => ({ id: r[0], name: r[1], address: r[2], contact: r[3], taxId: r[4] || '' })); },
         depts() { return (this.rawData.depts || []).map(r => ({ id: r[0], name: r[1], deptGroup: r[2] || '4' })); },
@@ -1764,20 +1740,17 @@ const app = createApp({
         },
 
         // ===================== 2. INVENTORY & LOTS CALCULATION =====================
-        inventory() { 
-            let inv = {}; 
-            this.products.forEach(p => { inv[p.id] = { ...p, qty: 0, totalVal: 0, daysLeft: 'N/A' }; }); 
-            this.transactions.filter(t => t.status === 'Completed').forEach(t => { 
-                if (inv[t.productId]) { 
-                    if (t.type === 'IN') { inv[t.productId].qty += t.qty; inv[t.productId].totalVal += t.totalPrice; } 
-                    else if (t.type === 'OUT') { inv[t.productId].qty -= t.qty; inv[t.productId].totalVal -= t.totalPrice; } 
-                } 
-            }); 
-            return Object.values(inv).map(item => {
-                if (item.min > 0 && item.qty > 0) item.daysLeft = Math.round(item.qty / (item.min / 45)); 
-                else if (item.qty <= 0) item.daysLeft = 0;
-                return item;
-            }); 
+        inventory() {
+            let inv = {};
+            this.products.forEach(p => inv[p.id] = { ...p, qty: 0, totalVal: 0 });
+            this.transactions.filter(t => t.status === 'Completed').forEach(t => {
+                if (inv[t.productId]) {
+                    let q = parseFloat(t.qty) || 0; let tv = parseFloat(t.totalPrice) || 0;
+                    if (t.type === 'IN') { inv[t.productId].qty += q; inv[t.productId].totalVal += tv; }
+                    else { inv[t.productId].qty -= q; inv[t.productId].totalVal -= tv; }
+                }
+            });
+            return Object.values(inv);
         },
         allLots() { 
             let lots = []; 
@@ -1837,10 +1810,11 @@ const app = createApp({
             }); 
         },
         shortageAnnouncements() {
+            // บังคับให้ดึงเฉพาะยาที่ Active และ มีค่า isAnnounced เป็น '1' เท่านั้น
             return this.inventory.filter(i => i.isActive && i.isAnnounced === '1').map(item => {
-                let shortageDays = (item.min > 0) ? Math.round(item.qty / (item.min / 60)) : 0;
-                return { ...item, shortageDays: shortageDays };
-            }).sort((a, b) => a.shortageDays - b.shortageDays);
+                let shortageDays = (parseFloat(item.min) > 0) ? Math.round(item.qty / (parseFloat(item.min) / 60)) : 0;
+                return { ...item, shortageDays };
+            }).sort((a,b) => a.shortageDays - b.shortageDays);
         },
         dashReorderItems() { 
             return this.dashFilteredInventory.filter(i => i.qty <= i.min).map(i => ({ ...i, diffMin: i.min - i.qty })); 
