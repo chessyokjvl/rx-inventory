@@ -1422,6 +1422,18 @@
                             </div>
                         </div>
                     </div>
+
+					<div class="col-md-6">
+                        <div class="card card-shadow h-100 border-0 border-start border-4 border-secondary">
+                            <div class="card-body d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+                                <div class="mb-3 mb-md-0"><h5 class="fw-bold text-dark mb-1">6. ส่งลำปาง</h5><p class="text-muted small mb-0">Template ส่งลำปาง</p></div>
+                                <div class="d-flex gap-2">
+                                	<button @click="exportLampangReport" class="btn btn-info fw-bold shadow-sm"><i class="bi bi-file-earmark-arrow-down me-2"></i> Export รายงานส่งลำปาง</button>    
+								</div>
+                            </div>
+                        </div>
+                    </div>
+					
                 </div>
             </div>
 
@@ -3131,6 +3143,93 @@ const app = createApp({
             }
         },
 
+exportLampangCSV() {
+    const mappingData = this.rawData.map_lampang || [];
+    if (mappingData.length === 0) {
+        return alert('ไม่พบข้อมูลใน Sheet Map_Lampang กรุณาตั้งค่า Mapping ก่อนครับ');
+    }
+
+    // 1. เตรียมข้อมูลคงคลังปัจจุบัน (Inventory Mapping)
+    const currentInv = {};
+    this.inventory.forEach(item => {
+        currentInv[item.id] = {
+            qty: item.qty,
+            min: parseFloat(item.min) || 0
+        };
+    });
+
+    // 2. ประมวลผลข้อมูลตามรหัสลำปาง
+    const groupedData = {};
+
+    mappingData.forEach(row => {
+        const drCode = row[0];
+        const drName = row[1];
+        const progId = row[2];
+        const factor = parseFloat(row[3]) || 1; // ตัวคูณแปลง Pack เป็นหน่วยย่อย
+        const leadtime = row[4] || '7'; // ค่า Default leadtime
+
+        const itemData = currentInv[progId] || { qty: 0, min: 0 };
+        
+        // คำนวณยอดคงเหลือหน่วยย่อย (เช่น เม็ด)
+        const qtySubUnit = itemData.qty * factor;
+        
+        // คำนวณอัตราการใช้รายเดือน (Monthly Rate)
+        // สูตร: (ยอด Min / 1.5) * factor 
+        // (อ้างอิงจาก Min ปกติคือ 45 วัน หรือ 1.5 เดือน)
+        const monthlyUsage = (itemData.min / 1.5) * factor;
+
+        if (!groupedData[drCode]) {
+            groupedData[drCode] = {
+                dr_code: drCode,
+                dr_name: drName,
+                current_balance: 0,
+                daily_usage_rate: 0, // ใส่ค่ารายเดือนตามนิยามพิเศษของลำปาง
+                status: 1,
+                leadtime: leadtime
+            };
+        }
+        
+        groupedData[drCode].current_balance += qtySubUnit;
+        groupedData[drCode].daily_usage_rate += monthlyUsage;
+    });
+
+    // 3. สร้างชื่อไฟล์ตามรูปแบบ 14644_YYYYMMDDHHMMSS.csv
+    const now = new Date();
+    const timestamp = now.getFullYear().toString() +
+                      (now.getMonth() + 1).toString().padStart(2, '0') +
+                      now.getDate().toString().padStart(2, '0') +
+                      now.getHours().toString().padStart(2, '0') +
+                      now.getMinutes().toString().padStart(2, '0') +
+                      now.getSeconds().toString().padStart(2, '0');
+    const fileName = `14644_${timestamp}.csv`;
+
+    // 4. สร้างเนื้อหา CSV (รองรับภาษาไทยสำหรับ Excel)
+    let csvContent = "\uFEFF"; // Byte Order Mark สำหรับภาษาไทย
+    csvContent += "dr_code,dr_name,current_balance,daily_usage_rate,status,leadtime\n";
+
+    Object.values(groupedData).forEach(r => {
+        const balance = Math.floor(r.current_balance);
+        const usage = r.daily_usage_rate.toFixed(2);
+        const status = balance > 0 ? 1 : 2; // 1 = มีของ, 2 = ของขาด
+        
+        // จัดการเรื่องเครื่องหมายคอมม่าในชื่อยาเพื่อไม่ให้ CSV แหว่ง
+        const safeName = r.dr_name.replace(/,/g, ' '); 
+        
+        csvContent += `${r.dr_code},${safeName},${balance},${usage},${status},${r.leadtime}\n`;
+    });
+
+    // 5. ทำการ Download ไฟล์
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+		
         getReportTitle() { 
             if (this.reportFilter.type === 'inventory') return 'รายงานสินค้าคงคลังปัจจุบัน'; 
             if (this.reportFilter.type === 'category_val') return 'สรุปมูลค่าคงคลังตามประเภท (ED/NED)'; 
