@@ -1937,6 +1937,44 @@ const app = createApp({
         purchasePlans() { return (this.rawData.purchasePlans || []).map(p => ({ id: p[0], yearBudget: p[1], productId: p[2], packSize: p[3], packCost: p[4], qtyThisYear: p[8] })); }
     },
     methods: {
+        // --- AUTH HELPERS ---
+        focusPassword() { this.$refs.passInput && this.$refs.passInput.focus(); },
+
+        // --- USER REQUEST ---
+        onTempReqProdSelect() {
+            let p = this.products.find(x => x.name === this.tempReq.productName);
+            if (p) { this.tempReq.productId = p.id; this.tempReq.unit = p.unit || ''; }
+        },
+        addToReqCart() {
+            let p = this.products.find(x => x.id === this.tempReq.productId);
+            if (!p) return;
+            this.cartReq.push({ ...this.tempReq, productName: p.name });
+            this.tempReq = { productName: '', productId: '', qty: 1, unit: '' };
+        },
+        async submitRequest() {
+            if (!this.reqDept) return alert('กรุณาเลือกหน่วยงาน');
+            if (this.cartReq.length === 0) return alert('ไม่มีรายการในตะกร้า');
+            this.loading = true;
+            try {
+                const res = await this.apiCall("saveRequest", { user: this.currentUser.name, dept: this.reqDept, items: this.cartReq });
+                if (res) { alert('ส่งคำขอเบิกสำเร็จ'); this.cartReq = []; this.reqDept = ''; await this.loadData(); }
+            } finally { this.loading = false; }
+        },
+
+        // --- PURCHASE PLAN ---
+        openPlanModal(item) {
+            this.modalForm = item ? { ...item, isEdit: true, tempProductName: this.getProductName(item.productId) }
+                : { isEdit: false, yearBudget: '', productId: '', tempProductName: '', packSize: 1, packCost: 0, qtyThisYear: 0, qtyUseY1: 0, qtyUseY2: 0, qtyUseY3: 0, qtyQ1: 0, qtyQ2: 0, qtyQ3: 0, qtyQ4: 0 };
+            this.showModal = true;
+        },
+        async savePlanData() {
+            this.loading = true;
+            try {
+                const res = await this.apiCall("saveMasterData", { type: 'purchasePlan', data: this.modalForm });
+                if (res) { alert('สำเร็จ'); this.showModal = false; await this.loadData(); }
+            } finally { this.loading = false; }
+        },
+
         // --- CORE METHODS ---
         formatNumber(n) { return new Intl.NumberFormat('th-TH').format(n || 0); },
         formatCurrency(n) { return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(n || 0); },
