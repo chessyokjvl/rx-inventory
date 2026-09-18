@@ -289,9 +289,16 @@
         <i class="bi bi-cart-plus me-2"></i> ขอเบิกยา
     </a>
 
-    <a @click="currentUser={}; isSidebarOpen=false" class="nav-link mt-auto text-danger border-top border-secondary pt-3">
+<!-- 👇 เมนูใหม่: ข้อมูลส่วนตัว / เปลี่ยนรหัสผ่าน -->
+    <a v-if="currentUser.name && currentUser.user !== 'guest'" @click="page='profile'; isSidebarOpen=false" class="nav-link mt-2" :class="{active: page==='profile'}">
+        <i class="bi bi-person-lines-fill me-2"></i> ข้อมูลส่วนตัว (เปลี่ยนรหัส)
+    </a>
+
+    <!-- 👇 เปลี่ยนปุ่ม Logout ให้เรียกใช้ฟังก์ชัน doLogout -->
+    <a @click="doLogout" class="nav-link mt-auto text-danger border-top border-secondary pt-3">
         <i class="bi bi-box-arrow-right me-2"></i> ออกจากระบบ
     </a>
+				
 </nav>        
 		</div>
 
@@ -1346,6 +1353,29 @@
                 </div>
             </div>
 
+<!-- หน้าข้อมูลส่วนตัวและเปลี่ยนรหัสผ่าน -->
+            <div v-if="page === 'profile'">
+                <h3 class="fw-bold mb-3"><i class="bi bi-person-lines-fill text-primary me-2"></i>ข้อมูลส่วนตัวและการตั้งค่า</h3>
+                <div class="card card-shadow p-4 mb-3 border-top border-primary border-4" style="max-width: 600px;">
+                    <h5 class="fw-bold mb-4">เปลี่ยนรหัสผ่าน</h5>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted">รหัสผ่านเดิม</label>
+                        <input type="password" v-model="profileForm.oldPass" class="form-control bg-light">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-primary">รหัสผ่านใหม่</label>
+                        <input type="password" v-model="profileForm.newPass" class="form-control border-primary">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-primary">ยืนยันรหัสผ่านใหม่</label>
+                        <input type="password" v-model="profileForm.confirmPass" class="form-control border-primary" @keyup.enter="changeMyPassword">
+                    </div>
+                    <button @click="changeMyPassword" class="btn btn-primary w-100 fw-bold shadow-sm" :disabled="loading">
+                        <i class="bi bi-save me-2"></i> บันทึกรหัสผ่านใหม่
+                    </button>
+                </div>
+            </div>
+			
             <div v-if="page === 'mophExport'">
                 <h3 class="fw-bold mb-3 text-info"><i class="bi bi-database-down me-2"></i>ส่งออกข้อมูล 5 แฟ้มมาตรฐานกระทรวงฯ</h3>
                 <div class="alert alert-primary shadow-sm border-0">
@@ -1834,6 +1864,7 @@ const app = createApp({
             loginView: 'login', // ควบคุมหน้า 'login', 'register', 'forgot'
             regForm: { user: '', pass: '', email: '', pdpa: false },
             forgotEmail: '',
+			profileForm: { oldPass: '', newPass: '', confirmPass: '' },
 			
             // ข้อมูลดิบจากฐานข้อมูล
             rawData: { 
@@ -2486,30 +2517,27 @@ const app = createApp({
             this.loading = false; 
         },
 
-        // ฟังก์ชันแปลง Password เป็น Hash 256 (ความปลอดภัยขั้นสูง)
-        async hashPassword(pwd) {
-            const msgBuffer = new TextEncoder().encode(pwd);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        },
-
-        // ระบบ Login รองรับ Hashing
+        
+        // ====================================================================
+        // AUTH & USER SYSTEM (Local Storage + Plain Text String)
+        // ====================================================================
+        
         async doLogin() { 
             if (!this.loginForm.user || !this.loginForm.pass) return alert('กรุณากรอกข้อมูลให้ครบถ้วน');
             this.loading = true;
             
             let uStr = String(this.loginForm.user).trim(); 
-            let hashedPass = await this.hashPassword(String(this.loginForm.pass).trim());
+            let pStr = String(this.loginForm.pass).trim();
             
-            // เช็คพาสเวิร์ด (ยอมรับทั้งพาสเดิมที่เป็น Text ปกติ และพาสที่ถูก Hash แล้ว)
+            // ค้นหา User โดยเทียบ String ตรงๆ (ยกเลิก Hash)
             let u = (this.rawData.users || []).find(x => 
-                String(x[0]).trim() === uStr && 
-                (String(x[1]).trim() === hashedPass || String(x[1]).trim() === String(this.loginForm.pass).trim())
+                String(x[0]).trim() === uStr && String(x[1]).trim() === pStr
             ); 
             
             if (u) { 
                 this.currentUser = { user: u[0], role: u[2] || 'User', name: u[3] || u[0] }; 
+                // บันทึกลง Local Storage เพื่อจำการเข้าระบบ
+                localStorage.setItem('jvlUser', JSON.stringify(this.currentUser));
                 this.loginForm = { user: '', pass: '' }; 
                 this.page = 'dashboard';
                 this.$nextTick(() => { this.renderCharts(); });
@@ -2519,50 +2547,69 @@ const app = createApp({
             this.loading = false;
         },
 
-        // ระบบ Guest
+        doLogout() {
+            if(!confirm('ต้องการออกจากระบบใช่หรือไม่?')) return;
+            this.currentUser = {};
+            localStorage.removeItem('jvlUser'); // ล้างความจำในเครื่อง
+            this.page = 'dashboard';
+            this.loginView = 'login';
+            this.isSidebarOpen = false;
+        },
+
         loginAsGuest() {
             this.currentUser = { user: 'guest', role: 'Guest', name: 'Guest (ผู้เยี่ยมชม)' };
             this.page = 'dashboard';
             this.$nextTick(() => this.renderCharts());
         },
 
-        // ระบบสมัครสมาชิก
         async doRegister() {
             if (!this.regForm.user || !this.regForm.pass || !this.regForm.email) return alert('กรอกข้อมูลให้ครบถ้วน');
             this.loading = true;
-            
-            // นำรหัสผ่านไปเข้าเครื่องบด (Hashing) ก่อนส่งไป Backend
-            let hashedPass = await this.hashPassword(this.regForm.pass);
-            
             const res = await this.apiCall("registerUser", {
                 user: this.regForm.user,
-                pass: hashedPass, // ส่งตัวที่ Hash ไปเก็บ
+                pass: String(this.regForm.pass).trim(), // ส่งเป็น String ปกติ
                 name: this.regForm.user,
                 email: this.regForm.email
             });
-            
             if (res) {
                 alert(res);
                 this.loginView = 'login';
                 this.regForm = { user: '', pass: '', email: '', pdpa: false };
-                await this.loadData(); // รีโหลดข้อมูล User ล่าสุดมาเก็บไว้ในเครื่อง
+                await this.loadData();
             }
             this.loading = false;
         },
 
-        // ระบบลืมรหัสผ่าน
         async doForgotPass() {
             if (!this.forgotEmail) return alert('กรุณากรอกอีเมล');
             this.loading = true;
-            
             const res = await this.apiCall("resetPassword", { email: this.forgotEmail });
             if (res) {
                 alert(res);
                 this.loginView = 'login';
                 this.forgotEmail = '';
                 await this.loadData();
-            } else {
-                alert('เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาลองใหม่');
+            }
+            this.loading = false;
+        },
+
+        async changeMyPassword() {
+            if (!this.profileForm.oldPass || !this.profileForm.newPass || !this.profileForm.confirmPass) {
+                return alert('กรุณากรอกรหัสผ่านให้ครบทุกช่อง');
+            }
+            if (this.profileForm.newPass !== this.profileForm.confirmPass) {
+                return alert('รหัสผ่านใหม่ และยืนยันรหัสผ่าน ไม่ตรงกัน');
+            }
+            this.loading = true;
+            const res = await this.apiCall("changePassword", {
+                user: this.currentUser.user,
+                oldPass: String(this.profileForm.oldPass).trim(),
+                newPass: String(this.profileForm.newPass).trim()
+            });
+            if (res) {
+                alert(res);
+                this.profileForm = { oldPass: '', newPass: '', confirmPass: '' };
+                await this.loadData();
             }
             this.loading = false;
         },
@@ -3277,6 +3324,18 @@ const app = createApp({
         }
     },
     mounted() { 
+        // 1. ตรวจสอบว่าเคย Login ไว้หรือไม่
+        const savedUser = localStorage.getItem('jvlUser');
+        if (savedUser) {
+            try {
+                this.currentUser = JSON.parse(savedUser);
+                this.page = 'dashboard';
+            } catch (e) {
+                localStorage.removeItem('jvlUser');
+            }
+        }
+        
+        // 2. ดึงข้อมูลจากฐานข้อมูล
         this.loadData(); 
     }
 });
