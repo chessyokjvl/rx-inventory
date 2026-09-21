@@ -288,10 +288,37 @@
                 </div>
 
                 <div class="row g-3 mb-4">
-                    <div class="col-12 col-lg-4"><div class="card card-shadow p-3 h-100"><h6 class="fw-bold text-primary">📈 Top 10 มูลค่าเบิกใช้สูงสุด</h6><div style="height: 250px;"><canvas id="turnoverChart"></canvas></div></div></div>
-                    <div class="col-12 col-lg-4"><div class="card card-shadow p-3 h-100"><h6 class="fw-bold text-primary">🏢 สัดส่วนเบิกใช้ตามหน่วยงาน</h6><div style="height: 250px;"><canvas id="deptChart"></canvas></div></div></div>
-                    <div class="col-12 col-lg-4"><div class="card card-shadow p-3 h-100"><h6 class="fw-bold text-primary">🍩 แหล่งงบประมาณ</h6><div style="height: 250px;"><canvas id="categoryChart"></canvas></div></div></div>
+    <div class="col-12 col-lg-4">
+        <div class="card card-shadow p-3 h-100">
+            <h6 class="fw-bold text-primary">📈 Top 10 มูลค่าเบิกใช้สูงสุด</h6>
+            <div style="height: 250px; position: relative;">
+                <canvas id="turnoverChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-4">
+        <div class="card card-shadow p-3 h-100">
+            <h6 class="fw-bold text-primary">🏢 สัดส่วนเบิกใช้ตามหน่วยงาน</h6>
+            <div style="height: 250px; position: relative;">
+                <canvas id="deptChart"></canvas>
+                <div id="deptChartEmpty" class="d-none position-absolute top-50 start-50 translate-middle text-muted small fw-bold text-center">
+                    <i class="bi bi-inbox fs-1 d-block mb-2"></i>ยังไม่มีประวัติ<br>การจ่ายยา
                 </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-4">
+        <div class="card card-shadow p-3 h-100">
+            <h6 class="fw-bold text-primary">🍩 แหล่งงบประมาณ</h6>
+            <div style="height: 250px; position: relative;">
+                <canvas id="categoryChart"></canvas>
+                <div id="catChartEmpty" class="d-none position-absolute top-50 start-50 translate-middle text-muted small fw-bold text-center">
+                    <i class="bi bi-wallet2 fs-1 d-block mb-2"></i>ยังไม่มีบิลตรวจรับ<br>ที่ระบุงบประมาณ
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
                 <div class="row g-3">
                     <div class="col-12 col-lg-6">
@@ -342,7 +369,80 @@
                     </div>
                 </div>
             </div>
+<!-- ================= User Request (ขอเบิกยา) ================= -->
+<div v-show="page === 'userReq'">
+    <h3 class="fw-bold text-primary mb-3"><i class="bi bi-cart-plus me-2"></i> ระบบขอเบิกเวชภัณฑ์</h3>
+    <div class="card card-shadow p-3 mb-3 border-top border-primary border-4">
+        <div class="row g-3">
+            <div class="col-12 col-md-6">
+                <label class="fw-bold small text-muted">หน่วยงานที่ขอเบิก</label>
+                <select v-model="reqDept" class="form-select border-primary fw-bold">
+                    <option value="">-- เลือกหน่วยงาน --</option>
+                    <option v-for="d in depts" :value="d.name">{{ d.name }}</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card card-shadow p-3 mb-3 bg-light">
+        <h6 class="fw-bold text-secondary mb-3">เพิ่มรายการยาที่ต้องการเบิก</h6>
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-6">
+                <label class="small text-muted fw-bold">ค้นหารายการยา</label>
+                <input list="listReqProds" v-model="tempReq.productName" @change="onTempReqProdSelect" class="form-control border-primary" placeholder="พิมพ์ค้นหาชื่อยา...">
+                <datalist id="listReqProds"><option v-for="p in products" :value="p.name"></option></datalist>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="small text-muted fw-bold">จำนวนที่ต้องการ ({{ tempReq.unit || 'หน่วย' }})</label>
+                <input type="number" v-model.number="tempReq.qty" class="form-control border-primary" min="1">
+            </div>
+            <div class="col-12 col-md-3">
+                <button @click="addToReqCart" class="btn btn-primary w-100 fw-bold shadow-sm" :disabled="!tempReq.productId">เพิ่มลงตะกร้า</button>
+            </div>
+        </div>
+    </div>
 
+    <div v-if="cartReq.length > 0" class="card card-shadow p-3">
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm align-middle text-center">
+                <thead class="table-light"><tr><th>รายการยา</th><th>จำนวนที่ขอเบิก</th><th>ลบ</th></tr></thead>
+                <tbody>
+                    <tr v-for="(item, idx) in cartReq">
+                        <td class="text-start fw-bold">{{ item.productName }}</td>
+                        <td class="fw-bold text-primary fs-5">{{ item.qty }} {{ item.unit }}</td>
+                        <td><button @click="cartReq.splice(idx,1)" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <button @click="submitRequest" class="btn btn-success btn-lg mt-2 fw-bold w-100 shadow"><i class="bi bi-send me-2"></i> ส่งใบขอเบิกไปยังคลัง</button>
+    </div>
+    
+    <hr class="my-4">
+    <h5 class="fw-bold text-secondary"><i class="bi bi-clock-history me-2"></i> ประวัติการขอเบิกของคุณ</h5>
+    <div class="card card-shadow p-3">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle text-nowrap">
+                <thead class="table-dark">
+                    <tr><th>เลขที่ใบเบิก</th><th>วันที่</th><th>หน่วยงาน</th><th>สถานะ</th></tr>
+                </thead>
+                <tbody>
+                    <tr v-for="r in requests.filter(req => req.user === currentUser.name)" :key="r.id">
+                        <td class="fw-bold text-primary">{{ r.id }}</td>
+                        <td>{{ r.date.split(' ')[0] }}</td>
+                        <td>{{ r.dept }}</td>
+                        <td>
+                            <span v-if="r.status==='Pending'" class="badge bg-warning text-dark">รออนุมัติ</span>
+                            <span v-else-if="r.status==='Approved'" class="badge bg-success">จ่ายแล้ว</span>
+                            <span v-else class="badge bg-danger">{{ r.status }}</span>
+                        </td>
+                    </tr>
+                    <tr v-if="requests.filter(req => req.user === currentUser.name).length === 0"><td colspan="4" class="text-center text-muted p-3">ไม่มีประวัติขอเบิก</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
             <!-- ================= Profile & Password ================= -->
             <div v-if="page === 'profile'">
                 <h3 class="fw-bold mb-3"><i class="bi bi-person-lines-fill text-primary me-2"></i>ข้อมูลส่วนตัวและการตั้งค่า</h3>
@@ -607,6 +707,14 @@
             <!-- ================= Stock Out ================= -->
             <div v-if="page === 'stockOut'">
                 <h3 class="mb-3 fw-bold">📤 จ่ายสินค้า / ตัดสต็อก</h3>
+                <div class="col-12 mt-2 mb-3" v-if="pendingRequestsList.length > 0">
+    <h6 class="fw-bold text-danger"><i class="bi bi-bell-fill"></i> มีใบขอเบิกรอจ่าย ({{ pendingRequestsList.length }} รายการ)</h6>
+    <div class="d-flex gap-2 overflow-auto pb-2">
+        <button v-for="req in pendingRequestsList" @click="loadRequestToStockOut(req)" class="btn btn-outline-danger btn-sm text-nowrap shadow-sm">
+            ดึงใบเบิก: {{ req.id }} ({{ req.dept }})
+        </button>
+    </div>
+</div>
                 <div class="card card-shadow p-3 mb-3 border-top border-warning border-4">
                     <div class="row g-3">
                         <div class="col-12 col-md-3"><label class="small fw-bold text-muted">วันที่จ่าย</label><input type="date" v-model="formOut.date" class="form-control"></div>
@@ -994,7 +1102,7 @@
                                     </template>
                                     <td class="text-center">
                                         <button @click="openAdminModal(item)" class="btn btn-outline-warning me-2 shadow-sm"><i class="bi bi-pencil-fill"></i></button>
-                                        <button @click="deleteItem(item.id || item.user || item.name)" class="btn btn-outline-danger shadow-sm"><i class="bi bi-trash-fill"></i></button>
+                                        <button @click="deleteItem(page, item.id || item.user || item.name)" class="btn btn-outline-danger shadow-sm"><i class="bi bi-trash-fill"></i></button>
                                     </td>
                                 </tr>
                             </tbody>
@@ -1124,7 +1232,7 @@
 </div>
 <script>
 // ⚠️ URL ของ Google Apps Script Web App (อย่าลืมใส่ URL ล่าสุดของตัวเอง) ⚠️
-const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwsMwNbbLEf8SoHkcvog2H5nymUAKtsyw6pTPmymSLYcBC4oYM_zPxShPHPvXnEKt3S/exec"; 
+const GAS_API_URL = "https://chessyok.com/jvl_inventory/api.php";
 
 const { createApp } = Vue;
 
@@ -1646,26 +1754,87 @@ const app = createApp({
 
         renderCharts() {
             if (!document.getElementById('turnoverChart')) return;
-            const tooltipCallback = function(context) { let label = context.label || ''; let value = context.parsed || 0; let total = 0; context.dataset.data.forEach((val, i) => { let meta = context.chart.getDatasetMeta(context.datasetIndex); if (!meta.data[i].hidden) total += val; }); let percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%'; return label + ': ' + new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(value) + ' (' + percentage + ')'; };
+            const tooltipCallback = function(context) { 
+                let label = context.label || ''; 
+                let value = context.parsed || 0; 
+                let total = 0; 
+                context.dataset.data.forEach((val, i) => { 
+                    let meta = context.chart.getDatasetMeta(context.datasetIndex); 
+                    if (!meta.data[i].hidden) total += val; 
+                }); 
+                let percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%'; 
+                return label + ': ' + new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB' }).format(value) + ' (' + percentage + ')'; 
+            };
 
+            // 1. Top 10 Chart
             let usage = {}; let pIds = this.dashFilteredInventory.map(i => i.id);
-            this.transactions.filter(t => t.type === 'OUT' && t.status === 'Completed').forEach(t => { if (pIds.includes(t.productId)) { let p = this.products.find(x => x.id == t.productId); let name = p ? p.name : t.productId; if (!usage[name]) usage[name] = 0; usage[name] += t.totalPrice; } });
+            this.transactions.filter(t => t.type === 'OUT' && t.status === 'Completed').forEach(t => { 
+                if (pIds.includes(t.productId)) { 
+                    let p = this.products.find(x => x.id == t.productId); 
+                    let name = p ? p.name : t.productId; 
+                    if (!usage[name]) usage[name] = 0; 
+                    usage[name] += t.totalPrice; 
+                } 
+            });
             let top10 = Object.keys(usage).map(k => ({ n: k, v: usage[k] })).sort((a, b) => b.v - a.v).slice(0, 10);
             if (this.chartInstTurnover) this.chartInstTurnover.destroy();
             this.chartInstTurnover = new Chart(document.getElementById('turnoverChart'), { type: 'bar', data: { labels: top10.map(x => x.n.substring(0, 15) + '...'), datasets: [{ data: top10.map(x => x.v), backgroundColor: '#0d6efd', borderRadius: 4 }] }, options: { plugins: { legend: { display: false } } } });
 
+            // 2. Budget Chart (ปรับปรุงการดึงงบประมาณจากตาราง bills และ transactions)
             let budgetStats = { 'เงินบำรุง': 0, 'เงินงบประมาณ': 0, 'งบยาเสพติด': 0 };
-            this.bills.filter(b => b.status === 'Completed').forEach(b => {
-                if (b.budgetSource === 'ผสม (Split)') { budgetStats['เงินบำรุง'] += b.budgetBumrung; budgetStats['เงินงบประมาณ'] += b.budgetNgob; budgetStats['งบยาเสพติด'] += b.budgetNarcotic; } 
-                else { let totalVal = this.transactions.filter(t => t.billId === b.id).reduce((sum, t) => sum + (parseFloat(t.totalPrice) || 0), 0); if (b.budgetSource === 'เงินบำรุง') budgetStats['เงินบำรุง'] += totalVal; else if (b.budgetSource === 'เงินงบประมาณ') budgetStats['เงินงบประมาณ'] += totalVal; else if (b.budgetSource === 'เงินงบประมาณพิเศษหมวดยาเสพติด') budgetStats['งบยาเสพติด'] += totalVal; }
+            this.bills.forEach(b => {
+                let totalVal = this.transactions.filter(t => t.billId === b.bill_id || t.billId === b.id).reduce((sum, t) => sum + (parseFloat(t.totalPrice) || 0), 0);
+                let src = b.budgetSource || b.budget_source || 'เงินบำรุง';
+                if (src.includes('งบประมาณพิเศษ') || src.includes('ยาเสพติด')) {
+                    budgetStats['งบยาเสพติด'] += totalVal > 0 ? totalVal : (parseFloat(b.budgetNarcotic || b.budget_narcotic) || 0);
+                } else if (src.includes('งบประมาณ')) {
+                    budgetStats['เงินงบประมาณ'] += totalVal > 0 ? totalVal : (parseFloat(b.budgetNgob || b.budget_ngob) || 0);
+                } else {
+                    budgetStats['เงินบำรุง'] += totalVal > 0 ? totalVal : (parseFloat(b.budgetBumrung || b.budget_bumrung) || 0);
+                }
             });
-            if (this.chartInstCat) this.chartInstCat.destroy();
-            this.chartInstCat = new Chart(document.getElementById('categoryChart'), { type: 'doughnut', data: { labels: Object.keys(budgetStats), datasets: [{ data: Object.values(budgetStats), backgroundColor: ['#0d6efd', '#ffc107', '#6f42c1'] }] }, options: { plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: tooltipCallback } } } } });
+            
+            // เผื่อกรณีคีย์รับโดยตรงผ่านหน้าตัดจ่าย ให้ดึงประเภทงบจากรายการ IN ด้วย
+            this.transactions.filter(t => t.trans_type === 'IN' || t.type === 'IN').forEach(t => {
+                let src = t.note || '';
+                if (src.includes('งบประมาณ')) budgetStats['เงินงบประมาณ'] += parseFloat(t.totalPrice) || 0;
+                else budgetStats['เงินบำรุง'] += parseFloat(t.totalPrice) || 0;
+            });
 
+            let totalBudget = Object.values(budgetStats).reduce((a, b) => a + b, 0);
+            let catCanvas = document.getElementById('categoryChart');
+            let catEmpty = document.getElementById('catChartEmpty');
+            
+            if (totalBudget <= 0) {
+                if(catCanvas) catCanvas.style.display = 'none';
+                if(catEmpty) catEmpty.classList.remove('d-none');
+            } else {
+                if(catCanvas) catCanvas.style.display = 'block';
+                if(catEmpty) catEmpty.classList.add('d-none');
+                if (this.chartInstCat) this.chartInstCat.destroy();
+                this.chartInstCat = new Chart(catCanvas, { type: 'doughnut', data: { labels: Object.keys(budgetStats), datasets: [{ data: Object.values(budgetStats), backgroundColor: ['#0d6efd', '#ffc107', '#6f42c1'] }] }, options: { plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: tooltipCallback } } } } });
+            }
+
+            // 3. Dept Chart (ปรับปรุงการจับคู่หน่วยงานให้ตรงกับหน้ารายงาน)
             let deptUsage = {};
-            this.transactions.filter(t => t.type === 'OUT' && t.status === 'Completed').forEach(t => { let dept = t.vendorOrDept; if (!deptUsage[dept]) deptUsage[dept] = 0; deptUsage[dept] += t.totalPrice; });
-            if (this.chartInstDept) this.chartInstDept.destroy();
-            this.chartInstDept = new Chart(document.getElementById('deptChart'), { type: 'doughnut', data: { labels: Object.keys(deptUsage), datasets: [{ data: Object.values(deptUsage), backgroundColor: ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545', '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'] }] }, options: { plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } }, tooltip: { callbacks: { label: tooltipCallback } } } } });
+            this.transactions.filter(t => (t.trans_type === 'OUT' || t.type === 'OUT')).forEach(t => { 
+                let dept = t.vendor_or_dept || t.vendorOrDept || 'ไม่ระบุหน่วยงาน'; 
+                if (!deptUsage[dept]) deptUsage[dept] = 0; 
+                deptUsage[dept] += parseFloat(t.totalPrice) || 0; 
+            });
+            
+            let deptCanvas = document.getElementById('deptChart');
+            let deptEmpty = document.getElementById('deptChartEmpty');
+            
+            if (Object.keys(deptUsage).length === 0) {
+                if(deptCanvas) deptCanvas.style.display = 'none';
+                if(deptEmpty) deptEmpty.classList.remove('d-none');
+            } else {
+                if(deptCanvas) deptCanvas.style.display = 'block';
+                if(deptEmpty) deptEmpty.classList.add('d-none');
+                if (this.chartInstDept) this.chartInstDept.destroy();
+                this.chartInstDept = new Chart(deptCanvas, { type: 'doughnut', data: { labels: Object.keys(deptUsage), datasets: [{ data: Object.values(deptUsage), backgroundColor: ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545', '#fd7e14', '#ffc107', '#198754', '#20c997', '#0dcaf0'] }] }, options: { plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } }, tooltip: { callbacks: { label: tooltipCallback } } } } });
+            }
         },
 
         calcOpenTotal() { this.tempOpen.totalPrice = parseFloat((this.tempOpen.qty * this.tempOpen.unitPrice).toFixed(2)) || 0; },
