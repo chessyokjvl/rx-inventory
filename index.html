@@ -11,7 +11,7 @@
     <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
 
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -1926,23 +1926,37 @@
 
             <!-- ================= Settings (Master Data) ================= -->
             <div v-if="page.startsWith('manage_') && page !== 'manage_plan'">
-                <div class="d-flex justify-content-between align-items-center mb-3"><h3 class="mb-0 fw-bold"><i class="bi bi-gear-fill me-2 text-secondary"></i>{{ adminTitle }}</h3><button @click="openAdminModal(null)" class="btn btn-primary shadow-sm fw-bold"><i class="bi bi-plus-lg"></i> เพิ่มข้อมูลใหม่</button></div>
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2 no-print"><h3 class="mb-0 fw-bold"><i class="bi bi-gear-fill me-2 text-secondary"></i>{{ adminTitle }}</h3>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button @click="exportAdminExcel" class="btn btn-success fw-bold shadow-sm"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+                        <button @click="printAdminList" class="btn btn-outline-dark fw-bold shadow-sm"><i class="bi bi-printer"></i> พิมพ์ / PDF</button>
+                        <button @click="openAdminModal(null)" class="btn btn-primary shadow-sm fw-bold"><i class="bi bi-plus-lg"></i> เพิ่มข้อมูลใหม่</button>
+                    </div></div>
                 <div class="card card-shadow p-3">
+                    <div class="d-flex flex-wrap gap-2 mb-2 no-print">
+                        <input v-model.trim="adminQuery" class="form-control" style="max-width:340px" placeholder="ค้นหารหัส / ชื่อ ...">
+                        <select v-if="page==='manage_prod'" v-model="prodStatusFilter" class="form-select" style="max-width:200px"><option value="active">ใช้งานอยู่</option><option value="deactive">เลิกใช้</option><option value="all">ทั้งหมด</option></select>
+                        <span class="small text-muted align-self-center">{{ adminRows.length }} รายการ · คลิกหัวตารางเพื่อเรียง</span>
+                    </div>
+                    <div id="printSection">
+                    <h5 class="d-none d-print-block fw-bold mb-2">{{ adminTitle }} — โรงพยาบาลจิตเวชเลยราชนครินทร์ ({{ new Date().toLocaleDateString('th-TH') }})</h5>
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle text-nowrap">
+                        <table class="table table-hover align-middle text-nowrap" id="adminListTable">
                             <thead class="table-dark">
-                                <tr><th>รหัส / Key</th><th>ชื่อ / คำอธิบาย</th><th class="text-center">จัดการ</th></tr>
+                                <tr><th v-for="c in adminCols" :key="c.key" @click="adminSortBy(c.key)" style="cursor:pointer" :class="c.cls">{{ c.label }} <span class="small">{{ adminSort.key === c.key ? (adminSort.asc ? '▲' : '▼') : '↕' }}</span></th><th class="text-center no-print">จัดการ</th></tr>
                             </thead>
                             <tbody>
-                                <tr v-for="item in adminDataList">
-                                    <td class="fw-bold text-primary">{{ item.id || item.user || item.name }}</td><td class="fw-bold">{{ item.name }}</td>
-                                    <td class="text-center">
+                                <tr v-for="item in adminRows" :key="item.id || item.user || item.name">
+                                    <td v-for="(c, ci) in adminCols" :key="c.key" :class="[c.cls, ci === 0 ? 'fw-bold text-primary' : '']">{{ adminCell(item, c.key) }}</td>
+                                    <td class="text-center no-print">
                                         <button @click="openAdminModal(item)" class="btn btn-outline-warning me-2 shadow-sm"><i class="bi bi-pencil-fill"></i></button>
                                         <button @click="deleteItem(page, item.id || item.user || item.name)" class="btn btn-outline-danger shadow-sm"><i class="bi bi-trash-fill"></i></button>
                                     </td>
                                 </tr>
+                                <tr v-if="adminRows.length === 0"><td :colspan="adminCols.length + 1" class="text-center text-muted py-3">ไม่พบข้อมูล</td></tr>
                             </tbody>
                         </table>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -2214,7 +2228,7 @@ const app = createApp({
             showQuickVendor: false, quickVendorForm: { id: '', name: '', taxId: '' },
             showQuickProd: false, quickProdForm: { id: '', name: '', tpuid: '', manufacturer: '', unit: '', objType: 'ยา', min: 0 },
             
-            sortKey: '', sortAsc: true, 
+            sortKey: '', sortAsc: true, adminQuery: '', adminSort: { key: '', asc: true }, 
             prodSearchQuery: '', prodStatusFilter: 'active',
             
             chartInstTurnover: null, chartInstCat: null, chartInstDept: null,
@@ -2572,6 +2586,22 @@ const app = createApp({
             if (this.prodSearchQuery) { const s = this.prodSearchQuery.toLowerCase(); list = list.filter(p => p.name.toLowerCase().includes(s) || String(p.id).toLowerCase().includes(s) || p.workingCode.toLowerCase().includes(s) || p.barcodeText.toLowerCase().includes(s)); }
             return this.applySort(list);
         },
+        adminCols() {
+            const L = { id: 'รหัส', name: 'ชื่อ' };
+            const C = k => ({ key: k, label: L[k] || k });
+            if (this.page === 'manage_prod') return [{key:'id',label:'รหัสสินค้า'},{key:'name',label:'ชื่อสินค้า'},{key:'unit',label:'หน่วยนับ'},{key:'objType',label:'ประเภท'},{key:'drugClass',label:'ED/NED'},{key:'min',label:'Min',cls:'text-end'},{key:'isActive',label:'สถานะ',cls:'text-center'}];
+            if (this.page === 'manage_vendor') return [{key:'id',label:'รหัสบริษัท'},{key:'name',label:'ชื่อบริษัท'},{key:'taxId',label:'เลขผู้เสียภาษี'},{key:'contact',label:'ติดต่อ'}];
+            if (this.page === 'manage_dept') return [{key:'id',label:'รหัส'},{key:'name',label:'ชื่อปลายทาง'},{key:'deptGroup',label:'กลุ่มหน่วยเบิก',cls:'text-center'}];
+            return [{key:'user',label:'Username'},{key:'name',label:'ชื่อ'}];
+        },
+        adminRows() {
+            let list = this.adminDataList.slice();
+            const q = (this.adminQuery || '').toLowerCase();
+            if (q) list = list.filter(it => this.adminCols.some(c => String(this.adminCell(it, c.key)).toLowerCase().includes(q)) || String(it.barcodeText || '').includes(q));
+            const k = this.adminSort.key;
+            if (k) { const m = this.adminSort.asc ? 1 : -1; list.sort((a, b) => m * String(a[k] === undefined ? '' : a[k]).localeCompare(String(b[k] === undefined ? '' : b[k]), 'th', { numeric: true })); }
+            return list;
+        },
         adminDataList() { 
             if (this.page === 'manage_prod') return this.filteredAdminProds; 
             if (this.page === 'manage_vendor') return this.vendors; 
@@ -2579,7 +2609,7 @@ const app = createApp({
             if (this.page === 'manage_user') return this.users; 
             return [];
         },
-        adminTitle() { return this.page.replace('manage_', 'ตั้งค่า').toUpperCase(); },
+        adminTitle() { return ({ manage_prod: 'ตั้งค่ารายการสินค้า', manage_vendor: 'ตั้งค่าบริษัท', manage_dept: 'ตั้งค่าหน่วยเบิก/ปลายทาง', manage_user: 'ตั้งค่าผู้ใช้งาน' })[this.page] || this.page; },
 
         pendingRequestsList() { return this.requests.filter(r => r.status === 'Pending'); },
         locBills() { return this.bills.filter(b => this.globalStock === 'ALL' || b.stockLoc === this.globalStock); },
@@ -2640,8 +2670,9 @@ const app = createApp({
         },
     },
     watch: {
+        loading(v) { if (!v && this.page === 'dashboard') this.renderCharts(); },
         page(val) { 
-            this.isSidebarOpen = false; 
+            this.isSidebarOpen = false; this.adminQuery = ''; this.adminSort = { key: '', asc: true };
             if (val === 'dashboard') this.$nextTick(() => this.renderCharts()); 
             if (['stockOut', 'stockTake', 'receive', 'opening', 'stockCard', 'dispenseReport', 'subReceive'].includes(val)) this.$nextTick(() => this.initTomSelects());
         },
@@ -2895,6 +2926,17 @@ const app = createApp({
         },
 
         focusPassword() { this.$refs.passInput.focus(); },
+        adminSortBy(k) { if (this.adminSort.key === k) this.adminSort.asc = !this.adminSort.asc; else this.adminSort = { key: k, asc: true }; },
+        adminCell(it, k) { const v = it[k]; if (k === 'isActive') return v ? 'ใช้งาน' : 'เลิกใช้'; return v === undefined || v === null ? '' : v; },
+        exportAdminExcel() {
+            const head = this.adminCols.map(c => c.label);
+            const rows = this.adminRows.map(it => this.adminCols.map(c => { const v = this.adminCell(it, c.key); return v; }));
+            const ws = XLSX.utils.aoa_to_sheet([head, ...rows]);
+            ws['!cols'] = head.map((h, i) => ({ wch: Math.min(60, Math.max(String(h).length + 2, ...rows.map(r => String(r[i]).length + 2))) }));
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'ข้อมูล');
+            XLSX.writeFile(wb, this.page + '_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+        },
+        printAdminList() { window.print(); },
         sortBy(key) { if (this.sortKey === key) this.sortAsc = !this.sortAsc; else { this.sortKey = key; this.sortAsc = true; } },
         sortIcon(key) { return this.sortKey === key ? (this.sortAsc ? '▲' : '▼') : '↕'; },
         applySort(arr) { 
@@ -3063,13 +3105,17 @@ const app = createApp({
             }
         },
 
-        renderCharts() {
-            if (this.page !== 'dashboard') return;
-            // หน่วงเวลาเล็กน้อยให้กล่อง Dashboard กางเสร็จก่อน ป้องกัน Error Canvas Null
-            setTimeout(() => {
+        renderCharts(tries = 0) {
+            // วาดกราฟใหม่แบบทนทาน: รอจนกล่อง Dashboard แสดงผลจริงและ Chart.js โหลดเสร็จ (ลองซ้ำได้สูงสุด ~3 วินาที)
+            clearTimeout(this._chartTimer);
+            this._chartTimer = setTimeout(() => {
+                if (this.page !== 'dashboard') return;
                 let chartEl = document.getElementById('turnoverChart');
-                if (!chartEl || chartEl.offsetParent === null) return;
-
+                if (!chartEl || chartEl.offsetParent === null || typeof Chart === 'undefined' || this.loading) {
+                    if (tries < 20) this.renderCharts(tries + 1);
+                    return;
+                }
+                try {
                 // 1. Top 10 Chart
                 let usage = {}; 
                 this.transactions.filter(t => t.type === 'OUT' && (this.globalStock === 'ALL' || t.stockLocation === this.globalStock)).forEach(t => { 
@@ -3080,6 +3126,8 @@ const app = createApp({
                 if (this.chartInstTurnover) this.chartInstTurnover.destroy();
                 this.chartInstTurnover = new Chart(chartEl, { type: 'bar', data: { labels: top.map(x => x.n.substring(0, 10)), datasets: [{ data: top.map(x => x.v), backgroundColor: '#0d6efd', borderRadius: 4 }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false } } } });
 
+                } catch (e) { console.error('chart1', e); }
+                try {
                 // 2. Budget Chart
                 let budgetStats = { 'เงินบำรุง': 0, 'เงินงบประมาณ': 0, 'งบยาเสพติด': 0 };
                 this.bills.forEach(b => {
@@ -3099,6 +3147,8 @@ const app = createApp({
                     this.chartInstCat = new Chart(catCanvas, { type: 'doughnut', data: { labels: Object.keys(budgetStats), datasets: [{ data: Object.values(budgetStats), backgroundColor: ['#0d6efd', '#ffc107', '#6f42c1'] }] }, options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
                 }
 
+                } catch (e) { console.error('chart2', e); }
+                try {
                 // 3. Dept Chart
                 let deptUsage = {};
                 this.transactions.filter(t => t.type === 'OUT' && (this.globalStock === 'ALL' || t.stockLocation === this.globalStock)).forEach(t => { 
@@ -3129,7 +3179,8 @@ const app = createApp({
                     } 
                 });
                 }
-            }, 100);
+            } catch (e) { console.error('chart3', e); }
+            }, tries ? 150 : 100);
         },
 
         // --- 📤 รับยา / ยอดยกมา ---
