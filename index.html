@@ -158,6 +158,7 @@
                             <a @click="navTo('valueCheck', 'MAIN')" class="nav-link" :class="{active: page==='valueCheck' && globalStock==='MAIN'}">💲 ตรวจสอบมูลค่ายา</a>
                             <a @click="navTo('reports', 'MAIN')" class="nav-link" :class="{active: page==='reports' && globalStock==='MAIN'}">📈 รายงานวิเคราะห์</a>
                             <a @click="navTo('dispenseReport', 'MAIN')" class="nav-link" :class="{active: page==='dispenseReport' && globalStock==='MAIN'}">📊 สรุปยอดเบิกรายตัว</a>
+                            <a @click="navTo('purchasePlan', 'MAIN')" class="nav-link text-info fw-bold" :class="{active: page==='purchasePlan'}">🗂️ แผนจัดซื้อประจำปี</a>
                             <a @click="navTo('history', 'MAIN')" class="nav-link" :class="{active: page==='history' && globalStock==='MAIN'}">📜 ประวัติรับจ่าย</a>
                             <a v-if="['Admin', 'God'].includes(currentUser.role)" @click="navTo('mophExport', 'MAIN')" class="nav-link" :class="{active: page==='mophExport'}">ส่งออก 5 แฟ้ม / ลำปาง</a>
                         </div>
@@ -245,6 +246,8 @@
                             <a @click="navTo('manage_vendor', globalStock)" class="nav-link" :class="{active: page==='manage_vendor'}">บริษัท/หน่วยเบิก</a>
                             <a @click="navTo('manage_dept', globalStock)" class="nav-link" :class="{active: page==='manage_dept'}">หน่วยเบิก/ปลายทาง (Department)</a>
                             <a v-if="currentUser.role === 'God'" @click="navTo('manage_user', globalStock)" class="nav-link text-info" :class="{active: page==='manage_user'}">จัดการ Users (God)</a>
+                            <a v-if="currentUser.role === 'God'" @click="navTo('activityLog', globalStock)" class="nav-link text-info" :class="{active: page==='activityLog'}">📋 บันทึกการใช้งาน (Log)</a>
+                            <a v-if="currentUser.role === 'God'" @click="navTo('migrateIds', globalStock)" class="nav-link text-info" :class="{active: page==='migrateIds'}">🔢 ปรับรหัส (ID) เป็นตัวเลข</a>
                         </div>
                     </div>
                 </div>
@@ -332,6 +335,33 @@
                                 <span class="text-success">ED: {{ formatCurrency(edTotal) }}</span>
                                 <span class="text-danger">NED: {{ formatCurrency(nedTotal) }}</span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- แผนจัดซื้อ vs จัดซื้อจริง -->
+                <div class="row g-3 mb-4" v-if="globalStock === 'MAIN' || globalStock === 'ALL'">
+                    <div class="col-12">
+                        <div class="card card-shadow p-3 border-start border-5 border-info">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                <h6 class="fw-bold mb-0 text-info"><i class="bi bi-clipboard-data me-1"></i> การจัดซื้อเทียบแผนประจำปี <small class="text-muted fw-normal">(คลังยาใหญ่ · นับการรับจากบริษัท)</small></h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <select v-model="planYear" class="form-select form-select-sm" style="width: 110px;"><option v-for="y in planYears" :value="y">ปี {{ y }}</option></select>
+                                    <button @click="goPlan('all')" class="btn btn-sm btn-info text-white fw-bold">ดูรายตัว <i class="bi bi-arrow-right"></i></button>
+                                </div>
+                            </div>
+                            <div v-if="planSummary.itemCount === 0" class="text-muted small py-2">ยังไม่มีแผนจัดซื้อปี {{ planYear }} <a v-if="isEditor" href="#" @click.prevent="goPlan('all')">นำเข้าหรือเพิ่มแผน</a></div>
+                            <template v-else>
+                                <div class="d-flex justify-content-between small fw-bold mb-1"><span>จัดซื้อแล้ว {{ formatCurrency(planSummary.boughtVal) }} จากแผน {{ formatCurrency(planSummary.planVal) }}</span><span :class="planPctClass(planSummary.pct)">{{ fmtPct(planSummary.pct) }}</span></div>
+                                <div class="progress mb-3" style="height: 14px;"><div class="progress-bar" :class="planBarClass(planSummary.pct)" :style="{ width: Math.min(100, planSummary.pct || 0) + '%' }"></div></div>
+                                <div class="d-flex flex-wrap gap-2 small">
+                                    <a href="#" @click.prevent="goPlan('none')" class="badge bg-secondary text-decoration-none fs-6 fw-normal">ยังไม่ซื้อ {{ planSummary.counts.none }}</a>
+                                    <a href="#" @click.prevent="goPlan('partial')" class="badge bg-warning text-dark text-decoration-none fs-6 fw-normal">ซื้อบางส่วน {{ planSummary.counts.partial }}</a>
+                                    <a href="#" @click.prevent="goPlan('done')" class="badge bg-success text-decoration-none fs-6 fw-normal">ครบแผน {{ planSummary.counts.done }}</a>
+                                    <a href="#" @click.prevent="goPlan('over')" class="badge bg-danger text-decoration-none fs-6 fw-normal">เกินแผน {{ planSummary.counts.over }}</a>
+                                    <a href="#" @click.prevent="goPlan('unplanned')" class="badge bg-dark text-decoration-none fs-6 fw-normal">ซื้อนอกแผน {{ planSummary.counts.unplanned }} ({{ formatCurrency(planSummary.unplannedVal) }})</a>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </div>
@@ -681,12 +711,12 @@
                 </div>
             </div>
 
-            <!-- Doc Detail Modal (ประวัติรับจ่าย) -->
+            <!-- Doc Detail Modal (ประวัติรับจ่าย) + แก้ไข/ลบ -->
             <div v-if="showDocModal" class="modal-overlay-bg">
-                <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 680px; border-radius: 12px; max-height: 90vh; overflow-y: auto;">
+                <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 780px; border-radius: 12px; max-height: 92vh; overflow-y: auto;">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="fw-bold text-primary mb-0"><i class="bi bi-receipt me-2"></i> รายละเอียดเอกสาร: {{ docView.docLabel }}</h5>
-                        <button type="button" class="btn-close" @click="showDocModal=false"></button>
+                        <button type="button" class="btn-close" @click="closeDocModal"></button>
                     </div>
                     <div class="mb-3 text-muted small p-3 bg-light rounded border">
                         <div class="row">
@@ -702,27 +732,261 @@
                             </template>
                             <div class="col-12 mt-2" v-else-if="docView.ref && docView.ref !== '-'"><strong>อ้างอิง:</strong> {{ docView.ref }}</div>
                         </div>
+                        <div v-if="isEditor" class="mt-2 text-end"><button v-if="!docEdit.headOpen" @click="openHeadEdit" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i> แก้ไขหัวเอกสาร</button></div>
+                    </div>
+                    <!-- แก้ไขหัวเอกสาร -->
+                    <div v-if="isEditor && docEdit.headOpen" class="p-3 mb-3 border border-primary rounded bg-white">
+                        <h6 class="fw-bold text-primary mb-2"><i class="bi bi-pencil-square"></i> แก้ไขหัวเอกสาร (มีผลกับทุกรายการในใบนี้)</h6>
+                        <div class="row g-2">
+                            <div class="col-6"><label class="small fw-bold text-muted">วันที่</label><input type="date" v-model="docEdit.head.date" class="form-control form-control-sm"></div>
+                            <div class="col-6"><label class="small fw-bold text-muted">{{ docView.type=='IN' ? 'แหล่งที่มา / บริษัท' : 'ปลายทาง' }}</label><input list="listDocEntity" v-model="docEdit.head.entity" class="form-control form-control-sm"><datalist id="listDocEntity"><option v-for="n in docEntityOptions" :value="n"></option></datalist></div>
+                            <template v-if="docView.bill">
+                                <div class="col-6"><label class="small fw-bold text-muted">เลขบิลบริษัท</label><input v-model="docEdit.head.refBillNo" class="form-control form-control-sm"></div>
+                                <div class="col-6"><label class="small fw-bold text-muted">หมายเลขเอกสาร (ระบบราชการ)</label><input v-model="docEdit.head.docNo" class="form-control form-control-sm"></div>
+                                <div class="col-6"><label class="small fw-bold text-muted">วันที่ตรวจรับ</label><input type="date" v-model="docEdit.head.inspectDate" class="form-control form-control-sm"></div>
+                            </template>
+                            <div v-else-if="docIdEditable" class="col-6"><label class="small fw-bold text-muted">เลขที่เอกสาร</label><input v-model="docEdit.head.newDocId" class="form-control form-control-sm"></div>
+                        </div>
+                        <div class="d-flex gap-2 mt-3"><button @click="askSaveHead" class="btn btn-primary btn-sm fw-bold"><i class="bi bi-check2"></i> บันทึกหัวเอกสาร</button><button @click="docEdit.headOpen=false" class="btn btn-outline-secondary btn-sm">ยกเลิก</button></div>
                     </div>
                     <h6 class="fw-bold text-secondary mb-2">📦 รายการสินค้า ({{ docView.items ? docView.items.length : 0 }} รายการ)</h6>
                     <div class="table-responsive border rounded mb-3">
-                        <table class="table table-sm table-hover mb-0" style="font-size: 0.85em;">
-                            <thead class="table-light"><tr><th>รายการยา</th><th>Lot</th><th class="text-end">จำนวน</th><th class="text-end">ราคา/หน่วย</th><th class="text-end">รวม</th></tr></thead>
+                        <table class="table table-sm table-hover mb-0 align-middle" style="font-size: 0.85em;">
+                            <thead class="table-light"><tr><th>รายการยา</th><th>Lot</th><th class="text-end">จำนวน</th><th class="text-end">ราคา/หน่วย</th><th class="text-end">รวม</th><th v-if="isEditor" class="text-center" style="width:92px">จัดการ</th></tr></thead>
                             <tbody>
-                                <tr v-for="it in docView.items">
+                                <template v-for="it in docView.items" :key="it.transId">
+                                <tr v-if="docEdit.transId !== it.transId">
                                     <td :title="it.name">{{ it.name }}</td>
-                                    <td>{{ it.lot }}</td>
+                                    <td>{{ it.lot }}<div v-if="it.exp" class="text-muted" style="font-size:.85em">Exp {{ it.exp }}</div></td>
                                     <td class="text-end">{{ formatNumber(it.qty) }} <small class="text-muted">{{ it.unit }}</small></td>
                                     <td class="text-end">{{ formatNumber(it.price) }}</td>
                                     <td class="text-end text-primary fw-bold">{{ formatCurrency(it.total) }}</td>
+                                    <td v-if="isEditor" class="text-center text-nowrap">
+                                        <button @click="startEditItem(it)" class="btn btn-sm btn-outline-primary py-0 px-1" title="แก้ไขรายการนี้"><i class="bi bi-pencil"></i></button>
+                                        <button @click="askDeleteItem(it)" class="btn btn-sm btn-outline-danger py-0 px-1 ms-1" title="ลบรายการนี้"><i class="bi bi-trash"></i></button>
+                                    </td>
                                 </tr>
+                                <tr v-else class="table-warning">
+                                    <td :title="it.name">{{ it.name }}<div class="text-muted" style="font-size:.85em">กำลังแก้ไข</div></td>
+                                    <td><input v-model="docEdit.form.lot" class="form-control form-control-sm mb-1" placeholder="Lot"><input type="date" v-model="docEdit.form.exp" class="form-control form-control-sm" title="วันหมดอายุ"></td>
+                                    <td><input type="number" step="any" min="0" v-model.number="docEdit.form.qty" @input="recalcEditTotal" class="form-control form-control-sm text-end"></td>
+                                    <td><input type="number" step="any" min="0" v-model.number="docEdit.form.unitPrice" @input="recalcEditTotal" class="form-control form-control-sm text-end"></td>
+                                    <td><input type="number" step="any" min="0" v-model.number="docEdit.form.total" class="form-control form-control-sm text-end fw-bold"></td>
+                                    <td class="text-center text-nowrap">
+                                        <button @click="askSaveItem(it)" class="btn btn-sm btn-success py-0 px-1" title="บันทึก"><i class="bi bi-check2"></i></button>
+                                        <button @click="docEdit.transId=''" class="btn btn-sm btn-outline-secondary py-0 px-1 ms-1" title="ยกเลิก"><i class="bi bi-x"></i></button>
+                                    </td>
+                                </tr>
+                                </template>
                             </tbody>
-                            <tfoot><tr class="table-light"><td colspan="4" class="text-end fw-bold">รวมทั้งสิ้น</td><td class="text-end fw-bold text-primary">{{ formatCurrency(docView.total) }}</td></tr></tfoot>
+                            <tfoot><tr class="table-light"><td colspan="4" class="text-end fw-bold">รวมทั้งสิ้น</td><td class="text-end fw-bold text-primary">{{ formatCurrency(docView.total) }}</td><td v-if="isEditor"></td></tr></tfoot>
                         </table>
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 flex-wrap">
                         <button v-if="docView.type === 'OUT'" @click="showDocModal=false; openPrintFSP011(docView)" class="btn btn-outline-dark fw-bold"><i class="bi bi-printer"></i> ใบเบิก รพ. (F-SP-011)</button>
-                        <button @click="showDocModal=false" class="btn btn-secondary flex-grow-1 fw-bold shadow-sm">ปิดหน้าต่าง</button>
+                        <button v-if="isEditor" @click="askDeleteDoc(docView)" class="btn btn-outline-danger fw-bold"><i class="bi bi-trash"></i> ลบทั้งใบ</button>
+                        <button @click="closeDocModal" class="btn btn-secondary flex-grow-1 fw-bold shadow-sm">ปิดหน้าต่าง</button>
                     </div>
+                </div>
+            </div>
+
+            <!-- ยืนยันการแก้ไข / ลบ -->
+            <div v-if="confirmAct.show" class="modal-overlay-bg" style="z-index: 2600;">
+                <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 500px; border-radius: 12px;">
+                    <h5 class="fw-bold mb-2" :class="confirmAct.danger ? 'text-danger' : 'text-primary'"><i class="bi me-2" :class="confirmAct.danger ? 'bi-exclamation-triangle-fill' : 'bi-question-circle-fill'"></i>{{ confirmAct.title }}</h5>
+                    <div class="bg-light border rounded p-2 mb-3 small" style="max-height: 40vh; overflow-y: auto;"><div v-for="l in confirmAct.lines" class="mb-1">{{ l }}</div></div>
+                    <div class="small text-muted mb-3">การดำเนินการนี้จะถูกบันทึกใน Log (ชื่อผู้ทำรายการ เวลา และค่าก่อน-หลัง)</div>
+                    <div class="d-flex gap-2">
+                        <button @click="runConfirm" :disabled="loading" class="btn flex-grow-1 fw-bold" :class="confirmAct.danger ? 'btn-danger' : 'btn-primary'">{{ confirmAct.okText }}</button>
+                        <button @click="confirmAct.show=false" class="btn btn-outline-secondary">ยกเลิก</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= แผนจัดซื้อประจำปี ================= -->
+            <div v-if="page === 'purchasePlan'">
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                    <h3 class="fw-bold mb-0">🗂️ แผนจัดซื้อประจำปี <span class="fs-5 text-primary">(คลังยาใหญ่)</span></h3>
+                    <div class="d-flex gap-2 align-items-center">
+                        <label class="small fw-bold text-muted mb-0">ปีงบประมาณ (พ.ศ.)</label>
+                        <select v-model="planYear" class="form-select" style="width: 120px;"><option v-for="y in planYears" :value="y">{{ y }}</option></select>
+                        <button @click="addPlanYear" class="btn btn-outline-secondary btn-sm">+ ปีใหม่</button>
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-lg-3"><div class="card card-shadow p-3 h-100 border-start border-4 border-primary"><div class="small text-muted fw-bold">มูลค่าตามแผน</div><div class="fs-5 fw-bold text-primary">{{ formatCurrency(planSummary.planVal) }}</div><div class="small text-muted">{{ planSummary.itemCount }} รายการ</div></div></div>
+                    <div class="col-6 col-lg-3"><div class="card card-shadow p-3 h-100 border-start border-4 border-success"><div class="small text-muted fw-bold">จัดซื้อแล้ว (ในแผน)</div><div class="fs-5 fw-bold text-success">{{ formatCurrency(planSummary.boughtVal) }}</div><div class="small text-muted">รับตั้งแต่ {{ planRange.start }} ถึง {{ planRange.end }}</div></div></div>
+                    <div class="col-6 col-lg-3"><div class="card card-shadow p-3 h-100 border-start border-4" :class="'border-' + planBarClass(planSummary.pct).replace('bg-','')"><div class="small text-muted fw-bold">% จัดซื้อต่อแผน</div><div class="fs-4 fw-bold" :class="planPctClass(planSummary.pct)">{{ fmtPct(planSummary.pct) }}</div><div class="progress mt-1" style="height: 6px;"><div class="progress-bar" :class="planBarClass(planSummary.pct)" :style="{ width: Math.min(100, planSummary.pct || 0) + '%' }"></div></div></div></div>
+                    <div class="col-6 col-lg-3"><div class="card card-shadow p-3 h-100 border-start border-4 border-dark"><div class="small text-muted fw-bold">ซื้อนอกแผน</div><div class="fs-5 fw-bold">{{ formatCurrency(planSummary.unplannedVal) }}</div><div class="small text-muted">{{ planSummary.counts.unplanned }} รายการ</div></div></div>
+                </div>
+
+                <div v-if="isEditor" class="row g-3 mb-3">
+                    <div class="col-12 col-lg-7">
+                        <div class="card card-shadow p-3 h-100">
+                            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-file-earmark-excel me-1"></i> นำเข้าแผนจากไฟล์ (Excel / CSV)</h6>
+                            <p class="small text-muted mb-2">หัวตาราง: <b>ID | รายการ | หน่วยนับ | ราคาต่อหน่วย | จำนวน | มูลค่า</b> — ID คือรหัสสินค้าในระบบ (ระบบจับคู่ด้วย ID ก่อน แล้วรหัสทำงาน/ชื่อ)</p>
+                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                <button @click="downloadPlanTemplate(false)" class="btn btn-outline-secondary btn-sm"><i class="bi bi-download"></i> Template เปล่า</button>
+                                <button @click="downloadPlanTemplate(true)" class="btn btn-outline-secondary btn-sm"><i class="bi bi-download"></i> Template พร้อมรายการยาทั้งหมด</button>
+                                <button v-if="planRows.length" @click="downloadPlanTemplate('current')" class="btn btn-outline-secondary btn-sm"><i class="bi bi-download"></i> ส่งออกแผนปี {{ planYear }}</button>
+                            </div>
+                            <input type="file" id="planFileInput" accept=".xlsx,.xls,.csv" @change="onPlanFile" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-5">
+                        <div class="card card-shadow p-3 h-100">
+                            <h6 class="fw-bold text-primary mb-2"><i class="bi bi-plus-circle me-1"></i> เพิ่มทีละรายการ</h6>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-12"><label class="small fw-bold text-muted">ยา/สินค้า (ชื่อ / บาร์โค้ด)</label><input list="listPlanProds" v-model="planForm.productName" @change="onPlanProdSelect" @keydown.enter.prevent="onPlanProdSelect" class="form-control form-control-sm" placeholder="พิมพ์ชื่อยา หรือยิงบาร์โค้ด..."><datalist id="listPlanProds"><option v-for="p in products" :value="p.name">{{ p.barcodeText }}</option></datalist></div>
+                                <div class="col-4"><label class="small fw-bold text-muted">หน่วยนับ</label><input :value="planForm.unit" class="form-control form-control-sm bg-light" readonly></div>
+                                <div class="col-4"><label class="small fw-bold text-muted">ราคา/หน่วย</label><input type="number" step="any" min="0" v-model.number="planForm.price" class="form-control form-control-sm"></div>
+                                <div class="col-4"><label class="small fw-bold text-muted">จำนวน</label><input id="planQtyInput" type="number" step="any" min="0" v-model.number="planForm.qty" @keydown.enter.prevent="askAddPlanItem" class="form-control form-control-sm"></div>
+                                <div class="col-12 d-flex justify-content-between align-items-center"><span class="small text-muted">มูลค่า: <b class="text-primary">{{ formatCurrency((planForm.price || 0) * (planForm.qty || 0)) }}</b></span><button @click="askAddPlanItem" class="btn btn-primary btn-sm fw-bold"><i class="bi bi-plus-lg"></i> เพิ่มเข้าแผนปี {{ planYear }}</button></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ตัวอย่างก่อนนำเข้า -->
+                <div v-if="planImport.show" class="card card-shadow p-3 mb-3 border border-warning border-2">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <h6 class="fw-bold mb-0 text-warning"><i class="bi bi-eye me-1"></i> ตรวจสอบก่อนนำเข้า: {{ planImport.fileName }}</h6>
+                        <div class="small"><span class="badge bg-success">พร้อมนำเข้า {{ planImportOk.length }}</span> <span class="badge bg-warning text-dark">มีข้อสังเกต {{ planImport.rows.filter(r => r.status === 'warn').length }}</span> <span class="badge bg-danger">ข้าม {{ planImport.rows.filter(r => r.status === 'error').length }}</span></div>
+                    </div>
+                    <div class="table-responsive border rounded mb-2" style="max-height: 320px; overflow-y: auto;">
+                        <table class="table table-sm mb-0" style="font-size: .82em;">
+                            <thead class="table-light"><tr><th>#</th><th>ID</th><th>รายการ (ไฟล์)</th><th>สินค้าในระบบ</th><th class="text-end">ราคา</th><th class="text-end">จำนวน</th><th class="text-end">มูลค่า</th><th>ผล</th></tr></thead>
+                            <tbody><tr v-for="r in planImport.rows" :class="r.status === 'error' ? 'table-danger' : (r.status === 'warn' ? 'table-warning' : '')">
+                                <td>{{ r.line }}</td><td>{{ r.id }}</td><td>{{ r.name }}</td><td>{{ r.product ? r.product.name : '-' }}</td><td class="text-end">{{ formatNumber(r.price) }}</td><td class="text-end">{{ formatNumber(r.qty) }}</td><td class="text-end">{{ formatCurrency(r.price * r.qty) }}</td><td>{{ r.msg || 'OK' }}</td></tr></tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center gap-3">
+                        <div class="form-check"><input class="form-check-input" type="radio" id="pmMerge" value="merge" v-model="planImport.mode"><label class="form-check-label small" for="pmMerge">เพิ่ม/อัปเดตรายการ (รายการอื่นในแผนปีนี้คงเดิม)</label></div>
+                        <div class="form-check"><input class="form-check-input" type="radio" id="pmRep" value="replace" v-model="planImport.mode"><label class="form-check-label small" for="pmRep">แทนที่ทั้งปี (ลบแผนเดิมของปี {{ planYear }} ก่อน)</label></div>
+                        <div class="ms-auto d-flex gap-2"><button @click="askImportPlan" :disabled="!planImportOk.length" class="btn btn-success fw-bold"><i class="bi bi-check2-circle"></i> นำเข้า {{ planImportOk.length }} รายการ</button><button @click="planImport.show=false" class="btn btn-outline-secondary">ยกเลิก</button></div>
+                    </div>
+                </div>
+
+                <div class="card card-shadow p-3">
+                    <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
+                        <input v-model="planFilter.q" class="form-control form-control-sm" style="max-width: 260px;" placeholder="🔍 ชื่อยา, รหัส หรือยิงบาร์โค้ด...">
+                        <select v-model="planFilter.status" class="form-select form-select-sm" style="max-width: 200px;">
+                            <option value="all">ทุกสถานะ</option><option value="none">ยังไม่ซื้อ (0%)</option><option value="partial">ซื้อบางส่วน (&lt;100%)</option><option value="done">ครบแผน (≥100%)</option><option value="over">เกินแผน (&gt;100%)</option><option value="unplanned">ซื้อนอกแผน</option>
+                        </select>
+                        <div class="form-check ms-2"><input class="form-check-input" type="checkbox" id="planPend" v-model="planCountPending"><label class="form-check-label small" for="planPend">นับบิลที่ยังรอตรวจรับ</label></div>
+                        <span class="ms-auto small text-muted">แสดง {{ planView.length }} จาก {{ planRows.length }} รายการ</span>
+                        <button v-if="isEditor && planRows.length" @click="askDeletePlanYear" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> ลบแผนทั้งปี</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm align-middle text-nowrap mb-0">
+                            <thead class="table-dark"><tr>
+                                <th class="sortable" @click="setPlanSort('name')">รายการ {{ planSortMark('name') }}</th><th>หน่วย</th>
+                                <th class="text-end">ราคา/หน่วย</th>
+                                <th class="text-end sortable" @click="setPlanSort('planQty')">จำนวนแผน {{ planSortMark('planQty') }}</th>
+                                <th class="text-end sortable" @click="setPlanSort('planVal')">มูลค่าแผน {{ planSortMark('planVal') }}</th>
+                                <th class="text-end sortable" @click="setPlanSort('boughtQty')">ซื้อแล้ว (จน.) {{ planSortMark('boughtQty') }}</th>
+                                <th class="text-end sortable" @click="setPlanSort('boughtVal')">ซื้อแล้ว (มูลค่า) {{ planSortMark('boughtVal') }}</th>
+                                <th class="text-end sortable" @click="setPlanSort('remainQty')">คงเหลือตามแผน {{ planSortMark('remainQty') }}</th>
+                                <th class="sortable" style="min-width: 150px;" @click="setPlanSort('pctQty')">% จัดซื้อ {{ planSortMark('pctQty') }}</th>
+                                <th v-if="isEditor" class="text-center">จัดการ</th>
+                            </tr></thead>
+                            <tbody>
+                                <tr v-for="r in planView" :key="r.productId">
+                                    <td><b>{{ r.name }}</b> <small class="text-muted">[{{ r.productId }}]</small><span v-if="r.status === 'unplanned'" class="badge bg-dark ms-1">นอกแผน</span></td>
+                                    <td>{{ r.unit }}</td>
+                                    <td class="text-end">{{ r.status === 'unplanned' ? '-' : formatNumber(r.price) }}</td>
+                                    <td class="text-end">{{ r.status === 'unplanned' ? '-' : formatNumber(r.planQty) }}</td>
+                                    <td class="text-end">{{ r.status === 'unplanned' ? '-' : formatCurrency(r.planVal) }}</td>
+                                    <td class="text-end">{{ formatNumber(r.boughtQty) }}</td>
+                                    <td class="text-end">{{ formatCurrency(r.boughtVal) }}</td>
+                                    <td class="text-end" :class="r.remainQty < 0 ? 'text-danger' : ''">{{ r.status === 'unplanned' ? '-' : formatNumber(r.remainQty) }}</td>
+                                    <td><template v-if="r.status !== 'unplanned'"><div class="d-flex align-items-center gap-2"><div class="progress flex-grow-1" style="height: 8px; min-width: 60px;"><div class="progress-bar" :class="planBarClass(r.pctQty)" :style="{ width: Math.min(100, r.pctQty || 0) + '%' }"></div></div><b :class="planPctClass(r.pctQty)" style="min-width: 52px; text-align: right;">{{ fmtPct(r.pctQty) }}</b></div></template><span v-else class="text-muted">-</span></td>
+                                    <td v-if="isEditor" class="text-center"><template v-if="r.status !== 'unplanned'"><button @click="openPlanEdit(r)" class="btn btn-sm btn-outline-primary py-0 px-1"><i class="bi bi-pencil"></i></button> <button @click="askDeletePlanItem(r)" class="btn btn-sm btn-outline-danger py-0 px-1"><i class="bi bi-trash"></i></button></template></td>
+                                </tr>
+                                <tr v-if="planView.length === 0"><td :colspan="isEditor ? 10 : 9" class="text-center text-muted p-4">ไม่มีรายการตามเงื่อนไข</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="small text-muted mt-2">% จัดซื้อ = จำนวนที่รับจากบริษัทเข้าคลังยาใหญ่ในปีงบประมาณนั้น (1 ต.ค. – 30 ก.ย.) ÷ จำนวนตามแผน · ไม่นับยอดยกมา/การปรับสต็อก/การโอนระหว่างคลัง</div>
+                </div>
+
+                <!-- แก้ไขรายการแผน -->
+                <div v-if="planEdit.show" class="modal-overlay-bg" style="z-index: 2000;">
+                    <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 420px; border-radius: 12px;">
+                        <h5 class="fw-bold text-primary mb-3"><i class="bi bi-pencil-square me-2"></i>แก้ไขรายการแผน</h5>
+                        <div class="mb-2"><b>{{ planEdit.name }}</b> <small class="text-muted">[{{ planEdit.productId }}] · {{ planEdit.unit }}</small></div>
+                        <div class="row g-2"><div class="col-6"><label class="small fw-bold text-muted">ราคา/หน่วย</label><input type="number" step="any" min="0" v-model.number="planEdit.price" class="form-control"></div><div class="col-6"><label class="small fw-bold text-muted">จำนวน</label><input type="number" step="any" min="0" v-model.number="planEdit.qty" class="form-control"></div></div>
+                        <div class="mt-2 small text-muted">มูลค่า: <b class="text-primary">{{ formatCurrency((planEdit.price || 0) * (planEdit.qty || 0)) }}</b></div>
+                        <div class="d-flex gap-2 mt-3"><button @click="askSavePlanEdit" class="btn btn-primary flex-grow-1 fw-bold">บันทึก</button><button @click="planEdit.show=false" class="btn btn-outline-secondary">ยกเลิก</button></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= Log การใช้งาน (God) ================= -->
+            <div v-if="page === 'activityLog' && currentUser.role === 'God'">
+                <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                    <h3 class="fw-bold mb-0">📋 บันทึกการใช้งาน (Log) <span class="fs-6 text-muted">เฉพาะ God</span></h3>
+                    <button @click="loadLogs" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-clockwise"></i> รีเฟรช</button>
+                </div>
+                <div class="card card-shadow p-3 mb-3 bg-light">
+                    <div class="d-flex flex-wrap gap-2">
+                        <input v-model="logFilter.q" class="form-control form-control-sm" style="max-width: 280px;" placeholder="🔍 ค้นหาเอกสาร / รายละเอียด / ผู้ใช้...">
+                        <select v-model="logFilter.user" class="form-select form-select-sm" style="max-width: 220px;"><option value="">ผู้ใช้ทั้งหมด</option><option v-for="u in logUsers" :value="u">{{ u }}</option></select>
+                        <select v-model="logFilter.action" class="form-select form-select-sm" style="max-width: 220px;"><option value="">ทุกการกระทำ</option><option v-for="(lbl, k) in LOG_LABEL" :value="k">{{ lbl }}</option></select>
+                        <span class="ms-auto small text-muted align-self-center">{{ filteredLogs.length }} / {{ activityLogs.length }} รายการ</span>
+                    </div>
+                </div>
+                <div class="card card-shadow p-3">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm align-middle mb-0" style="font-size: .88em;">
+                            <thead class="table-dark"><tr><th>เวลา</th><th>ผู้ทำรายการ</th><th>การกระทำ</th><th>เอกสาร / เป้าหมาย</th><th>คลัง</th><th>รายละเอียด</th></tr></thead>
+                            <tbody>
+                                <tr v-for="l in filteredLogs" :key="l.id">
+                                    <td class="text-nowrap">{{ l.log_time }}</td>
+                                    <td class="text-nowrap"><b>{{ l.user_name || l.username }}</b><div class="text-muted" style="font-size:.85em">{{ l.username }} · {{ l.user_role }}</div></td>
+                                    <td><span class="badge" :class="logBadge(l.action)">{{ LOG_LABEL[l.action] || l.action }}</span></td>
+                                    <td>{{ l.target }}</td>
+                                    <td>{{ l.stock_location }}</td>
+                                    <td><div v-for="t in logLines(l)" class="mb-1">{{ t }}</div></td>
+                                </tr>
+                                <tr v-if="filteredLogs.length === 0"><td colspan="6" class="text-center text-muted p-4">{{ logLoading ? 'กำลังโหลด...' : 'ไม่มี Log' }}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= ปรับรหัส (ID) แบบเก่าเป็นตัวเลข (God) ================= -->
+            <div v-if="page === 'migrateIds' && currentUser.role === 'God'">
+                <h3 class="fw-bold mb-3">🔢 ปรับรหัส (ID) แบบเก่าเป็นตัวเลข <span class="fs-6 text-muted">เฉพาะ God</span></h3>
+                <div class="alert alert-warning shadow-sm border-0">
+                    <b>ทำก่อนกดยืนยัน:</b> สำรองฐานข้อมูล (Export จาก phpMyAdmin) · ให้ผู้ใช้อื่นออกจากระบบชั่วคราว<br>
+                    ระบบจะเปลี่ยนรหัสสินค้า <code>PROD-… / DRUG-…</code>, บริษัท <code>V-…</code> และหน่วยเบิก <code>DEPT-…</code> ให้เป็นเลขลำดับต่อท้ายค่าล่าสุดที่มีอยู่ พร้อมแก้ทุกที่ที่อ้างอิงรหัสสินค้า (รายการรับ-จ่าย แผนจัดซื้อ บาร์โค้ด Min/Max ใบขอเบิก) — ทำทั้งหมดในครั้งเดียว ถ้าพลาดจะย้อนกลับ
+                </div>
+                <div class="card card-shadow p-3 mb-3">
+                    <button @click="runIdMigration(true)" class="btn btn-primary fw-bold" :disabled="loading"><i class="bi bi-search"></i> ตรวจสอบก่อน (ยังไม่แก้ข้อมูล)</button>
+                </div>
+                <div v-if="idMig.plan" class="card card-shadow p-3">
+                    <div v-if="idMig.done" class="alert alert-success">ดำเนินการเสร็จแล้ว — รหัสถูกเปลี่ยนตามตารางด้านล่าง และบันทึกใน Log แล้ว</div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-bold text-primary">{{ idMig.plan.products.length }}</div><div class="small text-muted">สินค้า</div></div></div>
+                        <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-bold text-primary">{{ idMig.plan.vendors.length }}</div><div class="small text-muted">บริษัท</div></div></div>
+                        <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-bold text-primary">{{ idMig.plan.depts.length }}</div><div class="small text-muted">หน่วยเบิก/ปลายทาง</div></div></div>
+                        <div class="col-6 col-md-3"><div class="border rounded p-2 text-center"><div class="fs-4 fw-bold text-warning">{{ idMig.plan.deleteDepts.length }}</div><div class="small text-muted">ปลายทางซ้ำที่จะลบ</div></div></div>
+                    </div>
+                    <div v-if="idMig.plan.refCounts && Object.keys(idMig.plan.refCounts).length" class="small text-muted mb-2">แถวที่จะถูกแก้รหัสสินค้าตาม: <span v-for="(n, t) in idMig.plan.refCounts" class="me-3">{{ t }}: <b>{{ n }}</b></span></div>
+                    <div v-for="d in idMig.plan.deleteDepts" class="small mb-1"><i class="bi bi-trash text-danger"></i> ลบ <b>{{ d.id }}</b> “{{ d.name }}” (ซ้ำกับ {{ d.keep }} “{{ d.keepName }}”)</div>
+                    <div v-for="r in idMig.plan.destRenames" class="small mb-2"><i class="bi bi-arrow-right-circle text-primary"></i> ปลายทางในใบจ่ายเก่า “{{ r.from }}” → “{{ r.to }}” ({{ r.rows }} แถว)</div>
+                    <div class="row g-3">
+                        <div class="col-12 col-lg-4" v-for="sec in [['สินค้า', idMig.plan.products], ['บริษัท', idMig.plan.vendors], ['หน่วยเบิก/ปลายทาง', idMig.plan.depts]]">
+                            <h6 class="fw-bold">{{ sec[0] }}</h6>
+                            <div class="table-responsive border rounded" style="max-height: 320px; overflow-y: auto;"><table class="table table-sm mb-0" style="font-size: .8em;"><thead class="table-light"><tr><th>รหัสเดิม</th><th>→ รหัสใหม่</th><th>ชื่อ</th></tr></thead><tbody><tr v-for="m in sec[1]"><td>{{ m.old }}</td><td class="fw-bold text-success">{{ m.new }}</td><td>{{ m.name }}</td></tr><tr v-if="!sec[1].length"><td colspan="3" class="text-muted text-center">ไม่มีรายการที่ต้องเปลี่ยน</td></tr></tbody></table></div>
+                        </div>
+                    </div>
+                    <div class="mt-3" v-if="!idMig.done && (idMig.plan.products.length + idMig.plan.vendors.length + idMig.plan.depts.length + idMig.plan.deleteDepts.length) > 0">
+                        <button @click="askRunIdMigration" class="btn btn-danger fw-bold"><i class="bi bi-exclamation-triangle"></i> ยืนยันดำเนินการเปลี่ยนรหัส</button>
+                    </div>
+                    <div v-else-if="!idMig.done" class="text-success fw-bold mt-3"><i class="bi bi-check-circle"></i> ไม่มีรหัสแบบเก่าที่ต้องเปลี่ยนแล้ว</div>
                 </div>
             </div>
 
@@ -795,7 +1059,7 @@
                 </div>
                 
                 <div class="card card-shadow p-3 mb-3 bg-light border">
-                    <h6 class="fw-bold text-primary mb-3">ระบุรายการและ "คลังต้นทาง" ที่ต้องการตัดยอด</h6>
+                    <h6 class="fw-bold text-primary mb-3">ระบุรายการและ "คลังต้นทาง" ที่ต้องการตัดยอด <label class="form-check mb-0 float-end small fw-normal text-success" title="ยิงบาร์โค้ด 1 ครั้ง = เพิ่ม 1 หน่วยลงตะกร้า/นับ +1"><input type="checkbox" class="form-check-input" v-model="scanAuto"> ยิง 1 ครั้ง = 1 หน่วย (อัตโนมัติ)</label></h6>
                     <div class="row g-2 align-items-end">
                         <div class="col-12 col-md-4">
                             <div class="d-flex justify-content-between"><label class="small fw-bold text-muted">ค้นหาสินค้า (ชื่อยา / บาร์โค้ด)</label>
@@ -849,7 +1113,7 @@
 
             <!-- ================= Stock Take ================= -->
             <div v-if="page === 'stockTake'">
-               <h3 class="mb-3 fw-bold text-danger"><i class="bi bi-clipboard-data"></i> ปรับปรุงสต็อก (Stock Take) คลัง: {{ globalStock }}</h3>
+               <h3 class="mb-3 fw-bold text-danger"><i class="bi bi-clipboard-data"></i> ปรับปรุงสต็อก (Stock Take) คลัง: {{ globalStock }} <label class="form-check mb-0 float-end small fw-normal text-success" title="ยิงบาร์โค้ด 1 ครั้ง = เพิ่ม 1 หน่วยลงตะกร้า/นับ +1"><input type="checkbox" class="form-check-input" v-model="scanAuto"> ยิง 1 ครั้ง = 1 หน่วย (อัตโนมัติ)</label></h3>
                <div class="card card-shadow p-3 mb-3 border-top border-danger border-4">
                   <div class="row g-3">
                      <div class="col-12 col-md-4"><label class="small fw-bold text-muted">วันที่ตรวจนับ</label><input type="date" v-model="formStockTake.date" class="form-control"></div>
@@ -1025,7 +1289,7 @@
                     <div class="table-responsive">
                         <table class="table table-hover align-middle text-nowrap">
                             <thead class="table-dark text-center">
-                                <tr><th>วันที่</th><th>เลขที่เอกสาร</th><th>ประเภท</th><th>ปลายทาง/แหล่งที่มา</th><th class="text-end">ยอดรวมสุทธิ</th><th class="no-print">พิมพ์แบบฟอร์ม รพ.</th></tr>
+                                <tr><th>วันที่</th><th>เลขที่เอกสาร</th><th>ประเภท</th><th>ปลายทาง/แหล่งที่มา</th><th class="text-end">ยอดรวมสุทธิ</th><th class="no-print">พิมพ์แบบฟอร์ม รพ.</th><th v-if="isEditor" class="no-print">จัดการ</th></tr>
                             </thead>
                             <tbody>
                                 <tr v-for="doc in filteredHistory" :key="doc.id">
@@ -1038,8 +1302,12 @@
                                         <button v-if="doc.type === 'OUT'" @click="openPrintFSP011(doc)" class="btn btn-sm btn-outline-dark fw-bold"><i class="bi bi-printer"></i> ใบเบิก รพ. (F-SP-011)</button>
                                         <span v-else class="text-muted small">-</span>
                                     </td>
+                                    <td v-if="isEditor" class="no-print text-center text-nowrap">
+                                        <button @click="openDocDetail(doc)" class="btn btn-sm btn-outline-primary" title="แก้ไขเป็นรายการย่อย หรือทั้งใบ"><i class="bi bi-pencil-square"></i> แก้ไข</button>
+                                        <button @click="askDeleteDoc(doc)" class="btn btn-sm btn-outline-danger ms-1" title="ลบทั้งใบ"><i class="bi bi-trash"></i></button>
+                                    </td>
                                 </tr>
-                                <tr v-if="filteredHistory.length===0"><td colspan="6" class="text-center text-muted p-4">ไม่มีประวัติการทำรายการในคลังนี้</td></tr>
+                                <tr v-if="filteredHistory.length===0"><td colspan="7" class="text-center text-muted p-4">ไม่มีประวัติการทำรายการในคลังนี้</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1299,7 +1567,7 @@
             <div v-show="page === 'userReq'">
                 <h3 class="fw-bold text-primary mb-3"><i class="bi bi-cart-plus me-2"></i> ระบบขอเบิกเวชภัณฑ์</h3>
                 <div class="card card-shadow p-3 mb-3 bg-light">
-                    <h6 class="fw-bold text-secondary mb-3">เพิ่มรายการยาที่ต้องการเบิก (จาก MAIN สู่คลัง {{ globalStock }})</h6>
+                    <h6 class="fw-bold text-secondary mb-3">เพิ่มรายการยาที่ต้องการเบิก (จาก MAIN สู่คลัง {{ globalStock }}) <label class="form-check mb-0 float-end small fw-normal text-success" title="ยิงบาร์โค้ด 1 ครั้ง = เพิ่ม 1 หน่วยลงตะกร้า/นับ +1"><input type="checkbox" class="form-check-input" v-model="scanAuto"> ยิง 1 ครั้ง = 1 หน่วย (อัตโนมัติ)</label></h6>
                     <div class="row g-2 align-items-end">
                         <div class="col-12 col-md-6">
                             <div class="d-flex justify-content-between"><label class="small text-muted fw-bold">ค้นหารายการยา (ชื่อ / บาร์โค้ด)</label>
@@ -1399,7 +1667,7 @@
 
                 <!-- เพิ่มรายการเอง -->
                 <div class="card card-shadow p-3 mb-3 bg-white">
-                    <h6 class="fw-bold text-primary mb-3"><i class="bi bi-plus-circle"></i> 2. เพิ่มรายการที่รับ (กรณีไม่มีใบจ่าย หรือเพิ่มเติม)</h6>
+                    <h6 class="fw-bold text-primary mb-3"><i class="bi bi-plus-circle"></i> 2. เพิ่มรายการที่รับ (กรณีไม่มีใบจ่าย หรือเพิ่มเติม) <label class="form-check mb-0 float-end small fw-normal text-success" title="ยิงบาร์โค้ด 1 ครั้ง = เพิ่ม 1 หน่วยลงตะกร้า/นับ +1"><input type="checkbox" class="form-check-input" v-model="scanAuto"> ยิง 1 ครั้ง = 1 หน่วย (อัตโนมัติ)</label></h6>
                     <div class="row g-2 align-items-end">
                         <div class="col-12 col-md-4"><div class="d-flex justify-content-between"><label class="small text-muted fw-bold">รายการ (ชื่อ/รหัส/บาร์โค้ด)</label><a href="#" @click.prevent="openBarcodeQuick(subTemp.productId, true)" class="small text-decoration-none text-success"><i class="bi bi-upc-scan"></i> ผูกบาร์โค้ด</a></div><select id="subRecvProductSelect" placeholder="พิมพ์ค้นหา หรือยิงบาร์โค้ด..."></select></div>
                         <div class="col-6 col-md-2">
@@ -1686,7 +1954,7 @@
                     <div v-if="page==='manage_prod'" class="d-flex flex-column gap-3">
                         <div class="row">
                             <div class="col-12 col-md-12 mb-2"><label class="small fw-bold text-primary">สถานะรายการ</label><select v-model="modalForm.drugStatus" class="form-select border-primary"><option value="1">1 - ใช้งานปกติ (Active)</option><option value="4">4 - เลิกใช้/ปิดชั่วคราว (Deactivated)</option></select></div>
-                            <div class="col-6"><label class="small text-muted fw-bold">รหัสสินค้า</label><input v-model="modalForm.id" class="form-control bg-light fw-bold" :readonly="modalForm.isEdit"></div>
+                            <div class="col-6"><label class="small text-muted fw-bold">รหัสสินค้า (ออกให้อัตโนมัติ)</label><input v-model="modalForm.id" class="form-control bg-light fw-bold" readonly></div>
                         </div>
                         <div><label class="small text-muted fw-bold">ชื่อสินค้า</label><input v-model="modalForm.name" class="form-control border-primary fw-bold text-primary"></div>
                         <div v-if="modalForm.isEdit" class="border rounded p-2 bg-light">
@@ -1726,13 +1994,14 @@
                     </div>
                     <div v-else-if="page === 'manage_dept'" class="d-flex flex-column gap-3">
                         <div class="row g-2">
-                            <div class="col-6"><label class="small text-muted fw-bold">รหัส</label><input v-model="modalForm.id" class="form-control bg-light" :readonly="modalForm.isEdit" placeholder="เว้นว่าง = ระบบสร้างให้"></div>
+                            <div class="col-6"><label class="small text-muted fw-bold">รหัส (ออกให้อัตโนมัติ)</label><input v-model="modalForm.id" class="form-control bg-light fw-bold" readonly></div>
                             <div class="col-6"><label class="small text-muted fw-bold">กลุ่มหน่วยเบิก (DIS_DEPT_GROUP 5 แฟ้ม)</label><input v-model="modalForm.deptGroup" class="form-control" placeholder="4"></div>
                         </div>
                         <div><label class="small text-muted fw-bold">ชื่อปลายทาง</label><input v-model="modalForm.name" class="form-control border-primary fw-bold"></div>
-                        <div class="small text-muted">ปลายทางที่ใช้จับคู่ “รายการรอรับ” ของคลังย่อย ต้องสะกดตรงตัว: <b>คลังยา OPD</b>, <b>คลังยา IPD</b>, <b>คลังเวชภัณฑ์มิใช่ยา</b> (ระบบสร้างให้อัตโนมัติถ้ายังไม่มี) — หอผู้ป่วยให้ตั้งชื่ออื่น เช่น “ตึกผู้ป่วยใน 1”</div>
+                        <div class="small text-muted">ปลายทางที่ใช้จับคู่ “รายการรอรับ” ของคลังย่อย ต้องสะกดตรงตัว: <b>ห้องยาผู้ป่วยนอก (OPD)</b>, <b>ห้องยาผู้ป่วยใน (IPD)</b>, <b>คลังเวชภัณฑ์มิใช่ยา</b> (ระบบสร้างให้อัตโนมัติถ้ายังไม่มี) — รหัสออกให้อัตโนมัติ — หอผู้ป่วยให้ตั้งชื่ออื่น เช่น “ตึกผู้ป่วยใน 1”</div>
                     </div>
                     <div v-else class="d-flex flex-column gap-3">
+                        <div v-if="page === 'manage_vendor'"><label class="small text-muted fw-bold">รหัสบริษัท (ออกให้อัตโนมัติ)</label><input v-model="modalForm.id" class="form-control bg-light fw-bold" readonly style="max-width: 200px;"></div>
                         <label class="small text-muted fw-bold">ชื่อ / รายละเอียด</label><input v-model="modalForm.name" class="form-control border-primary fw-bold">
                     </div>
                     <div class="mt-4 d-flex gap-2">
@@ -1812,13 +2081,6 @@
             <div v-if="scanToast.msg" class="no-print" style="position: fixed; left: 50%; transform: translateX(-50%); top: 14px; z-index: 3000; max-width: 92vw;">
                 <div class="alert shadow mb-0 py-2 px-3 fw-bold" :class="scanToast.type === 'err' ? 'alert-danger' : 'alert-success'">{{ scanToast.msg }}</div>
             </div>
-            <div v-if="currentUser && currentUser.user" class="no-print" style="position: fixed; right: 12px; bottom: 12px; z-index: 1500;">
-                <div class="card shadow-sm px-3 py-1 small d-flex flex-row align-items-center gap-2" style="border-radius: 20px;">
-                    <i class="bi bi-upc-scan text-success"></i><span class="text-success fw-bold">พร้อมยิงบาร์โค้ด</span>
-                    <label class="form-check mb-0 ms-1" title="ใช้ในหน้าจ่าย / รับเข้าคลังย่อย / ขอเบิก / นับสต็อก"><input type="checkbox" class="form-check-input" v-model="scanAuto"> <span>ยิง 1 ครั้ง = 1 หน่วย (ลงตะกร้าอัตโนมัติ)</span></label>
-                </div>
-            </div>
-
             <div v-if="showMinMaxModal" class="modal-overlay-bg" style="z-index: 1060;">
                 <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 400px; border-radius: 12px;">
                     <h5 class="fw-bold text-primary mb-3"><i class="bi bi-sliders me-2"></i>ตั้งค่า Min / Max <br><small class="text-muted fs-6">(สำหรับคลัง: {{ formMinMax.stockLocation }})</small></h5>
@@ -1854,8 +2116,8 @@ const GAS_API_URL = "https://chessyok.com/jvl_inventory/api.php";
 // คลังย่อยที่ใช้ระบบ "ขอเบิก / รับเข้า" (key = ค่า globalStock)
 // dest = ชื่อ "ปลายทาง" (department) ที่คลังใหญ่ต้องเลือกตอนจ่าย จึงจะโผล่ในรายการรอรับของคลังนั้น (ตรงตัวเท่านั้น ไม่เดา)
 const SUB_STOCKS = {
-    'OPD':             { label: 'คลังยาย่อย OPD',      dest: ['คลังยา OPD', 'คลังยาย่อย OPD', 'คลังย่อย OPD'] },
-    'IPD':             { label: 'คลังยาย่อย IPD',      dest: ['คลังยา IPD', 'คลังยาย่อย IPD', 'คลังย่อย IPD'] },
+    'OPD':             { label: 'คลังยาย่อย OPD',      dest: ['ห้องยาผู้ป่วยนอก (OPD)', 'คลังยา OPD', 'คลังยาย่อย OPD', 'คลังย่อย OPD'] },
+    'IPD':             { label: 'คลังยาย่อย IPD',      dest: ['ห้องยาผู้ป่วยใน (IPD)', 'คลังยา IPD', 'คลังยาย่อย IPD', 'คลังย่อย IPD'] },
     'เวชภัณฑ์มิใช่ยา': { label: 'คลังเวชภัณฑ์มิใช่ยา', dest: ['คลังเวชภัณฑ์มิใช่ยา', 'คลังยาย่อย เวชภัณฑ์มิใช่ยา', 'เวชภัณฑ์มิใช่ยา'] }
 };
 
@@ -1896,6 +2158,16 @@ const app = createApp({
             formInspect: { billId: '', refBillNo: '', vendor: '', docNo: '', inspectDate: new Date().toISOString().slice(0, 10), budgetSource: 'เงินบำรุง', budgetBumrung: 0, budgetNgob: 0, budgetNarcotic: 0, totalBillVal: 0, items: [] },
             
             showBillDetailsModal: false, showDocModal: false, docView: { items: [] },
+            confirmAct: { show: false, title: '', lines: [], danger: false, okText: 'ยืนยัน', onOk: null },
+            docEdit: { transId: '', headOpen: false, form: { lot: '', exp: '', qty: 0, unitPrice: 0, total: 0 }, head: { date: '', entity: '', refBillNo: '', docNo: '', inspectDate: '', newDocId: '' } },
+            activityLogs: [], logLoading: false, logFilter: { q: '', user: '', action: '' },
+            LOG_LABEL: { EDIT_ITEM: 'แก้ไขรายการ', EDIT_DOC: 'แก้ไขหัวเอกสาร', DELETE_ITEM: 'ลบรายการ', DELETE_DOC: 'ลบทั้งใบ', PLAN_SAVE: 'บันทึกแผนจัดซื้อ', PLAN_REPLACE: 'แทนที่แผนจัดซื้อ', PLAN_DELETE_ITEM: 'ลบรายการแผน', PLAN_DELETE_YEAR: 'ลบแผนทั้งปี', ID_MIGRATE: 'ปรับรหัส (ID)' },
+            planYear: (() => { const d = new Date(); return String(d.getFullYear() + 543 + (d.getMonth() >= 9 ? 1 : 0)); })(),
+            planCountPending: true, planFilter: { q: '', status: 'all' }, planSort: { key: 'pctQty', asc: true },
+            planForm: { productName: '', productId: '', unit: '', price: 0, qty: 0 },
+            planEdit: { show: false, productId: '', name: '', unit: '', price: 0, qty: 0 },
+            planImport: { show: false, fileName: '', rows: [], mode: 'merge' },
+            idMig: { plan: null, done: false },
             currentViewBill: {},
 
             formOut: { date: new Date().toISOString().slice(0, 10), dept: '', reqId: '', reqType: 'เบิกจริง', docNo: '' }, 
@@ -2009,7 +2281,64 @@ const app = createApp({
                 return { id: r[0], date: r[1], dept: r[2], status: r[3], items: items, user: r[5] }; 
             }); 
         },
-        purchasePlans() { return []; },
+        purchasePlans() {
+            return (this.rawData.purchasePlans || []).map(r => ({
+                id: r[0], yearBudget: String(r[1]), productId: String(r[2]), packSize: parseFloat(r[3]) || 1, packCost: parseFloat(r[4]) || 0,
+                qtyUseY3: parseFloat(r[5]) || 0, qtyUseY2: parseFloat(r[6]) || 0, qtyUseY1: parseFloat(r[7]) || 0, qtyThisYear: parseFloat(r[8]) || 0,
+                qtyQ1: parseFloat(r[9]) || 0, qtyQ2: parseFloat(r[10]) || 0, qtyQ3: parseFloat(r[11]) || 0, qtyQ4: parseFloat(r[12]) || 0
+            }));
+        },
+        isEditor() { return ['Admin', 'God'].includes(this.currentUser.role); },
+        docEntityOptions() { return [...this.vendors.map(v => v.name), ...this.depts.map(d => d.name)]; },
+        docIdEditable() { const id = String(this.docView.id || ''); return !(id.startsWith('RCV-') || id.startsWith('ISS-') || id.startsWith('STK-') || id.startsWith('ADJ-')) && !this.docView.bill; },
+        planYears() {
+            const set = new Set(this.purchasePlans.map(p => p.yearBudget)); const cur = this.fiscalYearOf(new Date().toISOString().slice(0, 10));
+            set.add(String(cur)); set.add(String(this.planYear)); return [...set].sort((a, b) => b - a);
+        },
+        planRange() { const y = parseInt(this.planYear) || 0; return { start: `${y - 544}-10-01`, end: `${y - 543}-09-30` }; },
+        planRows() {
+            const { start, end } = this.planRange; const bought = {};
+            this.transactions.forEach(t => {
+                if (t.type !== 'IN' || (t.stockLocation || 'MAIN') !== 'MAIN' || !this.billIdSet.has(String(t.billId))) return;
+                const d = String(t.date || '').slice(0, 10); if (d < start || d > end) return;
+                if (!this.planCountPending && t.status !== 'Completed') return;
+                const b = bought[t.productId] || (bought[t.productId] = { qty: 0, val: 0 }); b.qty += t.qty; b.val += parseFloat(t.totalPrice) || 0;
+            });
+            const rows = []; const planned = new Set();
+            this.purchasePlans.filter(p => p.yearBudget === String(this.planYear)).forEach(pl => {
+                const p = this.products.find(x => x.id === pl.productId); const b = bought[pl.productId] || { qty: 0, val: 0 };
+                const planVal = pl.qtyThisYear * pl.packCost; planned.add(pl.productId);
+                const pctQty = pl.qtyThisYear > 0 ? b.qty / pl.qtyThisYear * 100 : null; const pctVal = planVal > 0 ? b.val / planVal * 100 : null;
+                let status = b.qty <= 0 ? 'none' : (pctQty !== null && pctQty >= 100 ? 'done' : 'partial');
+                rows.push({ productId: pl.productId, name: p ? p.name : pl.productId, unit: p ? p.unit : '', barcodeText: p ? p.barcodeText : '', price: pl.packCost, planQty: pl.qtyThisYear, planVal: planVal, boughtQty: b.qty, boughtVal: b.val, remainQty: pl.qtyThisYear - b.qty, pctQty: pctQty, pctVal: pctVal, status: status, over: pctQty !== null && pctQty > 100.0001 });
+            });
+            Object.keys(bought).forEach(pid => {
+                if (planned.has(pid)) return; const p = this.products.find(x => x.id === pid); const b = bought[pid]; if (b.qty <= 0 && b.val <= 0) return;
+                rows.push({ productId: pid, name: p ? p.name : pid, unit: p ? p.unit : '', barcodeText: p ? p.barcodeText : '', price: 0, planQty: 0, planVal: 0, boughtQty: b.qty, boughtVal: b.val, remainQty: 0, pctQty: null, pctVal: null, status: 'unplanned', over: false });
+            });
+            return rows;
+        },
+        planSummary() {
+            const rows = this.planRows.filter(r => r.status !== 'unplanned'); const un = this.planRows.filter(r => r.status === 'unplanned');
+            const planVal = rows.reduce((a, r) => a + r.planVal, 0), boughtVal = rows.reduce((a, r) => a + r.boughtVal, 0);
+            return { itemCount: rows.length, planVal, boughtVal, pct: planVal > 0 ? boughtVal / planVal * 100 : null, unplannedVal: un.reduce((a, r) => a + r.boughtVal, 0),
+                counts: { none: rows.filter(r => r.status === 'none').length, partial: rows.filter(r => r.status === 'partial').length, done: rows.filter(r => r.status === 'done').length, over: rows.filter(r => r.over).length, unplanned: un.length } };
+        },
+        planView() {
+            let l = this.planRows; const f = this.planFilter;
+            if (f.status === 'over') l = l.filter(r => r.over); else if (f.status !== 'all') l = l.filter(r => r.status === f.status);
+            if (f.q) { const q = String(f.q).toLowerCase(); l = l.filter(r => r.name.toLowerCase().includes(q) || String(r.productId).toLowerCase().includes(q) || String(r.barcodeText || '').toLowerCase().includes(q)); }
+            const k = this.planSort.key, dir = this.planSort.asc ? 1 : -1;
+            return [...l].sort((a, b) => { let x = a[k], y = b[k]; if (k === 'name') return String(x).localeCompare(String(y), 'th') * dir; x = x === null ? -1 : x; y = y === null ? -1 : y; return (x - y) * dir; });
+        },
+        planImportOk() { return this.planImport.rows.filter(r => r.status !== 'error'); },
+        logUsers() { return [...new Set(this.activityLogs.map(l => l.username))].sort(); },
+        filteredLogs() {
+            let l = this.activityLogs; const f = this.logFilter;
+            if (f.user) l = l.filter(x => x.username === f.user); if (f.action) l = l.filter(x => x.action === f.action);
+            if (f.q) { const q = f.q.toLowerCase(); l = l.filter(x => (x.target || '').toLowerCase().includes(q) || (x.username || '').toLowerCase().includes(q) || (x.user_name || '').toLowerCase().includes(q) || this.logLines(x).join(' ').toLowerCase().includes(q)); }
+            return l;
+        },
 
         // ===== ขอเบิก / รับเข้าคลังย่อย =====
         myRequests() { return this.requests.filter(r => r.dept === this.globalStock).slice().reverse().slice(0, 20); },
@@ -2210,7 +2539,7 @@ const app = createApp({
                               bill: bl, docLabel: bl ? (bl.docNo || ('รอตรวจรับ · บิล ' + bl.refBillNo)) : id, docPending: !!(bl && !bl.docNo) };
                 }
                 let p = this.products.find(x => x.id == t.productId); 
-                g[id].items.push({ name: p ? p.name : t.productId, productId: t.productId, lot: t.lotNo, exp: t.expDate, qty: t.qty, unit: p ? p.unit : '', price: t.unitPrice, total: t.totalPrice }); 
+                g[id].items.push({ transId: t.transId, name: p ? p.name : t.productId, productId: t.productId, lot: t.lotNo, exp: t.expDate, qty: t.qty, unit: p ? p.unit : '', price: t.unitPrice, total: t.totalPrice }); 
                 g[id].total += (parseFloat(t.totalPrice) || 0); 
             }); 
             return Object.values(g).sort((a, b) => new Date(b.date) - new Date(a.date)); 
@@ -2384,7 +2713,7 @@ const app = createApp({
             }
             else if (fileNum === 2) { 
                 filename = `PURCHASEPLAN_${hospCode}_${periodRpt}`; data.push(["HOSP_CODE", "YEARBUDGET", "WORKING_CODE", "GENERIC_NAME", "GPUID", "NLEM", "QTY_USE_YEAR3", "QTY_USE_YEAR2", "QTY_USE_YEAR1", "QTY_THIS_YEAR", "PACK_SIZE", "BASE_UNIT", "PACK_COST", "VALUE_THIS_YEAR", "QTY_PLAN_TRIMES1", "QTY_PLAN_TRIMES2", "QTY_PLAN_TRIMES3", "QTY_PLAN_TRIMES4", "PERIOD_RPT", "DATE_SEND"]);
-                this.purchasePlans.forEach(plan => { let p = this.products.find(x => x.id === plan.productId); if (!p) return; data.push([hospCode, plan.yearBudget, p.workingCode || p.id, p.name, p.gpuid || '99', p.drugClass.includes('NED') ? 'N' : 'E', plan.qtyUseY3, plan.qtyUseY2, plan.qtyUseY1, plan.qtyThisYear, plan.packSize, p.unit || '', parseFloat(plan.packCost).toFixed(2), (parseFloat(plan.qtyThisYear) * parseFloat(plan.packCost)).toFixed(2), plan.qtyQ1, plan.qtyQ2, plan.qtyQ3, plan.qtyQ4, periodRpt, dateSend]); });
+                const fyPlans = this.purchasePlans.filter(pl => pl.yearBudget === String(this.fiscalYearOf(this.mophPeriod + '-01'))); (fyPlans.length ? fyPlans : this.purchasePlans).forEach(plan => { let p = this.products.find(x => x.id === plan.productId); if (!p) return; data.push([hospCode, plan.yearBudget, p.workingCode || p.id, p.name, p.gpuid || '99', p.drugClass.includes('NED') ? 'N' : 'E', plan.qtyUseY3, plan.qtyUseY2, plan.qtyUseY1, plan.qtyThisYear, plan.packSize, p.unit || '', parseFloat(plan.packCost).toFixed(2), (parseFloat(plan.qtyThisYear) * parseFloat(plan.packCost)).toFixed(2), plan.qtyQ1, plan.qtyQ2, plan.qtyQ3, plan.qtyQ4, periodRpt, dateSend]); });
             }
             else if (fileNum === 3) { 
                 filename = `RECEIPT_${hospCode}_${periodRpt}`; data.push(["HOSP_CODE", "WORKING_CODE", "TRADE_NAME", "TPUID", "VENDOR_NAME", "VENDOR_TAX_ID", "QTY_RCV", "PACK_SIZE", "BASE_UNIT", "PACK_COST", "TOTAL_VALUE", "LOT_NO", "EXPIRE_DATE", "RCV_NO", "PO_NO", "CNT_NO", "DATE_RCV", "BUY_METHOD_ID", "CO_PURCHASE_ID", "RCV_FLAG", "PERIOD_RPT", "DATE_SEND"]);
@@ -2484,7 +2813,7 @@ const app = createApp({
         async doQuickAddVendor() {
             if(!this.quickVendorForm.name) return alert('กรุณาระบุชื่อบริษัท');
             this.loading = true;
-            const res = await this.apiCall("saveMasterData", { type: 'vendor', data: { id: 'V-'+new Date().getTime(), name: this.quickVendorForm.name, taxId: this.quickVendorForm.taxId } });
+            const res = await this.apiCall("saveMasterData", { type: 'vendor', data: { name: this.quickVendorForm.name, taxId: this.quickVendorForm.taxId } });
             if(res) {
                 await this.loadData(); this.showQuickVendor = false;
                 if(this.tsVendor) this.tsVendor.setValue(this.quickVendorForm.name);
@@ -2495,12 +2824,12 @@ const app = createApp({
         async doQuickAddProd() {
             if(!this.quickProdForm.name) return alert('กรุณาระบุชื่อสามัญของยา');
             this.loading = true;
-            let newId = 'DRUG-'+new Date().getTime().toString().slice(-6);
             const res = await this.apiCall("saveMasterData", { 
                 type: 'product', 
-                data: { id: newId, name: this.quickProdForm.name, tpuid: this.quickProdForm.tpuid, manufacturer: this.quickProdForm.manufacturer, unit: this.quickProdForm.unit, min: this.quickProdForm.min, objType: 'ยา', drugClass: 'ED', drugStatus: '1', controlList: 'General list', productCat: '1' } 
+                data: { name: this.quickProdForm.name, tpuid: this.quickProdForm.tpuid, manufacturer: this.quickProdForm.manufacturer, unit: this.quickProdForm.unit, min: this.quickProdForm.min, objType: 'ยา', drugClass: 'ED', drugStatus: '1', controlList: 'General list', productCat: '1' } 
             });
             if(res) {
+                const newId = res.id;
                 await this.loadData(); this.showQuickProd = false;
                 if(this.tsProduct) { this.tsProduct.addOption(this.products.find(p => p.id === newId)); this.tsProduct.setValue(newId); }
                 this.quickProdForm = { id: '', name: '', tpuid: '', manufacturer: '', unit: '', objType: 'ยา', min: 0 };
@@ -2621,6 +2950,7 @@ const app = createApp({
             this.globalStock = stockLoc;
             this.isSidebarOpen = false;
             this.tempOut.stockSource = stockLoc; 
+            if (pageName === 'activityLog') this.loadLogs();
             this.$nextTick(() => { if (pageName === 'dashboard') this.renderCharts(); if (['stockOut', 'stockTake'].includes(pageName)) this.initTomSelects(); });
         },
 
@@ -2848,6 +3178,228 @@ const app = createApp({
         openAdjustValueModal(item) { let suggestedVal = item.qty <= 0 ? 0 : item.totalVal; this.adjustValForm = { productId: item.id, productName: item.name, qty: item.qty, unit: item.unit, currentValue: item.totalVal, newValue: suggestedVal, note: item.qty <= 0 ? 'เคลียร์มูลค่าค้าง (ของหมด)' : 'ปรับปรุงมูลค่ายาคงคลัง' }; this.showAdjustValModal = true; },
         async submitValueAdjustment() { if (!confirm(`ยืนยันการปรับมูลค่า ${this.adjustValForm.productName} จาก ${this.formatCurrency(this.adjustValForm.currentValue)} เป็น ${this.formatCurrency(this.adjustValForm.newValue)} หรือไม่?`)) return; this.loading = true; const res = await this.apiCall("saveValueAdjustment", { user: this.currentUser.name, date: new Date().toISOString().slice(0, 10), productId: this.adjustValForm.productId, currentValue: this.adjustValForm.currentValue, newValue: this.adjustValForm.newValue, note: this.adjustValForm.note }); if (res) { alert(res); this.showAdjustValModal = false; await this.loadData(); } this.loading = false; },
 
+
+        // ================= แก้ไข / ลบ ประวัติรับจ่าย =================
+        askConfirm(o) { this.confirmAct = { show: true, title: o.title, lines: o.lines, danger: !!o.danger, okText: o.okText || 'ยืนยัน', onOk: o.onOk }; },
+        async runConfirm() {
+            const f = this.confirmAct.onOk; this.confirmAct.show = false;
+            if (f) await f();
+        },
+        closeDocModal() { this.showDocModal = false; this.docEdit.transId = ''; this.docEdit.headOpen = false; },
+        async refreshDocView(newId) {
+            await this.loadData();
+            const id = newId || this.docView.id; const g = this.historyGroups.find(x => x.id === id);
+            if (g) { this.docView = g; } else { this.closeDocModal(); }
+        },
+        startEditItem(it) {
+            this.docEdit.headOpen = false; this.docEdit.transId = it.transId;
+            this.docEdit.form = { lot: it.lot || '', exp: it.exp || '', qty: it.qty, unitPrice: it.price, total: it.total };
+        },
+        recalcEditTotal() { const f = this.docEdit.form; f.total = Math.round((parseFloat(f.qty) || 0) * (parseFloat(f.unitPrice) || 0) * 100) / 100; },
+        itemLine(it) { return it.name + ' | Lot ' + (it.lot || '-') + ' | ' + this.formatNumber(it.qty) + ' ' + (it.unit || '') + ' | ' + this.formatCurrency(it.total); },
+        askSaveItem(it) {
+            const f = this.docEdit.form; const q = parseFloat(f.qty), u = parseFloat(f.unitPrice), t = parseFloat(f.total);
+            if (isNaN(q) || isNaN(u) || isNaN(t) || q < 0 || u < 0 || t < 0) return alert('จำนวน/ราคา/มูลค่า ต้องเป็นตัวเลขที่ไม่ติดลบ');
+            const ch = [];
+            if (String(f.lot || '') !== String(it.lot || '')) ch.push('Lot: ' + (it.lot || '-') + ' → ' + (f.lot || '-'));
+            if (String(f.exp || '') !== String(it.exp || '')) ch.push('วันหมดอายุ: ' + (it.exp || '-') + ' → ' + (f.exp || '-'));
+            if (q !== it.qty) ch.push('จำนวน: ' + this.formatNumber(it.qty) + ' → ' + this.formatNumber(q));
+            if (u !== parseFloat(it.price)) ch.push('ราคา/หน่วย: ' + this.formatNumber(it.price) + ' → ' + this.formatNumber(u));
+            if (t !== parseFloat(it.total)) ch.push('มูลค่า: ' + this.formatCurrency(it.total) + ' → ' + this.formatCurrency(t));
+            if (!ch.length) { this.docEdit.transId = ''; return this.toast('ไม่มีการเปลี่ยนแปลง'); }
+            this.askConfirm({ title: 'ยืนยันการแก้ไขรายการ?', lines: [this.docView.docLabel + ' — ' + it.name, ...ch, 'ยอดคงเหลือ/Stock Card จะเปลี่ยนตามทันที'], okText: 'ยืนยันแก้ไข', onOk: () => this.doSaveItem(it, { lot: f.lot, exp: f.exp, qty: q, unit: u, total: t }) });
+        },
+        async doSaveItem(it, v) {
+            this.loading = true;
+            const res = await this.apiCall('updateTransactionItem', { username: this.currentUser.user, transId: it.transId, lotNo: v.lot, expDate: v.exp, qty: v.qty, unitPrice: v.unit, totalPrice: v.total, docLabel: this.docView.docLabel, productName: it.name });
+            this.loading = false;
+            if (res) { this.docEdit.transId = ''; this.toast('แก้ไขรายการแล้ว'); await this.refreshDocView(); }
+        },
+        askDeleteItem(it) {
+            const only = this.docView.items.length === 1;
+            const lines = [this.docView.docLabel, this.itemLine(it)];
+            if (only) lines.push('นี่คือรายการสุดท้ายของใบ — ลบแล้วทั้งใบจะหายไป' + (this.docView.bill ? ' (รวมบิลบริษัทด้วย)' : ''));
+            lines.push('ยอดคงเหลือ/Stock Card จะเปลี่ยนตามทันที และกู้คืนไม่ได้');
+            this.askConfirm({ title: 'ยืนยันการลบรายการนี้?', lines, danger: true, okText: 'ยืนยันลบรายการ', onOk: () => this.doDelete([it.transId], only ? 'doc' : 'item', this.docView, [this.itemLine(it)]) });
+        },
+        askDeleteDoc(doc) {
+            const lines = [doc.docLabel + ' (' + doc.type + ') — ' + doc.entity, doc.items.length + ' รายการ · มูลค่า ' + this.formatCurrency(doc.total), ...doc.items.slice(0, 8).map(i => '• ' + this.itemLine(i))];
+            if (doc.items.length > 8) lines.push('… และอีก ' + (doc.items.length - 8) + ' รายการ');
+            if (doc.bill) lines.push('บิลบริษัท ' + doc.bill.refBillNo + ' จะถูกลบด้วย');
+            lines.push('ยอดคงเหลือ/Stock Card จะเปลี่ยนตามทันที และกู้คืนไม่ได้');
+            this.askConfirm({ title: 'ยืนยันการลบทั้งใบ?', lines, danger: true, okText: 'ยืนยันลบทั้งใบ', onOk: () => this.doDelete(doc.items.map(i => i.transId), 'doc', doc, doc.items.map(i => this.itemLine(i))) });
+        },
+        async doDelete(ids, scope, doc, names) {
+            this.loading = true;
+            const res = await this.apiCall('deleteTransactionItems', { username: this.currentUser.user, transIds: ids, scope: scope, billId: doc.bill ? doc.bill.id : '', docLabel: doc.docLabel, itemNames: names });
+            this.loading = false;
+            if (res) {
+                this.toast(scope === 'doc' ? 'ลบทั้งใบแล้ว' : 'ลบรายการแล้ว');
+                if (scope === 'doc') { this.closeDocModal(); await this.loadData(); } else { await this.refreshDocView(); }
+            }
+        },
+        openHeadEdit() {
+            const d = this.docView; this.docEdit.transId = '';
+            this.docEdit.head = { date: String(d.date || '').split(' ')[0], entity: d.entity || '', refBillNo: d.bill ? d.bill.refBillNo : '', docNo: d.bill ? (d.bill.docNo || '') : '', inspectDate: d.bill ? (d.bill.inspectDate || '') : '', newDocId: d.id };
+            this.docEdit.headOpen = true;
+        },
+        askSaveHead() {
+            const d = this.docView, h = this.docEdit.head; const ch = [];
+            if (h.date !== String(d.date || '').split(' ')[0]) ch.push('วันที่: ' + String(d.date || '').split(' ')[0] + ' → ' + h.date);
+            if (h.entity !== d.entity) ch.push((d.type === 'IN' ? 'แหล่งที่มา: ' : 'ปลายทาง: ') + d.entity + ' → ' + h.entity);
+            if (d.bill) {
+                if (h.refBillNo !== d.bill.refBillNo) ch.push('เลขบิลบริษัท: ' + d.bill.refBillNo + ' → ' + h.refBillNo);
+                if (h.docNo !== (d.bill.docNo || '')) ch.push('เลขเอกสารราชการ: ' + (d.bill.docNo || '-') + ' → ' + (h.docNo || '-'));
+                if (h.inspectDate !== (d.bill.inspectDate || '')) ch.push('วันที่ตรวจรับ: ' + (d.bill.inspectDate || '-') + ' → ' + (h.inspectDate || '-'));
+            } else if (this.docIdEditable && h.newDocId && h.newDocId !== d.id) ch.push('เลขที่เอกสาร: ' + d.id + ' → ' + h.newDocId);
+            if (!ch.length) { this.docEdit.headOpen = false; return this.toast('ไม่มีการเปลี่ยนแปลง'); }
+            if (!h.date || !h.entity) return alert('กรุณาระบุวันที่และ' + (d.type === 'IN' ? 'แหล่งที่มา' : 'ปลายทาง'));
+            this.askConfirm({ title: 'ยืนยันการแก้ไขหัวเอกสาร?', lines: [d.docLabel, ...ch, 'มีผลกับทุกรายการในใบนี้ (' + d.items.length + ' รายการ)'], okText: 'ยืนยันแก้ไข', onOk: () => this.doSaveHead() });
+        },
+        async doSaveHead() {
+            const d = this.docView, h = this.docEdit.head;
+            const payload = { username: this.currentUser.user, transIds: d.items.map(i => i.transId), date: h.date, vendorOrDept: h.entity, docLabel: d.docLabel, oldDocId: d.id };
+            if (d.bill) Object.assign(payload, { billId: d.bill.id, refBillNo: h.refBillNo, docNo: h.docNo, inspectDate: h.inspectDate });
+            else if (this.docIdEditable) payload.newDocId = h.newDocId;
+            this.loading = true; const res = await this.apiCall('updateDocHeader', payload); this.loading = false;
+            if (res) { this.docEdit.headOpen = false; this.toast('แก้ไขหัวเอกสารแล้ว'); await this.refreshDocView(!d.bill && payload.newDocId ? payload.newDocId : null); }
+        },
+
+        // ================= ปรับรหัส (God) =================
+        async runIdMigration(dry) {
+            this.loading = true;
+            const res = await this.apiCall('migrateIds', { username: this.currentUser.user, dryRun: dry });
+            this.loading = false;
+            if (res) { this.idMig = { plan: res, done: !dry }; if (!dry) await this.loadData(); }
+        },
+        askRunIdMigration() {
+            const p = this.idMig.plan;
+            this.askConfirm({ title: 'ยืนยันเปลี่ยนรหัสทั้งหมด?', danger: true, okText: 'ยืนยันเปลี่ยนรหัส', lines: ['สินค้า ' + p.products.length + ' · บริษัท ' + p.vendors.length + ' · หน่วยเบิก ' + p.depts.length + ' · ลบปลายทางซ้ำ ' + p.deleteDepts.length, 'ได้สำรองฐานข้อมูลไว้แล้วใช่หรือไม่?', 'ย้อนกลับเองไม่ได้ (นอกจากกู้จากไฟล์สำรอง)'], onOk: () => this.runIdMigration(false) });
+        },
+
+        // ================= Log (God) =================
+        async loadLogs() {
+            if (this.currentUser.role !== 'God') return;
+            this.logLoading = true;
+            const res = await this.apiCall('getActivityLogs', { username: this.currentUser.user, limit: 2000 });
+            this.logLoading = false;
+            if (res) this.activityLogs = res;
+        },
+        logBadge(a) { return a.startsWith('DELETE') || a.endsWith('DELETE_ITEM') || a.endsWith('DELETE_YEAR') ? 'bg-danger' : (a.startsWith('EDIT') ? 'bg-primary' : 'bg-info text-dark'); },
+        logLines(l) {
+            let d = {}; try { d = JSON.parse(l.detail || '{}') || {}; } catch (e) { return [String(l.detail || '')]; }
+            const diff = (b, a, map) => Object.keys(map).filter(k => b && a && String(b[k] == null ? '' : b[k]) !== String(a[k] == null ? '' : a[k])).map(k => map[k] + ': ' + (b[k] === '' || b[k] == null ? '-' : b[k]) + ' → ' + (a[k] === '' || a[k] == null ? '-' : a[k]));
+            if (l.action === 'EDIT_ITEM') return [(d.productName || d.productId || '') + (d.type ? ' (' + d.type + ')' : ''), ...diff(d.before, d.after, { lot: 'Lot', exp: 'Exp', qty: 'จำนวน', unitPrice: 'ราคา/หน่วย', total: 'มูลค่า', note: 'หมายเหตุ' })];
+            if (l.action === 'EDIT_DOC') return [...diff(d.before, d.after, { date: 'วันที่', entity: 'ปลายทาง/แหล่งที่มา', docId: 'เลขที่เอกสาร' }), ...(d.before && d.before.bill ? diff(d.before.bill, d.after.bill, { ref_bill_no: 'เลขบิลบริษัท', doc_no: 'เลขเอกสารราชการ', inspect_date: 'วันที่ตรวจรับ' }) : [])];
+            if (l.action === 'DELETE_ITEM' || l.action === 'DELETE_DOC') return [(d.itemNames && d.itemNames.length ? d.itemNames : (d.items || []).map(i => i.product_id + ' × ' + i.qty + ' (' + i.total_price + ')')).join('\n'), d.billDeleted ? 'ลบบิลบริษัทด้วย' : ''].join('\n').split('\n').filter(x => x);
+            if (l.action.startsWith('PLAN_SAVE') || l.action === 'PLAN_REPLACE') return ['ปี ' + d.year + ' · ' + (d.mode === 'replace' ? 'แทนที่ทั้งปี' : 'เพิ่ม/อัปเดต') + ' · ' + d.itemsSaved + ' รายการ · มูลค่า ' + this.formatCurrency(d.valueSaved) + (d.fileName ? ' · ไฟล์ ' + d.fileName : ''), 'ก่อนหน้า: ' + d.beforeCount + ' รายการ · ' + this.formatCurrency(d.beforeValue)];
+            if (l.action.startsWith('PLAN_DELETE')) return ['ปี ' + d.year + (d.productId ? ' · รหัส ' + d.productId : '') + ' · ลบ ' + (d.deleted || []).length + ' รายการ'];
+            if (l.action === 'ID_MIGRATE') return ['สินค้า ' + d.products + ' · บริษัท ' + d.vendors + ' · หน่วยเบิก ' + d.depts + ' · ลบปลายทางซ้ำ ' + (d.deletedDepts || []).length];
+            return [l.detail];
+        },
+
+        // ================= แผนจัดซื้อประจำปี =================
+        fiscalYearOf(dateStr) { const m = /^(\d{4})-(\d{2})/.exec(String(dateStr || '')); if (!m) return new Date().getFullYear() + 543; return parseInt(m[1]) + 543 + (parseInt(m[2]) >= 10 ? 1 : 0); },
+        fmtPct(x) { return x === null || x === undefined || isNaN(x) ? '-' : x.toFixed(1) + '%'; },
+        planBarClass(p) { return p === null || p === undefined ? 'bg-secondary' : (p > 100.0001 ? 'bg-danger' : (p >= 100 ? 'bg-success' : (p >= 50 ? 'bg-info' : (p > 0 ? 'bg-warning' : 'bg-secondary')))); },
+        planPctClass(p) { return p === null || p === undefined ? 'text-muted' : (p > 100.0001 ? 'text-danger' : (p >= 100 ? 'text-success' : (p > 0 ? 'text-dark' : 'text-muted'))); },
+        setPlanSort(k) { if (this.planSort.key === k) this.planSort.asc = !this.planSort.asc; else this.planSort = { key: k, asc: k === 'name' }; },
+        planSortMark(k) { return this.planSort.key === k ? (this.planSort.asc ? '▲' : '▼') : ''; },
+        goPlan(status) { this.planFilter = { q: '', status: status || 'all' }; this.navTo('purchasePlan', 'MAIN'); },
+        addPlanYear() { const y = prompt('ปีงบประมาณ (พ.ศ.) เช่น 2571', String(parseInt(this.planYear) + 1)); if (y && /^\d{4}$/.test(y.trim())) this.planYear = y.trim(); },
+        onPlanProdSelect() {
+            const p = this.resolveTypedProduct(this.planForm.productName);
+            if (p) { this.planForm.productName = p.name; this.planForm.productId = p.id; this.planForm.unit = p.unit || ''; const ex = this.purchasePlans.find(x => x.yearBudget === String(this.planYear) && x.productId === p.id); this.planForm.price = ex ? ex.packCost : (parseFloat(this.getMainUnitCost(p.id)) || 0); if (ex) this.planForm.qty = ex.qtyThisYear; }
+            else { if (this.barcodeLink.show) this.planForm.productName = ''; this.planForm.productId = ''; this.planForm.unit = ''; }
+        },
+        async savePlanItems(items, mode, source, fileName) {
+            this.loading = true;
+            const res = await this.apiCall('savePurchasePlan', { username: this.currentUser.user, yearBudget: String(this.planYear), mode: mode, source: source, fileName: fileName || '', items: items });
+            this.loading = false;
+            if (res) { await this.loadData(); this.toast(res); return true; }
+            return false;
+        },
+        askAddPlanItem() {
+            const f = this.planForm;
+            if (!f.productId) return alert('เลือกสินค้าจากรายชื่อที่ค้นพบ');
+            if (!(f.qty > 0)) return alert('ระบุจำนวนที่มากกว่า 0');
+            if (!(f.price >= 0)) return alert('ระบุราคาต่อหน่วย');
+            const ex = this.purchasePlans.find(x => x.yearBudget === String(this.planYear) && x.productId === f.productId);
+            const lines = [f.productName + ' [' + f.productId + ']', 'ราคา ' + this.formatNumber(f.price) + ' × ' + this.formatNumber(f.qty) + ' ' + f.unit + ' = ' + this.formatCurrency(f.price * f.qty)];
+            if (ex) lines.push('มีในแผนปีนี้แล้ว (จำนวน ' + this.formatNumber(ex.qtyThisYear) + ' ราคา ' + this.formatNumber(ex.packCost) + ') — จะถูกแทนที่');
+            this.askConfirm({ title: (ex ? 'แทนที่' : 'เพิ่ม') + 'รายการในแผนปี ' + this.planYear + '?', lines, okText: 'ยืนยัน', onOk: async () => { if (await this.savePlanItems([{ productId: f.productId, packCost: f.price, qty: f.qty, packSize: 1 }], 'merge', 'manual')) this.planForm = { productName: '', productId: '', unit: '', price: 0, qty: 0 }; } });
+        },
+        openPlanEdit(r) { this.planEdit = { show: true, productId: r.productId, name: r.name, unit: r.unit, price: r.price, qty: r.planQty }; },
+        askSavePlanEdit() {
+            const e = this.planEdit; if (!(e.qty > 0) || !(e.price >= 0)) return alert('ระบุจำนวน (>0) และราคาให้ถูกต้อง');
+            this.askConfirm({ title: 'ยืนยันแก้ไขรายการแผน?', lines: [e.name, 'ราคา ' + this.formatNumber(e.price) + ' × ' + this.formatNumber(e.qty) + ' = ' + this.formatCurrency(e.price * e.qty)], okText: 'ยืนยันแก้ไข', onOk: async () => { if (await this.savePlanItems([{ productId: e.productId, packCost: e.price, qty: e.qty, packSize: 1 }], 'merge', 'edit')) this.planEdit.show = false; } });
+        },
+        askDeletePlanItem(r) {
+            this.askConfirm({ title: 'ยืนยันลบรายการออกจากแผน?', danger: true, okText: 'ยืนยันลบ', lines: [r.name + ' [' + r.productId + ']', 'แผน ' + this.formatNumber(r.planQty) + ' ' + r.unit + ' · ' + this.formatCurrency(r.planVal)], onOk: async () => { this.loading = true; const res = await this.apiCall('deletePurchasePlan', { username: this.currentUser.user, yearBudget: String(this.planYear), productId: r.productId }); this.loading = false; if (res) { await this.loadData(); this.toast('ลบรายการแผนแล้ว'); } } });
+        },
+        askDeletePlanYear() {
+            this.askConfirm({ title: 'ยืนยันลบแผนทั้งปี ' + this.planYear + '?', danger: true, okText: 'ยืนยันลบทั้งปี', lines: ['ลบแผนทั้งหมด ' + this.planSummary.itemCount + ' รายการ · มูลค่า ' + this.formatCurrency(this.planSummary.planVal), 'การจัดซื้อจริงไม่ถูกลบ'], onOk: async () => { this.loading = true; const res = await this.apiCall('deletePurchasePlan', { username: this.currentUser.user, yearBudget: String(this.planYear) }); this.loading = false; if (res) { await this.loadData(); this.toast('ลบแผนทั้งปีแล้ว'); } } });
+        },
+        downloadPlanTemplate(mode) {
+            const head = ['ID', 'รายการ', 'หน่วยนับ', 'ราคาต่อหน่วย', 'จำนวน', 'มูลค่า']; const data = [head]; let fname = 'Template_แผนจัดซื้อ.xlsx';
+            if (mode === 'current') { this.planRows.filter(r => r.status !== 'unplanned').forEach((r, i) => data.push([r.productId, r.name, r.unit, r.price, r.planQty, null])); fname = 'แผนจัดซื้อ_' + this.planYear + '.xlsx'; }
+            else if (mode === true) { this.products.filter(p => p.isActive).forEach(p => data.push([p.id, p.name, p.unit, parseFloat(this.getMainUnitCost(p.id)) || 0, null, null])); fname = 'Template_แผนจัดซื้อ_ทุกรายการ.xlsx'; }
+            else { const p = this.products.find(x => x.isActive); if (p) data.push([p.id, p.name, p.unit, 0, 0, null]); }
+            for (let i = 1; i < data.length; i++) data[i][5] = { t: 'n', f: 'D' + (i + 1) + '*E' + (i + 1) };
+            const ws = XLSX.utils.aoa_to_sheet(data); ws['!cols'] = [{ wch: 14 }, { wch: 44 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 16 }];
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'แผนจัดซื้อ'); XLSX.writeFile(wb, fname);
+        },
+        async onPlanFile(ev) {
+            const file = ev.target.files && ev.target.files[0]; if (!file) return;
+            try {
+                const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+                const aoa = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: true });
+                this.parsePlanRows(aoa, file.name);
+            } catch (e) { alert('อ่านไฟล์ไม่สำเร็จ: ' + e.message); }
+            ev.target.value = '';
+        },
+        parsePlanRows(aoa, fileName) {
+            const norm = x => String(x == null ? '' : x).replace(/\s/g, '').toLowerCase();
+            const pick = (h, keys) => h.findIndex(c => keys.some(k => c === k || c.startsWith(k)));
+            let hi = aoa.findIndex(r => { const h = r.map(norm); return h.includes('id') && h.some(c => c.startsWith('รายการ')); });
+            let col = { id: 0, name: 1, unit: 2, price: 3, qty: 4, val: 5 };
+            if (hi >= 0) { const h = aoa[hi].map(norm); col = { id: pick(h, ['id', 'รหัส']), name: pick(h, ['รายการ', 'ชื่อ']), unit: pick(h, ['หน่วยนับ', 'หน่วย']), price: pick(h, ['ราคาต่อหน่วย', 'ราคา']), qty: pick(h, ['จำนวน']), val: pick(h, ['มูลค่า']) }; }
+            const num = x => { if (typeof x === 'number') return x; const t = String(x == null ? '' : x).replace(/,/g, '').trim(); return t === '' ? NaN : parseFloat(t); };
+            const rows = []; const seen = new Set();
+            aoa.slice(hi + 1).forEach((r, idx) => {
+                const id = String(r[col.id] == null ? '' : r[col.id]).trim(), name = String(r[col.name] == null ? '' : r[col.name]).trim();
+                if (!id && !name) return;
+                const line = hi + 2 + idx; const unit = col.unit >= 0 ? String(r[col.unit] || '').trim() : '';
+                let price = col.price >= 0 ? num(r[col.price]) : NaN; const qty = col.qty >= 0 ? num(r[col.qty]) : NaN; const val = col.val >= 0 ? num(r[col.val]) : NaN;
+                const stripZ = x => String(x).replace(/^0+/, '').toLowerCase();
+                let p = this.products.find(x => x.id === id) || (id && this.products.find(x => x.workingCode && String(x.workingCode) === id)) || (id && this.products.find(x => stripZ(x.id) === stripZ(id) && /^\d+$/.test(id))) || (name && this.products.find(x => x.name === name));
+                const row = { line, id, name, unit, price, qty, product: p || null, status: 'ok', msg: '' };
+                const warn = m => { if (row.status === 'ok') row.status = 'warn'; row.msg += (row.msg ? '; ' : '') + m; };
+                const err = m => { row.status = 'error'; row.msg = m; };
+                if (!p) err('ไม่พบสินค้าในระบบ (ตรวจ ID)');
+                else if (seen.has(p.id)) err('ID ซ้ำในไฟล์');
+                else if (isNaN(qty) || qty <= 0) err('จำนวนไม่ถูกต้อง');
+                else {
+                    if (isNaN(price) && !isNaN(val)) { price = val / qty; row.price = price; warn('ไม่มีราคา ใช้ มูลค่า÷จำนวน'); }
+                    if (isNaN(price) || price < 0) err('ราคาต่อหน่วยไม่ถูกต้อง');
+                    else {
+                        seen.add(p.id);
+                        if (name && name !== p.name) warn('ชื่อต่างจากระบบ (ใช้ ID)');
+                        if (unit && p.unit && unit !== p.unit) warn('หน่วยต่างจากระบบ (' + p.unit + ')');
+                        if (!isNaN(val) && Math.abs(val - price * qty) > Math.max(1, Math.abs(val) * 0.005)) warn('มูลค่าในไฟล์ไม่ตรง ใช้ ราคา×จำนวน');
+                    }
+                }
+                rows.push(row);
+            });
+            if (!rows.length) return alert('ไม่พบข้อมูลในไฟล์ — ตรวจว่าหัวตารางตรงตาม Template');
+            this.planImport = { show: true, fileName: fileName, rows: rows, mode: 'merge' };
+        },
+        askImportPlan() {
+            const ok = this.planImportOk; const val = ok.reduce((a, r) => a + r.price * r.qty, 0); const cur = this.planSummary;
+            const lines = ['ไฟล์: ' + this.planImport.fileName, 'ปีงบประมาณ ' + this.planYear, 'นำเข้า ' + ok.length + ' รายการ · มูลค่า ' + this.formatCurrency(val), this.planImport.mode === 'replace' ? 'แทนที่ทั้งปี: ลบแผนเดิม ' + cur.itemCount + ' รายการ (' + this.formatCurrency(cur.planVal) + ') ก่อนนำเข้า' : 'เพิ่ม/อัปเดต: รายการที่ซ้ำกับแผนเดิมจะถูกแทนที่'];
+            this.askConfirm({ title: 'ยืนยันนำเข้าแผนจัดซื้อ?', lines, danger: this.planImport.mode === 'replace', okText: 'ยืนยันนำเข้า', onOk: async () => { if (await this.savePlanItems(ok.map(r => ({ productId: r.product.id, packCost: r.price, qty: r.qty, packSize: 1 })), this.planImport.mode, 'import', this.planImport.fileName)) this.planImport.show = false; } });
+        },
+
         // --- 🖨️ เปิดฟอร์มพิมพ์ รพ. F-SP-011 ---
         openPrintFSP011(doc) { this.printDoc = doc; },
         openDocDetail(doc) { this.docView = doc; this.showDocModal = true; },
@@ -3015,6 +3567,7 @@ const app = createApp({
                     if (this.scanAuto) { this.tempReq.qty = 1; this.addToReqCart(); this.toast('+1 ' + p.name); }
                     else { this.toast('เลือก: ' + p.name); this.focusEl('scanQty_req'); }
                     break;
+                case 'purchasePlan': this.planForm.productName = p.name; this.onPlanProdSelect(); this.toast('เลือก: ' + p.name); this.focusEl('planQtyInput'); break;
                 case 'history': this.searchQuery = p.name; this.toast('ค้นหา: ' + p.name); break;
                 case 'valueCheck': this.valueCheckSearch = p.name; this.toast('ค้นหา: ' + p.name); break;
                 case 'manage_prod': this.prodSearchQuery = p.name; this.toast('ค้นหา: ' + p.name); break;
@@ -3144,8 +3697,8 @@ const app = createApp({
         // คลังใหญ่: ดึงใบขอเบิกเข้าตะกร้าจ่าย (จัด Lot แบบหมดอายุก่อนจ่ายก่อน)
         reqDestName(req) {
             const names = this.subDestNames(req.dept);
-            const hit = this.depts.find(d => names.includes(String(d.name).trim()));
-            return hit ? hit.name : (names[0] || this.locLabel(req.dept));
+            for (const n of names) { const h = this.depts.find(d => String(d.name).trim() === n); if (h) return h.name; }
+            return names[0] || this.locLabel(req.dept);
         },
         loadRequestToStockOut(req) {
             if (this.cartOut.length > 0 && !confirm('ในตะกร้าจ่ายมีรายการอยู่แล้ว ต้องการแทนที่ด้วยรายการจากใบขอเบิกนี้หรือไม่?')) return;
@@ -3318,21 +3871,23 @@ const app = createApp({
         
         
         // --- ⚙️ จัดการระบบแอดมิน ---
-        openAdminModal(item) { 
+        async openAdminModal(item) { 
             this.showModal = true; 
             if (item) { 
                 let r = item.role || 'User';
                 this.modalForm = { ...item, isEdit: true, userLevel: r.startsWith('User') ? 'User' : r, accessList: r.startsWith('User:') ? r.replace('User:','').split(',') : [] }; 
             } else { 
                 this.modalForm = { isEdit: false, objType: 'ยา', drugStatus: '1', userLevel: 'User', accessList: ['MAIN'] }; 
+                const idType = { manage_prod: 'product', manage_vendor: 'vendor', manage_dept: 'dept' }[this.page];
+                if (idType) { const nid = await this.apiCall('getNextId', { type: idType }); if (nid) this.modalForm.id = nid; }
             } 
         },
         async saveAdminData() { 
             if (this.page === 'manage_user') {
                 this.modalForm.role = this.modalForm.userLevel === 'User' ? 'User:' + (this.modalForm.accessList || []).join(',') : this.modalForm.userLevel;
             }
-            if (this.page === 'manage_dept') { if (!this.modalForm.name || !String(this.modalForm.name).trim()) return alert('ระบุชื่อปลายทาง'); if (!this.modalForm.id) this.modalForm.id = 'DEPT-' + Date.now(); if (!this.modalForm.deptGroup) this.modalForm.deptGroup = '4'; this.modalForm.name = String(this.modalForm.name).trim(); }
-            let type = this.page.replace('manage_', ''); this.loading = true; const res = await this.apiCall("saveMasterData", { type: type, data: this.modalForm }); if (res) { alert('บันทึกสำเร็จ'); this.showModal = false; await this.loadData(); } this.loading = false; },
+            if (this.page === 'manage_dept') { if (!this.modalForm.name || !String(this.modalForm.name).trim()) return alert('ระบุชื่อปลายทาง'); if (!this.modalForm.deptGroup) this.modalForm.deptGroup = '4'; this.modalForm.name = String(this.modalForm.name).trim(); }
+            let type = this.page.replace('manage_', ''); this.loading = true; const res = await this.apiCall("saveMasterData", { type: type, data: this.modalForm }); if (res) { alert('บันทึกสำเร็จ' + (res.id && !this.modalForm.isEdit && type !== 'user' ? ' (รหัส ' + res.id + ')' : '')); this.showModal = false; await this.loadData(); } this.loading = false; },
         async deleteItem(type, id) { if (confirm('ต้องการลบข้อมูลนี้ถาวร?')) { let t = type.replace('manage_', ''); this.loading = true; const res = await this.apiCall("deleteMasterData", { type: t, id: id }); if (res) await this.loadData(); this.loading = false; } },
         
         exportExcel(elementId, filename) {
