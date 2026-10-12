@@ -1968,7 +1968,18 @@
                     <div v-if="page==='manage_prod'" class="d-flex flex-column gap-3">
                         <div class="row">
                             <div class="col-12 col-md-12 mb-2"><label class="small fw-bold text-primary">สถานะรายการ</label><select v-model="modalForm.drugStatus" class="form-select border-primary"><option value="1">1 - ใช้งานปกติ (Active)</option><option value="4">4 - เลิกใช้/ปิดชั่วคราว (Deactivated)</option></select></div>
-                            <div class="col-6"><label class="small text-muted fw-bold">รหัสสินค้า (ออกให้อัตโนมัติ)</label><input v-model="modalForm.id" class="form-control bg-light fw-bold" readonly></div>
+                            <div class="col-12 col-md-6"><label class="small text-muted fw-bold">รหัสสินค้า <span class="text-success">(แก้ไขได้ · ระบบเสนอเลขถัดไปให้)</span></label><input v-model.trim="modalForm.id" class="form-control fw-bold" maxlength="50"><div v-if="modalForm.isEdit && modalForm.oldId && modalForm.id !== modalForm.oldId" class="small text-danger mt-1">⚠ เปลี่ยนจาก {{ modalForm.oldId }} — ระบบจะย้ายรหัสนี้ในประวัติรับจ่าย บาร์โค้ด แผนจัดซื้อ และสต็อกทั้งหมดให้</div></div>
+                            <div class="col-12 col-md-6"><label class="small text-muted fw-bold">หน่วยนับ</label>
+                                <div class="input-group">
+                                    <select v-model="modalForm.unit" class="form-select"><option value="">— เลือกหน่วย —</option><option v-for="u in unitOptions" :key="u" :value="u">{{ u }}</option></select>
+                                    <button type="button" class="btn btn-outline-success" @click="openUnitAdd('modal')" title="เพิ่มหน่วยใหม่"><i class="bi bi-plus-lg"></i></button>
+                                </div>
+                                <div v-if="unitAdd.show && unitAdd.target === 'modal'" class="input-group input-group-sm mt-1">
+                                    <input v-model.trim="unitAdd.name" @keydown.enter.prevent="saveNewUnit" class="form-control" placeholder="พิมพ์ชื่อหน่วยใหม่ เช่น แผง">
+                                    <button type="button" class="btn btn-success" @click="saveNewUnit" :disabled="loading">เพิ่ม</button>
+                                    <button type="button" class="btn btn-outline-secondary" @click="unitAdd.show = false">ยกเลิก</button>
+                                </div>
+                            </div>
                         </div>
                         <div><label class="small text-muted fw-bold">ชื่อสินค้า</label><input v-model="modalForm.name" class="form-control border-primary fw-bold text-primary"></div>
                         <div v-if="modalForm.isEdit" class="border rounded p-2 bg-light">
@@ -2064,7 +2075,17 @@
                         <div class="col-12"><label class="small fw-bold">ชื่อสามัญ (Generic Name)</label><input type="text" v-model="quickProdForm.name" class="form-control border-success"></div>
                         <div class="col-12"><label class="small fw-bold">ชื่อยี่ห้อ (Trade Name)</label><input type="text" v-model="quickProdForm.tpuid" class="form-control border-info"></div>
                         <div class="col-12"><label class="small fw-bold">ชื่อบริษัท / ผู้ผลิต</label><input type="text" v-model="quickProdForm.manufacturer" class="form-control"></div>
-                        <div class="col-6"><label class="small fw-bold">หน่วยนับ (เช่น เม็ด)</label><input type="text" v-model="quickProdForm.unit" class="form-control"></div>
+                        <div class="col-6"><label class="small fw-bold">หน่วยนับ</label>
+                            <div class="input-group">
+                                <select v-model="quickProdForm.unit" class="form-select"><option value="">— เลือกหน่วย —</option><option v-for="u in unitOptions" :key="u" :value="u">{{ u }}</option></select>
+                                <button type="button" class="btn btn-outline-success" @click="openUnitAdd('quick')" title="เพิ่มหน่วยใหม่"><i class="bi bi-plus-lg"></i></button>
+                            </div>
+                            <div v-if="unitAdd.show && unitAdd.target === 'quick'" class="input-group input-group-sm mt-1">
+                                <input v-model.trim="unitAdd.name" @keydown.enter.prevent="saveNewUnit" class="form-control" placeholder="ชื่อหน่วยใหม่">
+                                <button type="button" class="btn btn-success" @click="saveNewUnit" :disabled="loading">เพิ่ม</button>
+                                <button type="button" class="btn btn-outline-secondary" @click="unitAdd.show = false">ยกเลิก</button>
+                            </div>
+                        </div>
                         <div class="col-6"><label class="small fw-bold">จุดสั่งซื้อ (Min)</label><input type="number" v-model="quickProdForm.min" class="form-control"></div>
                     </div>
                     <div class="d-flex gap-2 mt-4">
@@ -2175,7 +2196,7 @@ const app = createApp({
             confirmAct: { show: false, title: '', lines: [], danger: false, okText: 'ยืนยัน', onOk: null },
             docEdit: { transId: '', headOpen: false, form: { lot: '', exp: '', qty: 0, unitPrice: 0, total: 0 }, head: { date: '', entity: '', refBillNo: '', docNo: '', inspectDate: '', newDocId: '' } },
             activityLogs: [], logLoading: false, logFilter: { q: '', user: '', action: '' },
-            LOG_LABEL: { EDIT_ITEM: 'แก้ไขรายการ', EDIT_DOC: 'แก้ไขหัวเอกสาร', DELETE_ITEM: 'ลบรายการ', DELETE_DOC: 'ลบทั้งใบ', PLAN_SAVE: 'บันทึกแผนจัดซื้อ', PLAN_REPLACE: 'แทนที่แผนจัดซื้อ', PLAN_DELETE_ITEM: 'ลบรายการแผน', PLAN_DELETE_YEAR: 'ลบแผนทั้งปี', ID_MIGRATE: 'ปรับรหัส (ID)' },
+            LOG_LABEL: { EDIT_ITEM: 'แก้ไขรายการ', EDIT_DOC: 'แก้ไขหัวเอกสาร', DELETE_ITEM: 'ลบรายการ', DELETE_DOC: 'ลบทั้งใบ', PLAN_SAVE: 'บันทึกแผนจัดซื้อ', PLAN_REPLACE: 'แทนที่แผนจัดซื้อ', PLAN_DELETE_ITEM: 'ลบรายการแผน', PLAN_DELETE_YEAR: 'ลบแผนทั้งปี', ID_MIGRATE: 'ปรับรหัส (ID)', PRODUCT_ID_CHANGE: 'เปลี่ยนรหัสสินค้า' },
             planYear: (() => { const d = new Date(); return String(d.getFullYear() + 543 + (d.getMonth() >= 9 ? 1 : 0)); })(),
             planCountPending: true, planFilter: { q: '', status: 'all' }, planSort: { key: 'pctQty', asc: true },
             planForm: { productName: '', productId: '', unit: '', price: 0, qty: 0 },
@@ -2228,7 +2249,7 @@ const app = createApp({
             showQuickVendor: false, quickVendorForm: { id: '', name: '', taxId: '' },
             showQuickProd: false, quickProdForm: { id: '', name: '', tpuid: '', manufacturer: '', unit: '', objType: 'ยา', min: 0 },
             
-            sortKey: '', sortAsc: true, adminQuery: '', adminSort: { key: '', asc: true }, 
+            sortKey: '', sortAsc: true, adminQuery: '', unitAdd: { show: false, name: '', target: '' }, adminSort: { key: '', asc: true }, 
             prodSearchQuery: '', prodStatusFilter: 'active',
             
             chartInstTurnover: null, chartInstCat: null, chartInstDept: null,
@@ -2256,6 +2277,12 @@ const app = createApp({
         vendors() { return (this.rawData.vendors || []).map(r => ({ id: r[0], name: r[1], address: r[2], contact: r[3], taxId: r[4] || '' })); },
         depts() { return (this.rawData.depts || []).map(r => ({ id: r[0], name: r[1], deptGroup: r[2] || '4' })); },
         categories() { return (this.rawData.categories || []).map(r => ({ name: r[0] })); },
+        unitOptions() {
+            const set = new Set();
+            (this.rawData.units || []).forEach(r => { const n = String(r[0] || '').trim(); if (n) set.add(n); });
+            (this.rawData.products || []).forEach(r => { const n = String(r[3] || '').trim(); if (n) set.add(n); });
+            return [...set].sort((a, b) => a.localeCompare(b, 'th'));
+        },
         units() { return (this.rawData.units || []).map(r => ({ name: r[0] })); },
         users() { return (this.rawData.users || []).map(u => ({ user: u[0], pass: u[1], role: u[2], name: u[3], email: u[4] || '' })); },
         bills() { 
@@ -2857,7 +2884,7 @@ const app = createApp({
             if(!this.quickProdForm.name) return alert('กรุณาระบุชื่อสามัญของยา');
             this.loading = true;
             const res = await this.apiCall("saveMasterData", { 
-                type: 'product', 
+                type: 'product', username: this.currentUser.user, 
                 data: { name: this.quickProdForm.name, tpuid: this.quickProdForm.tpuid, manufacturer: this.quickProdForm.manufacturer, unit: this.quickProdForm.unit, min: this.quickProdForm.min, objType: 'ยา', drugClass: 'ED', drugStatus: '1', controlList: 'General list', productCat: '1' } 
             });
             if(res) {
@@ -3928,12 +3955,27 @@ const app = createApp({
             this.showModal = true; 
             if (item) { 
                 let r = item.role || 'User';
-                this.modalForm = { ...item, isEdit: true, userLevel: r.startsWith('User') ? 'User' : r, accessList: r.startsWith('User:') ? r.replace('User:','').split(',') : [] }; 
+                this.modalForm = { ...item, isEdit: true, oldId: item.id, userLevel: r.startsWith('User') ? 'User' : r, accessList: r.startsWith('User:') ? r.replace('User:','').split(',') : [] }; 
             } else { 
                 this.modalForm = { isEdit: false, objType: 'ยา', drugStatus: '1', userLevel: 'User', accessList: ['MAIN'] }; 
                 const idType = { manage_prod: 'product', manage_vendor: 'vendor', manage_dept: 'dept' }[this.page];
                 if (idType) { const nid = await this.apiCall('getNextId', { type: idType }); if (nid) this.modalForm.id = nid; }
             } 
+        },
+        openUnitAdd(target) { this.unitAdd = { show: true, name: '', target }; },
+        async saveNewUnit() {
+            const n = String(this.unitAdd.name || '').trim();
+            if (!n) return alert('กรุณาพิมพ์ชื่อหน่วย');
+            const hit = this.unitOptions.find(u => u.toLowerCase() === n.toLowerCase());
+            let use = hit || n;
+            if (!hit) {
+                this.loading = true; const res = await this.apiCall('saveUnit', { name: n }); this.loading = false;
+                if (!res) return;
+                if (this.rawData.units) this.rawData.units.push([n]); else this.rawData.units = [[n]];
+            }
+            if (this.unitAdd.target === 'quick') this.quickProdForm.unit = use; else this.modalForm.unit = use;
+            this.unitAdd = { show: false, name: '', target: '' };
+            this.toast(hit ? 'มีหน่วยนี้อยู่แล้ว เลือกให้แล้ว' : 'เพิ่มหน่วย "' + use + '" แล้ว');
         },
         async saveAdminData() { 
             if (this.page === 'manage_user') {
@@ -3941,7 +3983,12 @@ const app = createApp({
                 this.modalForm.role = this.modalForm.userLevel === 'User' ? 'User:' + (this.modalForm.accessList || []).join(',') : this.modalForm.userLevel;
             }
             if (this.page === 'manage_dept') { if (!this.modalForm.name || !String(this.modalForm.name).trim()) return alert('ระบุชื่อปลายทาง'); if (!this.modalForm.deptGroup) this.modalForm.deptGroup = '4'; this.modalForm.name = String(this.modalForm.name).trim(); }
-            let type = this.page.replace('manage_', ''); this.loading = true; const res = await this.apiCall("saveMasterData", { type: type, data: this.modalForm }); if (res) { alert('บันทึกสำเร็จ' + (res.id && !this.modalForm.isEdit && type !== 'user' ? ' (รหัส ' + res.id + ')' : '')); this.showModal = false; await this.loadData(); } this.loading = false; },
+            if (this.page === 'manage_prod') {
+                if (!this.modalForm.id || !String(this.modalForm.id).trim()) return alert('กรุณาระบุรหัสสินค้า');
+                if (!this.modalForm.name || !String(this.modalForm.name).trim()) return alert('กรุณาระบุชื่อสินค้า');
+                if (this.modalForm.isEdit && this.modalForm.oldId && this.modalForm.id !== this.modalForm.oldId && !confirm('ยืนยันเปลี่ยนรหัสสินค้า\n' + this.modalForm.oldId + '  →  ' + this.modalForm.id + '\n\nระบบจะย้ายรหัสใหม่ไปทุกที่ที่อ้างอิง (ประวัติ บาร์โค้ด แผนจัดซื้อ สต็อก) และบันทึก Log')) return;
+            }
+            let type = this.page.replace('manage_', ''); this.loading = true; const res = await this.apiCall("saveMasterData", { type: type, username: this.currentUser.user, data: this.modalForm }); if (res) { alert('บันทึกสำเร็จ' + (res.id && !this.modalForm.isEdit && type !== 'user' ? ' (รหัส ' + res.id + ')' : '')); this.showModal = false; await this.loadData(); } this.loading = false; },
         async deleteItem(type, id) { if (confirm('ต้องการลบข้อมูลนี้ถาวร?')) { let t = type.replace('manage_', ''); this.loading = true; const res = await this.apiCall("deleteMasterData", { type: t, id: id }); if (res) await this.loadData(); this.loading = false; } },
         
         exportExcel(elementId, filename) {
