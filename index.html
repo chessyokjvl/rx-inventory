@@ -2257,7 +2257,7 @@ const app = createApp({
         depts() { return (this.rawData.depts || []).map(r => ({ id: r[0], name: r[1], deptGroup: r[2] || '4' })); },
         categories() { return (this.rawData.categories || []).map(r => ({ name: r[0] })); },
         units() { return (this.rawData.units || []).map(r => ({ name: r[0] })); },
-        users() { return (this.rawData.users || []).map(u => ({ user: u[0], pass: u[1], role: u[2], name: u[3] })); },
+        users() { return (this.rawData.users || []).map(u => ({ user: u[0], pass: u[1], role: u[2], name: u[3], email: u[4] || '' })); },
         bills() { 
             return (this.rawData.bills || []).map(r => {
                 let bId = r[0];
@@ -3935,6 +3935,7 @@ const app = createApp({
         },
         async saveAdminData() { 
             if (this.page === 'manage_user') {
+                if (this.modalForm.userLevel === 'User' && !(this.modalForm.accessList || []).length) return alert('กรุณาติ๊กเลือกคลังที่ผู้ใช้นี้เข้าถึงได้อย่างน้อย 1 คลัง');
                 this.modalForm.role = this.modalForm.userLevel === 'User' ? 'User:' + (this.modalForm.accessList || []).join(',') : this.modalForm.userLevel;
             }
             if (this.page === 'manage_dept') { if (!this.modalForm.name || !String(this.modalForm.name).trim()) return alert('ระบุชื่อปลายทาง'); if (!this.modalForm.deptGroup) this.modalForm.deptGroup = '4'; this.modalForm.name = String(this.modalForm.name).trim(); }
