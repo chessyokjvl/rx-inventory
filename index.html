@@ -283,7 +283,7 @@
                         </div>
                     </div>
                     <div class="col-12 col-sm-6 col-xl-3" v-if="globalStock==='MAIN' || globalStock==='ALL'">
-                        <div class="card card-shadow metric-card p-3 border-start border-5 border-info h-100" @click="navTo('inspect', 'MAIN')"style="cursor: pointer;">
+                        <div class="card card-shadow metric-card p-3 border-start border-5 border-info h-100" @click="canMainOps && navTo('inspect', 'MAIN')" :style="{cursor: canMainOps ? 'pointer' : 'default'}">
                             <div class="text-muted small fw-bold">มูลค่ายารอตรวจรับ (Pending)</div>
                             <h3 class="fw-bold text-info mt-1">{{ formatCurrency(dashPendingValue) }}</h3>
                             <div class="small mt-auto text-secondary">รอตรวจรับ: {{ pendingBills.length }} บิล</div>
@@ -291,12 +291,12 @@
                     </div>
                     <!-- กล่องที่ 3: ใบเบิกฉุกเฉิน (รอเคลียร์) -->
                         <div class="col-12 col-sm-6 col-lg-3">
-                            <div class="card card-shadow metric-card p-3 border-start border-5 border-warning h-100" @click="page = 'clearEmg'" style="cursor: pointer;" title="คลิกเพื่อเคลียร์รายการเบิกฉุกเฉิน">
+                            <div class="card card-shadow metric-card p-3 border-start border-5 border-warning h-100" @click="canMainOps && (page = 'clearEmg')" :style="{cursor: canMainOps ? 'pointer' : 'default'}" :title="canMainOps ? 'คลิกเพื่อเคลียร์รายการเบิกฉุกเฉิน' : ''">
                                 <div class="text-muted small fw-bold">ใบเบิกฉุกเฉิน (รอเคลียร์)</div>
                                 <div class="fs-3 fw-bold text-warning">
                                     {{ unclearedEmgList ? unclearedEmgList.length : 0 }} <span class="fs-6 text-muted">รายการ</span>
                                 </div>
-                                <div class="text-muted small mt-2">คลิกเพื่อดูทะเบียนจ่ายออก</div>
+                                <div v-if="canMainOps" class="text-muted small mt-2">คลิกเพื่อดูทะเบียนจ่ายออก</div>
                             </div>
                         </div>
                     <div class="col-12 col-sm-6 col-xl-3">
@@ -2302,6 +2302,7 @@ const app = createApp({
                 qtyQ1: parseFloat(r[9]) || 0, qtyQ2: parseFloat(r[10]) || 0, qtyQ3: parseFloat(r[11]) || 0, qtyQ4: parseFloat(r[12]) || 0
             }));
         },
+        canMainOps() { return ['Admin', 'God'].includes(this.currentUser.role) || String(this.currentUser.role || '').includes('MAIN'); },
         isEditor() { return ['Admin', 'God'].includes(this.currentUser.role); },
         docEntityOptions() { return [...this.vendors.map(v => v.name), ...this.depts.map(d => d.name)]; },
         docIdEditable() { const id = String(this.docView.id || ''); return !(id.startsWith('RCV-') || id.startsWith('ISS-') || id.startsWith('STK-') || id.startsWith('ADJ-')) && !this.docView.bill; },
@@ -2720,7 +2721,7 @@ const app = createApp({
 
             this.loading = true;
             let ids = selected.map(t => t.transId);
-            const res = await this.apiCall("clearEmergency", { docNo: this.clearEmgDocNo, ids: ids });
+            const res = await this.apiCall("clearEmergency", { username: this.currentUser.user, docNo: this.clearEmgDocNo, ids: ids });
             if(res) {
                 alert('เคลียร์รายการเบิกฉุกเฉินเรียบร้อยแล้ว');
                 this.clearEmgDocNo = '';
@@ -2984,6 +2985,7 @@ const app = createApp({
         },
         
         navTo(pageName, stockLoc) {
+            if (((pageName === 'inspect' && stockLoc === 'MAIN') || pageName === 'clearEmg') && !this.canMainOps) { this.toast('สิทธิ์นี้สำหรับผู้ดูแล (Admin/God) และผู้รับผิดชอบคลังยาใหญ่เท่านั้น'); return; }
             if (stockLoc !== this.globalStock && (this.cartRec.length || this.cartOpen.length || this.cartReq.length || this.subCart.length || this.cartStockTake.length)) {
                 if (!confirm('มีรายการค้างในตะกร้าของคลังเดิม — ถ้าเปลี่ยนคลังจะล้างตะกร้าเหล่านั้น\nต้องการเปลี่ยนคลังหรือไม่?')) return;
                 this.cartRec = []; this.cartOpen = []; this.cartReq = []; this.subCart = []; this.cartStockTake = [];
@@ -3198,7 +3200,7 @@ const app = createApp({
             this.formInspect = { billId: bill.id, refBillNo: bill.refBillNo, vendor: bill.vendor, docNo: '', inspectDate: new Date().toISOString().slice(0, 10), budgetSource: 'เงินบำรุง', budgetBumrung: totalVal, budgetNgob: 0, budgetNarcotic: 0, totalBillVal: totalVal, items: items }; 
             this.showInspectModal = true; 
         },
-        async submitInspection() { if (!this.formInspect.docNo || !confirm(`นำของเข้า ${this.locLabel(this.globalStock)}?`)) return; this.loading = true; const res = await this.apiCall("approveBill", this.formInspect); if (res) { alert(res); this.showInspectModal = false; await this.loadData(); } this.loading = false; },
+        async submitInspection() { if (!this.formInspect.docNo || !confirm(`นำของเข้า ${this.locLabel(this.globalStock)}?`)) return; this.loading = true; const res = await this.apiCall("approveBill", { ...this.formInspect, username: this.currentUser.user }); if (res) { alert(res); this.showInspectModal = false; await this.loadData(); } this.loading = false; },
 
         // --- 📤 จ่ายยา (ตัดสต็อกอิสระ) ---
         onTempOutProdSelect() {
