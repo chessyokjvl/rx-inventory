@@ -41,6 +41,11 @@
         .modal-overlay-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 1055; display: flex; justify-content: center; align-items: center; }
         .print-overlay-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 1060; display: flex; justify-content: center; align-items: flex-start; padding-top: 30px; padding-bottom: 50px; overflow-y: auto; }
 
+        .exp-picker .form-select { font-size: 1.15rem; font-weight: 700; padding: .55rem .75rem; border: 2px solid #dc3545; color: #b02a37; }
+        .exp-picker .exp-hint { font-size: .8rem; color: #6c757d; margin-top: 2px; }
+        .exp-picker .exp-hint-ok { color: #198754; font-weight: 600; }
+        .exp-picker .exp-day { max-width: 90px; flex: 0 0 90px; }
+        
         .table-sm td, .table-sm th { vertical-align: middle; }
         th.sortable { cursor: pointer; user-select: none; position: relative; padding-right: 1.5rem; }
         th.sortable:hover { background-color: #e2e6ea !important; }
@@ -474,12 +479,13 @@
                         <div class="col-12 col-md-2"><label class="small text-muted fw-bold">จำนวนสุทธิ (Base)</label><input type="number" id="scanQty_open" @keydown.enter.prevent="addToOpenCart" v-model.number="tempOpen.qty" @input="calcOpenTotal" class="form-control border-primary" min="1"></div>
                         <div class="col-12 col-md-2"><label class="small text-muted fw-bold">ราคา/หน่วย (บาท)</label><input type="number" v-model.number="tempOpen.unitPrice" @input="calcOpenTotal" class="form-control border-primary" min="0" step="0.01"></div>
                         <div class="col-12 col-md-2"><label class="small text-muted fw-bold">มูลค่ารวม (บาท)</label><input type="number" v-model.number="tempOpen.totalPrice" class="form-control bg-light text-end fw-bold" readonly></div>
-                        <div class="col-12 col-md-2"><label class="small text-danger fw-bold">วันหมดอายุ (Exp)</label><input type="date" v-model="tempOpen.expDate" class="form-control border-danger"></div>
+                        
                     </div>
                     <div class="row g-2 mt-2 align-items-end">
-                        <div class="col-12 col-md-3"><label class="small text-muted fw-bold">เลข Lot (ถ้ามี)</label><input type="text" v-model="tempOpen.lotNo" class="form-control"></div>
-                        <div class="col-12 col-md-6"><label class="small text-muted fw-bold">หมายเหตุ</label><input type="text" v-model="tempOpen.note" class="form-control" placeholder="เช่น ยอดยกมาจากการนับสต็อก..."></div>
-                        <div class="col-12 col-md-3"><button @click="addToOpenCart" class="btn btn-warning w-100 fw-bold shadow-sm mt-3 mt-md-0" :disabled="!tempOpen.productId">นำลงรายการ</button></div>
+                        <div class="col-12 col-md-2"><label class="small text-muted fw-bold">เลข Lot (ไม่บังคับ)</label><input type="text" v-model="tempOpen.lotNo" class="form-control"></div>
+                        <div class="col-12 col-md-4"><label class="text-danger fw-bold">วันหมดอายุ (เดือน / ปี ค.ศ.)</label><exp-picker v-model="tempOpen.expDate"></exp-picker></div>
+                        <div class="col-12 col-md-4"><label class="small text-muted fw-bold">หมายเหตุ</label><input type="text" v-model="tempOpen.note" class="form-control" placeholder="เช่น ยืมมาก่อน, กล่องมีตำหนิ..."></div>
+                        <div class="col-12 col-md-2"><button @click="addToOpenCart" class="btn btn-primary w-100 fw-bold shadow-sm mt-3 mt-md-0">นำลงตะกร้า</button></div>
                     </div>
                 </div>
                 <div v-if="cartOpen.length > 0" class="card card-shadow p-3">
@@ -556,12 +562,13 @@
                             <div class="col-12 col-md-2"><label class="small text-info fw-bold">ขนาดบรรจุ (PackSize)</label><input type="number" v-model.number="tempRec.packSize" class="form-control border-info" min="1" placeholder="เช่น 100"></div>
                             <div class="col-12 col-md-2"><label class="small text-muted fw-bold">ราคา/หน่วย (บาท)</label><input type="number" v-model.number="tempRec.unitPrice" @input="calcRecTotal" class="form-control border-primary" min="0" step="0.01"></div>
                             <div class="col-12 col-md-2"><label class="small text-muted fw-bold">มูลค่ารวม (บาท)</label><input type="number" v-model.number="tempRec.totalPrice" class="form-control bg-light text-end fw-bold" readonly></div>
-                            <div class="col-12 col-md-1"><label class="small text-danger fw-bold">Exp Date</label><input type="date" v-model="tempRec.expDate" class="form-control border-danger"></div>
+                            
                         </div>
                         <div class="row g-2 mt-2 align-items-end">
-                            <div class="col-12 col-md-3"><label class="small text-muted fw-bold">เลข Lot (ไม่บังคับ)</label><input type="text" v-model="tempRec.lotNo" class="form-control"></div>
-                            <div class="col-12 col-md-6"><label class="small text-muted fw-bold">หมายเหตุ</label><input type="text" v-model="tempRec.note" class="form-control" placeholder="เช่น ยืมมาก่อน, กล่องมีตำหนิ..."></div>
-                            <div class="col-12 col-md-3"><button @click="addToReceiveCart" class="btn btn-primary w-100 fw-bold shadow-sm mt-3 mt-md-0">นำลงตะกร้า</button></div>
+                            <div class="col-12 col-md-2"><label class="small text-muted fw-bold">เลข Lot (ไม่บังคับ)</label><input type="text" v-model="tempRec.lotNo" class="form-control"></div>
+                            <div class="col-12 col-md-5"><label class="text-danger fw-bold">วันหมดอายุ (เดือน / ปี ค.ศ.)</label><exp-picker v-model="tempRec.expDate"></exp-picker></div>
+                            <div class="col-12 col-md-3"><label class="small text-muted fw-bold">หมายเหตุ</label><input type="text" v-model="tempRec.note" class="form-control" placeholder="เช่น ยืมมาก่อน, กล่องมีตำหนิ..."></div>
+                            <div class="col-12 col-md-2"><button @click="addToReceiveCart" class="btn btn-primary w-100 fw-bold shadow-sm mt-3 mt-md-0">นำลงตะกร้า</button></div>
                         </div>
                     </div>
 
@@ -768,7 +775,7 @@
                                 </tr>
                                 <tr v-else class="table-warning">
                                     <td :title="it.name">{{ it.name }}<div class="text-muted" style="font-size:.85em">กำลังแก้ไข</div></td>
-                                    <td><input v-model="docEdit.form.lot" class="form-control form-control-sm mb-1" placeholder="Lot"><input type="date" v-model="docEdit.form.exp" class="form-control form-control-sm" title="วันหมดอายุ"></td>
+                                    <td><input v-model="docEdit.form.lot" class="form-control form-control-sm mb-1" placeholder="Lot"><exp-picker v-model="docEdit.form.exp"></exp-picker></td>
                                     <td><input type="number" step="any" min="0" v-model.number="docEdit.form.qty" @input="recalcEditTotal" class="form-control form-control-sm text-end"></td>
                                     <td><input type="number" step="any" min="0" v-model.number="docEdit.form.unitPrice" @input="recalcEditTotal" class="form-control form-control-sm text-end"></td>
                                     <td><input type="number" step="any" min="0" v-model.number="docEdit.form.total" class="form-control form-control-sm text-end fw-bold"></td>
@@ -1675,7 +1682,7 @@
                             <input list="subRecvLotList" v-model.trim="subTemp.lotNo" @change="onSubTempLotChange" class="form-control" placeholder="เลือกจากคลังใหญ่/พิมพ์เอง">
                             <datalist id="subRecvLotList"><option v-for="l in subTempMainLots" :key="l.lot" :value="l.lot">Exp {{ l.exp }} | คลังใหญ่เหลือ {{ l.qty }}</option></datalist>
                         </div>
-                        <div class="col-6 col-md-2"><label class="small text-danger fw-bold">หมดอายุ</label><input type="date" v-model="subTemp.expDate" class="form-control border-danger"></div>
+                        <div class="col-6 col-md-3"><label class="text-danger fw-bold">หมดอายุ (เดือน / ปี ค.ศ.)</label><exp-picker v-model="subTemp.expDate"></exp-picker></div>
                         <div class="col-6 col-md-2" v-if="subTemp.packSize > 1"><label class="small text-info fw-bold">จำนวน (แพ็ค × {{ formatNumber(subTemp.packSize) }})</label><input type="number" step="any" min="0" v-model.number="subTemp.packQty" @input="subFromPack" class="form-control border-info text-center"></div>
                         <div class="col-6 col-md-2"><label class="small text-muted fw-bold">จำนวนสุทธิ (Base)</label><input type="number" step="any" min="0" id="scanQty_sub" @keydown.enter.prevent="addSubItem" v-model.number="subTemp.qty" @input="subFromBase" class="form-control border-primary text-center fw-bold"></div>
                         <div class="col-6 col-md-2"><label class="small text-muted fw-bold">ราคา/หน่วย (ทุน)</label><input type="number" step="0.0001" min="0" v-model.number="subTemp.unitPrice" class="form-control"></div>
@@ -4007,6 +4014,73 @@ const app = createApp({
     }
 });
 
+    // ช่องเลือกวันหมดอายุ: เดือนไทย + ปี ค.ศ. + วัน (เก็บ "YYYY-MM-DD" ค่าเริ่มต้น = วันสิ้นเดือน เลือกวันเองได้)
+app.component('exp-picker', {
+    props: { modelValue: { type: String, default: '' } },
+    emits: ['update:modelValue'],
+    template: `
+        <div class="exp-picker">
+            <div class="input-group">
+                <select class="form-select" v-model="lm" @change="commit('m')">
+                    <option value="">เดือน</option>
+                    <option v-for="(n, i) in months" :key="i" :value="String(i + 1)">{{ n }}</option>
+                </select>
+                <select class="form-select" v-model="ly" @change="commit('y')">
+                    <option value="">ปี ค.ศ.</option>
+                    <option v-for="y in years" :key="y" :value="String(y)">{{ y }}</option>
+                </select>
+                <select class="form-select exp-day" v-model="ld" :disabled="!lm || !ly" @change="commit('d')">
+                    <option v-for="d in daysInMonth" :key="d" :value="String(d)">{{ d }}</option>
+                </select>
+            </div>
+            <div class="exp-hint" :class="{ 'exp-hint-ok': shown }">{{ shown || 'ยังไม่ได้เลือกวันหมดอายุ' }}</div>
+        </div>`,
+    data() {
+        return {
+            months: ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'],
+            lm: '', ly: '', ld: '', dayManual: false
+        };
+    },
+    computed: {
+        daysInMonth() { const y = parseInt(this.ly), m = parseInt(this.lm); return (y && m) ? new Date(y, m, 0).getDate() : 31; },
+        years() {
+            const cy = new Date().getFullYear(), a = [];
+            for (let y = cy - 1; y <= cy + 12; y++) a.push(y);
+            const cur = parseInt(this.ly);
+            if (cur && !a.includes(cur)) { a.push(cur); a.sort((x, y) => x - y); }
+            return a;
+        },
+        shown() {
+            const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(this.modelValue || '');
+            return m ? 'หมดอายุ ' + parseInt(m[3]) + ' ' + this.months[parseInt(m[2]) - 1] + ' ' + m[1] + ' (ค.ศ.)' : '';
+        }
+    },
+    watch: {
+        modelValue: { immediate: true, handler(v) {
+            const m = /^(\d{4})-(\d{2})-?(\d{2})?/.exec(v || '');
+            if (m) {
+                this.ly = String(parseInt(m[1])); this.lm = String(parseInt(m[2]));
+                const last = new Date(parseInt(m[1]), parseInt(m[2]), 0).getDate(), d = m[3] ? parseInt(m[3]) : last;
+                this.ld = String(Math.min(d, last)); this.dayManual = d !== last;
+            } else if (!v) { this.ly = ''; this.lm = ''; this.ld = ''; this.dayManual = false; }
+        } }
+    },
+    methods: {
+        commit(src) {
+            if (src === 'd') this.dayManual = true;
+            if (!this.lm && !this.ly) { this.ld = ''; this.dayManual = false; return this.$emit('update:modelValue', ''); }
+            // เลือกเดือนก่อน: เติมปีให้ (ปีนี้ หรือปีหน้าถ้าเดือนนั้นผ่านไปแล้ว)
+            if (this.lm && !this.ly) { const now = new Date(); this.ly = String(now.getFullYear() + (parseInt(this.lm) < now.getMonth() + 1 ? 1 : 0)); }
+            if (!this.lm) return;
+            const y = parseInt(this.ly), m = parseInt(this.lm), last = new Date(y, m, 0).getDate();
+            // วัน: ค่าเริ่มต้น = สิ้นเดือน (ถ้าผู้ใช้เลือกวันเองแล้ว ให้คงไว้ แต่ไม่เกินจำนวนวันของเดือนนั้น)
+            const d = (this.dayManual && this.ld) ? Math.min(parseInt(this.ld), last) : last;
+            this.ld = String(d);
+            this.$emit('update:modelValue', y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0'));
+        }
+    }
+});
+    
 app.mount('#app');
 </script>
 </body>
