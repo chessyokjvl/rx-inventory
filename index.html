@@ -977,7 +977,9 @@
                                     <td><span class="badge" :class="logBadge(l.action)">{{ LOG_LABEL[l.action] || l.action }}</span></td>
                                     <td>{{ l.target }}</td>
                                     <td>{{ l.stock_location }}</td>
-                                    <td><div v-for="t in logLines(l)" class="mb-1">{{ t }}</div></td>
+                                    <td><div v-for="t in logLines(l)" class="mb-1">{{ t }}</div>
+                                        <button v-if="canRestore(l)" @click="restoreLog(l)" class="btn btn-sm btn-outline-success mt-1" :disabled="loading"><i class="bi bi-arrow-counterclockwise"></i> กู้คืน<span v-if="restoreGroup(l).length > 1"> ทั้งใบ ({{ restoreGroup(l).length }} คลัง)</span></button>
+                                        <div v-else-if="isDeleteLog(l) && !restoredInfo(l)" class="small text-muted">⚠ Log เก่า ไม่มีข้อมูลเต็ม — กู้คืนไม่ได้</div></td>
                                 </tr>
                                 <tr v-if="filteredLogs.length === 0"><td colspan="6" class="text-center text-muted p-4">{{ logLoading ? 'กำลังโหลด...' : 'ไม่มี Log' }}</td></tr>
                             </tbody>
@@ -2511,7 +2513,7 @@ const app = createApp({
             confirmAct: { show: false, title: '', lines: [], danger: false, okText: 'ยืนยัน', onOk: null },
             docEdit: { transId: '', headOpen: false, form: { lot: '', exp: '', qty: 0, unitPrice: 0, total: 0 }, head: { date: '', entity: '', refBillNo: '', docNo: '', inspectDate: '', newDocId: '' } },
             activityLogs: [], logLoading: false, logFilter: { q: '', user: '', action: '' },
-            LOG_LABEL: { MINMAX_APPLY: 'Apply Min/Max', PO_SAVE: 'สร้างใบ PO', PO_EDIT: 'แก้ไขใบ PO', PO_DELETE: 'ลบใบ PO', REQ_EDIT: 'แก้ไขใบขอเบิก', REQ_DELETE: 'ลบใบขอเบิก', EDIT_ITEM: 'แก้ไขรายการ', EDIT_DOC: 'แก้ไขหัวเอกสาร', DELETE_ITEM: 'ลบรายการ', DELETE_DOC: 'ลบทั้งใบ', PLAN_SAVE: 'บันทึกแผนจัดซื้อ', PLAN_REPLACE: 'แทนที่แผนจัดซื้อ', PLAN_DELETE_ITEM: 'ลบรายการแผน', PLAN_DELETE_YEAR: 'ลบแผนทั้งปี', ID_MIGRATE: 'ปรับรหัส (ID)', PRODUCT_ID_CHANGE: 'เปลี่ยนรหัสสินค้า' },
+            LOG_LABEL: { MINMAX_APPLY: 'Apply Min/Max', PO_SAVE: 'สร้างใบ PO', PO_EDIT: 'แก้ไขใบ PO', PO_DELETE: 'ลบใบ PO', REQ_EDIT: 'แก้ไขใบขอเบิก', REQ_DELETE: 'ลบใบขอเบิก', EDIT_ITEM: 'แก้ไขรายการ', EDIT_DOC: 'แก้ไขหัวเอกสาร', DELETE_ITEM: 'ลบรายการ', DELETE_DOC: 'ลบทั้งใบ', RESTORE: 'กู้คืนรายการที่ลบ', PLAN_SAVE: 'บันทึกแผนจัดซื้อ', PLAN_REPLACE: 'แทนที่แผนจัดซื้อ', PLAN_DELETE_ITEM: 'ลบรายการแผน', PLAN_DELETE_YEAR: 'ลบแผนทั้งปี', ID_MIGRATE: 'ปรับรหัส (ID)', PRODUCT_ID_CHANGE: 'เปลี่ยนรหัสสินค้า' },
             planYear: (() => { const d = new Date(); return String(d.getFullYear() + 543 + (d.getMonth() >= 9 ? 1 : 0)); })(),
             planCountPending: true, planFilter: { q: '', status: 'all' }, planSort: { key: 'pctQty', asc: true },
             planForm: { productName: '', productId: '', unit: '', price: 0, qty: 0 },
@@ -3879,14 +3881,46 @@ const app = createApp({
             if (res) this.activityLogs = res;
         },
         logBadge(a) { return a.startsWith('DELETE') || a.endsWith('DELETE_ITEM') || a.endsWith('DELETE_YEAR') ? 'bg-danger' : (a.startsWith('EDIT') ? 'bg-primary' : 'bg-info text-dark'); },
+        parseLog(l) { try { return JSON.parse(l.detail || '{}') || {}; } catch (e) { return {}; } },
+        isDeleteLog(l) { return l.action === 'DELETE_DOC' || l.action === 'DELETE_ITEM'; },
+        restoredInfo(l) { const d = this.parseLog(l); return d.restored || null; },
+        canRestore(l) {
+            if (!this.isDeleteLog(l) || this.currentUser.role !== 'God') return false;
+            const d = this.parseLog(l);
+            return !d.restored && Array.isArray(d.items) && d.items.length > 0 && !!d.items[0].trans_id && !!d.items[0].product_id;
+        },
+        // Log การลบทั้งใบที่แยกเป็นหลายคลัง (เช่น OPD + MAIN) — กู้คืนพร้อมกัน
+        restoreGroup(l) {
+            if (!this.canRestore(l)) return [];
+            if (l.action !== 'DELETE_DOC') return [l];
+            const t0 = new Date(String(l.log_time).replace(' ', 'T')).getTime();
+            return this.activityLogs.filter(x => x.action === 'DELETE_DOC' && x.target === l.target && x.username === l.username && this.canRestore(x)
+                && Math.abs(new Date(String(x.log_time).replace(' ', 'T')).getTime() - t0) <= 30 * 60 * 1000);
+        },
+        restoreLog(l) {
+            const g = this.restoreGroup(l); if (!g.length) return;
+            const n = g.reduce((a, x) => a + this.parseLog(x).items.length, 0);
+            this.askConfirm({ title: 'กู้คืนรายการที่ลบ?', okText: 'กู้คืน', lines: [
+                'เอกสาร: ' + l.target,
+                ...g.map(x => '• ' + (x.stock_location || '-') + ' — ' + this.parseLog(x).items.length + ' รายการ (' + x.log_time + ')'),
+                'รวม ' + n + ' รายการ จะถูกใส่กลับด้วยรหัสเดิม',
+                'ใบที่มีรายการจากคลังใหญ่จะแสดงรวมเป็นใบเดียวใน "ประวัติรับจ่าย" ของคลังยาใหญ่'
+            ], onOk: async () => {
+                this.loading = true;
+                const res = await this.apiCall('restoreDeleted', { username: this.currentUser.user, logIds: g.map(x => x.id) });
+                this.loading = false;
+                if (res) { this.toast(typeof res === 'string' ? res : 'กู้คืนเรียบร้อย'); await this.loadData(); await this.loadLogs(); }
+            } });
+        },
         logLines(l) {
             let d = {}; try { d = JSON.parse(l.detail || '{}') || {}; } catch (e) { return [String(l.detail || '')]; }
             const diff = (b, a, map) => Object.keys(map).filter(k => b && a && String(b[k] == null ? '' : b[k]) !== String(a[k] == null ? '' : a[k])).map(k => map[k] + ': ' + (b[k] === '' || b[k] == null ? '-' : b[k]) + ' → ' + (a[k] === '' || a[k] == null ? '-' : a[k]));
             if (l.action === 'EDIT_ITEM') return [(d.productName || d.productId || '') + (d.type ? ' (' + d.type + ')' : ''), ...diff(d.before, d.after, { lot: 'Lot', exp: 'Exp', qty: 'จำนวน', unitPrice: 'ราคา/หน่วย', total: 'มูลค่า', note: 'หมายเหตุ' })];
             if (l.action === 'EDIT_DOC') return [...diff(d.before, d.after, { date: 'วันที่', entity: 'ปลายทาง/แหล่งที่มา', docId: 'เลขที่เอกสาร' }), ...(d.before && d.before.bill ? diff(d.before.bill, d.after.bill, { ref_bill_no: 'เลขบิลบริษัท', doc_no: 'เลขเอกสารราชการ', inspect_date: 'วันที่ตรวจรับ' }) : [])];
-            if (l.action === 'DELETE_ITEM' || l.action === 'DELETE_DOC') return [(d.itemNames && d.itemNames.length ? d.itemNames : (d.items || []).map(i => i.product_id + ' × ' + i.qty + ' (' + i.total_price + ')')).join('\n'), d.billDeleted ? 'ลบบิลบริษัทด้วย' : ''].join('\n').split('\n').filter(x => x);
+            if (l.action === 'DELETE_ITEM' || l.action === 'DELETE_DOC') return [d.restored ? '↩ กู้คืนแล้ว ' + (d.restored.time || '') + ' โดย ' + (d.restored.by || '') : '', (d.itemNames && d.itemNames.length ? d.itemNames : (d.items || []).map(i => i.product_id + ' × ' + i.qty + ' (' + i.total_price + ')')).join('\n'), d.billDeleted ? 'ลบบิลบริษัทด้วย' : ''].join('\n').split('\n').filter(x => x);
             if (l.action.startsWith('PLAN_SAVE') || l.action === 'PLAN_REPLACE') return ['ปี ' + d.year + ' · ' + (d.mode === 'replace' ? 'แทนที่ทั้งปี' : 'เพิ่ม/อัปเดต') + ' · ' + d.itemsSaved + ' รายการ · มูลค่า ' + this.formatCurrency(d.valueSaved) + (d.fileName ? ' · ไฟล์ ' + d.fileName : ''), 'ก่อนหน้า: ' + d.beforeCount + ' รายการ · ' + this.formatCurrency(d.beforeValue)];
             if (l.action.startsWith('PLAN_DELETE')) return ['ปี ' + d.year + (d.productId ? ' · รหัส ' + d.productId : '') + ' · ลบ ' + (d.deleted || []).length + ' รายการ'];
+            if (l.action === 'RESTORE') return [(d.rows || 0) + ' รายการ · Log #' + (d.logIds || []).join(', #')];
             if (l.action === 'MINMAX_APPLY') return [(d.location || '') + ' · ' + (d.count || 0) + ' รายการ'];
             if (l.action === 'PO_SAVE') return ['PO ' + (d.poId || '') + ' · ' + d.items + ' รายการ · โหมด ' + d.mode];
             if (l.action === 'PO_EDIT') return ['PO ' + (d.poId || '') + ' · รายการหลังแก้ ' + (d.afterItems || []).length + ' รายการ · สถานะ ' + d.status];
