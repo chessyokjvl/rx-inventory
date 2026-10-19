@@ -18,6 +18,8 @@
 
     <style>
         body { font-family: 'Prompt', sans-serif; background-color: #f4f6f9; font-size: 0.95rem; overflow-x: hidden; }
+        .guest-wrap { min-height: 100vh; width: 100%; background: #f1f4f9; }
+        .guest-card:hover { box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important; }
         .login-bg { background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); }
         .login-card { border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: none; overflow: hidden; width: 100%; max-width: 420px; margin: 15px; }
 
@@ -88,8 +90,95 @@
         <h5 class="mt-3 text-primary fw-bold">กำลังประมวลผลข้อมูล...</h5>
     </div>
 
+    <!-- ----------------- Guest View (อ่านอย่างเดียว) ----------------- -->
+    <div v-if="isGuest" class="guest-wrap">
+        <nav class="navbar navbar-dark bg-primary px-3 py-2 sticky-top shadow-sm">
+            <span class="navbar-brand mb-0 fw-bold"><i class="bi bi-hospital me-2"></i>JVL Inventory <small class="opacity-75 fw-normal">| ภาพรวมคลังเวชภัณฑ์</small></span>
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-warning text-dark d-none d-md-inline"><i class="bi bi-eye-fill me-1"></i>โหมดผู้เยี่ยมชม · ดูได้อย่างเดียว</span>
+                <button class="btn btn-sm btn-outline-light" @click="guestRefresh" :disabled="loading"><i class="bi bi-arrow-clockwise"></i> รีเฟรช</button>
+                <button class="btn btn-sm btn-light fw-bold" @click="exitGuest"><i class="bi bi-box-arrow-left"></i> กลับหน้า Login</button>
+            </div>
+        </nav>
+        <div class="container-fluid p-3 p-md-4" id="guestRoot">
+            <div class="d-flex flex-wrap justify-content-between align-items-end mb-3">
+                <div>
+                    <h4 class="fw-bold text-primary mb-0"><i class="bi bi-speedometer2 me-2"></i>Dashboard กลาง — สรุปจากทุกคลัง</h4>
+                    <small class="text-muted">โรงพยาบาลจิตเวชเลยราชนครินทร์ · ข้อมูล ณ {{ guestNowText }} · ข้อมูลทั้งหมดเป็นการเปิดดูเท่านั้น</small>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-lg-3"><div class="card shadow-sm border-0 h-100 border-start border-4 border-primary"><div class="card-body"><div class="small text-muted fw-bold">มูลค่าคงคลังรวมทุกคลัง</div><h3 class="fw-bold text-primary mb-0" id="gTotalVal">{{ sjFmt(guestTotals.value) }}</h3><div class="small text-secondary">บาท · {{ guestTotals.skus }} รายการที่มีของ</div></div></div></div>
+                <div class="col-6 col-lg-3"><div class="card shadow-sm border-0 h-100 border-start border-4 border-warning"><div class="card-body"><div class="small text-muted fw-bold">ใกล้หมดอายุ (≤ 6 เดือน)</div><h3 class="fw-bold text-warning mb-0">{{ guestTotals.near }} <span class="fs-6">ล็อต</span></h3><div class="small text-secondary">มูลค่า {{ sjFmt(guestTotals.nearVal) }} บาท</div></div></div></div>
+                <div class="col-6 col-lg-3"><div class="card shadow-sm border-0 h-100 border-start border-4 border-danger"><div class="card-body"><div class="small text-muted fw-bold">หมดอายุแล้ว (ยังมียอดคงเหลือ)</div><h3 class="fw-bold text-danger mb-0">{{ guestTotals.expired }} <span class="fs-6">ล็อต</span></h3><div class="small text-secondary">มูลค่า {{ sjFmt(guestTotals.expiredVal) }} บาท</div></div></div></div>
+                <div class="col-6 col-lg-3"><div class="card shadow-sm border-0 h-100 border-start border-4 border-success"><div class="card-body"><div class="small text-muted fw-bold">คลังที่มีการใช้งานใน 30 วันล่าสุด</div><h3 class="fw-bold text-success mb-0">{{ guestTotals.activeStocks }} / {{ guestStats.length }} <span class="fs-6">คลัง</span></h3><div class="small text-secondary">ธุรกรรมรวม {{ guestTotals.tx30 }} รายการ</div></div></div></div>
+            </div>
+
+            <div v-for="grp in guestGroups" :key="grp.title" class="mb-3">
+                <h6 class="fw-bold text-secondary mb-2"><i class="bi bi-diagram-3 me-1"></i>{{ grp.title }}</h6>
+                <div class="row g-3">
+                    <div v-for="st in grp.items" :key="st.key" class="col-12 col-md-6 col-xl-4">
+                        <div class="card shadow-sm h-100 guest-card" :class="{'border-primary border-2': guestSel === st.key}" style="cursor:pointer" @click="pickGuestStock(st.key)">
+                            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                                <span class="fw-bold">{{ st.label }}</span>
+                                <span class="badge" :class="st.actClass"><i class="bi bi-circle-fill me-1" style="font-size:.5rem"></i>{{ st.actText }}</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="small text-muted">มูลค่าคงคลัง</div>
+                                <div class="fs-3 fw-bold text-primary">{{ sjFmt(st.value) }} <small class="fs-6 text-muted">บาท</small></div>
+                                <div class="small text-secondary mb-2">{{ st.skus }} รายการที่มีของ<span v-if="st.edVal || st.nedVal"> · ED {{ sjFmt(st.edVal) }} / NED {{ sjFmt(st.nedVal) }}</span></div>
+                                <div class="row g-2 text-center small">
+                                    <div class="col-4"><div class="p-2 rounded bg-warning bg-opacity-10"><div class="fw-bold text-warning fs-5">{{ st.near }}</div>ใกล้หมดอายุ</div></div>
+                                    <div class="col-4"><div class="p-2 rounded bg-danger bg-opacity-10"><div class="fw-bold text-danger fs-5">{{ st.expired }}</div>หมดอายุ</div></div>
+                                    <div class="col-4"><div class="p-2 rounded bg-info bg-opacity-10"><div class="fw-bold text-info fs-5">{{ st.reorder }}</div>ถึงจุดสั่งซื้อ</div></div>
+                                </div>
+                                <hr class="my-2">
+                                <div class="small text-muted"><i class="bi bi-activity me-1"></i>7 วัน: <b>{{ st.tx7 }}</b> · 30 วัน: <b>{{ st.tx30 }}</b> รายการ<span v-if="st.shelf30"> · จ่ายขึ้น Shelf 30 วัน: <b>{{ st.shelf30 }}</b></span></div>
+                                <div class="small text-muted">เคลื่อนไหวล่าสุด: <b>{{ st.lastText }}</b></div>
+                            </div>
+                            <div class="card-footer bg-white small text-primary text-end"><i class="bi bi-search"></i> คลิกเพื่อดูรายละเอียด</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-lg-5"><div class="card shadow-sm border-0 h-100"><div class="card-header bg-white fw-bold"><i class="bi bi-bar-chart-fill text-primary me-1"></i>มูลค่าคงคลังแต่ละคลัง</div><div class="card-body" style="height:300px"><canvas id="guestValChart"></canvas></div></div></div>
+                <div class="col-lg-7"><div class="card shadow-sm border-0 h-100"><div class="card-header bg-white fw-bold"><i class="bi bi-graph-up text-success me-1"></i>มูลค่าการจ่ายออกรายเดือน (12 เดือนล่าสุด) — สะท้อนการใช้งานระบบของแต่ละคลัง</div><div class="card-body" style="height:300px"><canvas id="guestMonthChart"></canvas></div></div></div>
+            </div>
+
+            <div v-if="guestSel && guestDetail" class="card shadow-sm border-0 mb-4" id="guestDetail">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <span class="fw-bold"><i class="bi bi-search me-1"></i>รายละเอียด: {{ guestDetail.label }}</span>
+                    <button class="btn btn-sm btn-light" @click="guestSel = ''"><i class="bi bi-x-lg"></i> ปิด</button>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-pills mb-3 gap-1">
+                        <li class="nav-item" v-for="t in guestTabs" :key="t.k"><a class="nav-link py-1 fw-bold" href="#" :class="guestTab === t.k ? 'active bg-primary text-white' : 'text-primary border bg-white'" @click.prevent="guestTab = t.k">{{ t.t }} <span class="badge bg-light text-dark">{{ guestDetail.counts[t.k] }}</span></a></li>
+                    </ul>
+                    <div class="table-responsive" style="max-height:480px">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light sticky-top" v-if="guestTab === 'top'"><tr><th>รหัส</th><th>รายการ</th><th class="text-end">คงเหลือ</th><th>หน่วย</th><th class="text-end">มูลค่า (บาท)</th></tr></thead>
+                            <tbody v-if="guestTab === 'top'"><tr v-for="r in guestDetail.top" :key="r.id"><td>{{ r.id }}</td><td>{{ r.name }}</td><td class="text-end">{{ sjFmt(r.qty) }}</td><td>{{ r.unit }}</td><td class="text-end fw-bold">{{ sjFmt(r.val) }}</td></tr></tbody>
+                            <thead class="table-light sticky-top" v-if="guestTab === 'near'"><tr><th>รายการ</th><th>Lot</th><th>วันหมดอายุ</th><th class="text-end">เหลือ (วัน)</th><th class="text-end">คงเหลือ</th><th class="text-end">มูลค่า (บาท)</th></tr></thead>
+                            <tbody v-if="guestTab === 'near'"><tr v-for="r in guestDetail.near" :key="r.k"><td>{{ r.name }}</td><td>{{ r.lot }}</td><td>{{ r.exp }}</td><td class="text-end" :class="r.days < 0 ? 'text-danger fw-bold' : 'text-warning'">{{ r.days < 0 ? 'หมดอายุแล้ว' : r.days }}</td><td class="text-end">{{ sjFmt(r.qty) }}</td><td class="text-end">{{ sjFmt(r.val) }}</td></tr></tbody>
+                            <thead class="table-light sticky-top" v-if="guestTab === 'reorder'"><tr><th>รหัส</th><th>รายการ</th><th class="text-end">คงเหลือ</th><th class="text-end">จุดสั่งซื้อ (Min)</th><th>หน่วย</th></tr></thead>
+                            <tbody v-if="guestTab === 'reorder'"><tr v-for="r in guestDetail.reorder" :key="r.id"><td>{{ r.id }}</td><td>{{ r.name }}</td><td class="text-end text-danger fw-bold">{{ sjFmt(r.qty) }}</td><td class="text-end">{{ sjFmt(r.min) }}</td><td>{{ r.unit }}</td></tr></tbody>
+                            <thead class="table-light sticky-top" v-if="guestTab === 'move'"><tr><th>วันที่</th><th>ประเภท</th><th>รายการ</th><th class="text-end">จำนวน</th><th class="text-end">มูลค่า (บาท)</th></tr></thead>
+                            <tbody v-if="guestTab === 'move'"><tr v-for="r in guestDetail.move" :key="r.k"><td>{{ r.date }}</td><td><span class="badge" :class="r.cls">{{ r.label }}</span></td><td>{{ r.name }}</td><td class="text-end">{{ sjFmt(r.qty) }}</td><td class="text-end">{{ sjFmt(r.val) }}</td></tr></tbody>
+                        </table>
+                        <div v-if="!guestDetail[guestTab].length" class="text-center text-muted py-4">ไม่มีรายการ</div>
+                    </div>
+                    <div class="small text-muted mt-2" v-if="guestDetail.note">{{ guestDetail.note }}</div>
+                </div>
+            </div>
+            <div class="text-center text-muted small pb-3">โหมดผู้เยี่ยมชมแสดงเฉพาะข้อมูลสรุปที่เปิดเผยได้ — ไม่สามารถทำรายการใด ๆ ได้ · หากต้องการใช้งานเต็มรูปแบบให้เข้าสู่ระบบด้วยบัญชีผู้ใช้</div>
+        </div>
+    </div>
+
     <!-- ----------------- Login Screen ----------------- -->
-    <div v-if="!currentUser.name" class="login-bg d-flex justify-content-center align-items-center vh-100">
+    <div v-else-if="!currentUser.name" class="login-bg d-flex justify-content-center align-items-center vh-100">
         <div class="card login-card shadow-lg" style="border-radius: 20px;">
             <div class="card-header bg-white text-center pt-5 pb-3 border-0">
                 <img src="https://www.rploei.go.th/ec2/wp-content/uploads/2017/08/cropped-cropped-cropped-3.png" alt="Logo" style="max-height: 90px;" class="mb-3">
@@ -107,6 +196,10 @@
                 </div>
                 <button @click="doLogin" class="btn btn-primary w-100 py-3 fw-bold rounded-pill shadow-sm mb-3" :disabled="loading">
                     <i class="bi bi-box-arrow-in-right me-2"></i> เข้าสู่ระบบ
+                </button>
+                <div class="text-center text-muted small mb-2">— หรือ —</div>
+                <button @click="enterGuest" id="btnGuest" class="btn btn-outline-secondary w-100 py-2 fw-bold rounded-pill" :disabled="loading">
+                    <i class="bi bi-eye me-2"></i> เข้าชมแบบ Guest (ดู Dashboard กลาง)
                 </button>
             </div>
         </div>
@@ -2605,6 +2698,7 @@ const app = createApp({
             isSidebarOpen: false,
             activeMenu: '',
             currentUser: {},
+            isGuest: false, guestSel: '', guestTab: 'top',
             loginForm: { user: '', pass: '' },
             page: 'dashboard',
             searchQuery: '',
@@ -3160,6 +3254,74 @@ const app = createApp({
             return Object.values(g).sort((a, b) => new Date(b.date) - new Date(a.date));
         },
         
+        // ===== Guest view (อ่านอย่างเดียว) =====
+        guestTabs() { return [{ k: 'top', t: 'มูลค่าสูงสุด' }, { k: 'near', t: 'ใกล้หมดอายุ/หมดอายุ' }, { k: 'reorder', t: 'ถึงจุดสั่งซื้อ' }, { k: 'move', t: 'เคลื่อนไหว 30 วัน' }]; },
+        guestNowText() { return new Date().toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }); },
+        guestCalc() {
+            if (!this.isGuest) return { stocks: [], months: [] };
+            const DAY = 864e5, now = new Date(), t0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+            const d7 = t0 - 7 * DAY, d30 = t0 - 30 * DAY, six = new Date(now); six.setMonth(six.getMonth() + 6);
+            const defs = [{ key: 'MAIN', label: 'คลังยาใหญ่', grp: 'คลังใหญ่' }, { key: 'เวชภัณฑ์มิใช่ยา', label: 'คลังเวชภัณฑ์มิใช่ยา', grp: 'คลังใหญ่' }, { key: 'OPD', label: 'คลังยาย่อย OPD', grp: 'คลังย่อย' }, { key: 'IPD', label: 'คลังยาย่อย IPD', grp: 'คลังย่อย' }];
+            const pm = {}; this.products.forEach(p => { pm[p.id] = p; });
+            const lv = {}; this.stockLevels.forEach(l => { lv[l.productId + '|' + l.stockLocation] = l.min; });
+            const months = []; for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0')); }
+            const ST = {}; defs.forEach(d => { ST[d.key] = { ...d, prod: {}, lots: {}, tx7: 0, tx30: 0, shelf30: 0, last: 0, move: [], mon: {} }; months.forEach(m => { ST[d.key].mon[m] = 0; }); });
+            this.transactions.forEach(t => {
+                if (t.status !== 'Completed') return;
+                const st = ST[t.stockLocation || 'MAIN']; if (!st) return;
+                const p = pm[t.productId]; if (!p) return;
+                const sgn = t.type === 'IN' ? 1 : -1;
+                const a = st.prod[t.productId] || (st.prod[t.productId] = { qty: 0, val: 0 });
+                a.qty += sgn * t.qty; a.val += sgn * t.totalPrice;
+                const lk = t.productId + '|' + t.lotNo, l = st.lots[lk] || (st.lots[lk] = { pid: t.productId, lot: t.lotNo, exp: t.expDate, qty: 0, up: t.unitPrice });
+                l.qty += sgn * t.qty; if (t.unitPrice) l.up = t.unitPrice;
+                const ds = String(t.date || '').slice(0, 10), tm = new Date(ds).getTime();
+                if (!isNaN(tm)) {
+                    if (tm > st.last) st.last = tm;
+                    const sh = this.isShelfRow(t);
+                    if (tm >= d7) st.tx7++;
+                    if (tm >= d30) { st.tx30++; if (sh) st.shelf30++; st.move.push({ k: t.transId + '|' + t.productId + '|' + t.lotNo, date: ds, tm, name: p.name, qty: t.qty, val: t.totalPrice, label: sh ? 'จ่ายขึ้น Shelf' : (t.type === 'IN' ? 'รับเข้า' : 'จ่ายออก'), cls: sh ? 'bg-info' : (t.type === 'IN' ? 'bg-success' : 'bg-danger') }); }
+                    if (t.type === 'OUT' && st.mon[ds.slice(0, 7)] !== undefined) st.mon[ds.slice(0, 7)] += t.totalPrice;
+                }
+            });
+            const stocks = defs.map(d => {
+                const st = ST[d.key], r = { key: d.key, label: d.label, grp: d.grp, value: 0, skus: 0, edVal: 0, nedVal: 0, near: 0, nearVal: 0, expired: 0, expiredVal: 0, reorder: 0, tx7: st.tx7, tx30: st.tx30, shelf30: st.shelf30, last: st.last, mon: st.mon, top: [], nearList: [], reorderList: [], moveList: st.move.sort((x, y) => y.tm - x.tm).slice(0, 300) };
+                Object.keys(st.prod).forEach(id => {
+                    const p = pm[id], a = st.prod[id]; if (!p.isActive) return;
+                    r.value += a.val;
+                    if (a.qty > 0.0001) { r.skus++; r.top.push({ id, name: p.name, unit: p.unit, qty: a.qty, val: a.val }); if (p.objType === 'ยา') { if (p.drugClass === 'ED') r.edVal += a.val; else if (p.drugClass === 'NED') r.nedVal += a.val; } }
+                    const mn = (lv[id + '|' + d.key] !== undefined) ? lv[id + '|' + d.key] : (p.min || 0);
+                    if (mn > 0 && a.qty <= mn) { r.reorder++; r.reorderList.push({ id, name: p.name, unit: p.unit, qty: a.qty, min: mn }); }
+                });
+                Object.keys(st.lots).forEach(k => {
+                    const l = st.lots[k], p = pm[l.pid]; if (!p || !p.isActive || l.qty <= 0.01 || !l.exp) return;
+                    const ex = new Date(l.exp); if (isNaN(ex)) return;
+                    const val = l.qty * (l.up || 0), days = Math.floor((ex.getTime() - t0) / DAY);
+                    if (ex < new Date(t0)) { r.expired++; r.expiredVal += val; }
+                    else if (ex <= six) { r.near++; r.nearVal += val; } else return;
+                    r.nearList.push({ k, name: p.name, lot: l.lot, exp: String(l.exp).slice(0, 10), days, qty: l.qty, val });
+                });
+                r.top.sort((x, y) => y.val - x.val); r.nearList.sort((x, y) => x.days - y.days); r.reorderList.sort((x, y) => (x.qty - x.min) - (y.qty - y.min));
+                const ageDays = r.last ? Math.floor((t0 - r.last) / DAY) : null;
+                r.lastText = r.last ? (new Date(r.last).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' }) + (ageDays === 0 ? ' (วันนี้)' : ' (' + ageDays + ' วันที่แล้ว)')) : 'ยังไม่มีข้อมูล';
+                if (r.tx7 > 0) { r.actText = 'ใช้งานสม่ำเสมอ'; r.actClass = 'bg-success'; } else if (r.tx30 > 0) { r.actText = 'มีการใช้งาน'; r.actClass = 'bg-warning text-dark'; } else { r.actText = 'ไม่มีการเคลื่อนไหว 30 วัน'; r.actClass = 'bg-secondary'; }
+                return r;
+            });
+            return { stocks, months };
+        },
+        guestStats() { return this.guestCalc.stocks; },
+        guestGroups() { const g = []; this.guestStats.forEach(s => { let x = g.find(y => y.title === s.grp); if (!x) { x = { title: s.grp, items: [] }; g.push(x); } x.items.push(s); }); return g; },
+        guestTotals() {
+            const o = { value: 0, skus: 0, near: 0, nearVal: 0, expired: 0, expiredVal: 0, tx30: 0, activeStocks: 0 };
+            this.guestStats.forEach(s => { o.value += s.value; o.skus += s.skus; o.near += s.near; o.nearVal += s.nearVal; o.expired += s.expired; o.expiredVal += s.expiredVal; o.tx30 += s.tx30; if (s.tx30 > 0) o.activeStocks++; });
+            return o;
+        },
+        guestDetail() {
+            const s = this.guestStats.find(x => x.key === this.guestSel); if (!s) return null;
+            return { label: s.label, top: s.top.slice(0, 100), near: s.nearList.slice(0, 300), reorder: s.reorderList.slice(0, 300), move: s.moveList,
+                counts: { top: s.top.length, near: s.nearList.length, reorder: s.reorderList.length, move: s.moveList.length },
+                note: this.guestTab === 'top' ? 'แสดง 100 รายการแรกที่มีมูลค่าสูงสุด' : (this.guestTab === 'move' ? 'แสดงรายการเคลื่อนไหวล่าสุด (สูงสุด 300 รายการ) โดยไม่ระบุชื่อผู้ทำรายการ' : '') };
+        },
         // 📦 คำนวณสต็อกตามคลังที่กำลังเลือกดูอยู่ (globalStock)
         inventory() { 
             let inv = {}; 
@@ -3843,6 +4005,7 @@ const app = createApp({
         },
 
         async apiCall(action, dataObj = {}) {
+            if (this.isGuest && action !== 'getGuestSummary') { return null; } // โหมด Guest: อ่านอย่างเดียว ห้ามเรียก action อื่น
             try { 
                 const res = await fetch(GAS_API_URL, { method: 'POST', body: JSON.stringify({ action: action, data: dataObj }) }); 
                 const json = await res.json(); 
@@ -3853,12 +4016,49 @@ const app = createApp({
 
         async loadData() { 
             this.loading = true; 
-            const data = await this.apiCall("getData"); 
+            const data = await this.apiCall(this.isGuest ? "getGuestSummary" : "getData"); 
             if (data) { 
                 this.rawData = data; this.$nextTick(() => { if (!this.sjMonth && this.sjAll.months.length) { const nowYm = new Date().toISOString().slice(0, 7), ms = this.sjAll.months.filter(m => m < nowYm); this.sjMonth = ms.length ? ms[ms.length - 1] : this.sjAll.months[this.sjAll.months.length - 1]; } if (!this.sjDash.from && this.sjAll.months.length) { const r = this.sjRange; if (r.length) { this.sjDash.from = r[0]; this.sjDash.to = r[r.length - 1]; } } }); if (!this.abcFY) this.abcFY = this.fiscalYearOf(new Date().toISOString().slice(0, 10)); 
                 this.$nextTick(() => { this.renderCharts(); this.initTomSelects(); }); 
             } 
             this.loading = false; 
+        },
+
+        // ===== Guest view =====
+        async enterGuest() {
+            this.loading = true;
+            const data = await this.apiCall('getGuestSummary');
+            if (data) {
+                this.rawData = data; this.isGuest = true; this.currentUser = {}; this.guestSel = ''; this.guestTab = 'top'; this.page = 'guestDash';
+                this.$nextTick(() => this.renderGuestCharts());
+            }
+            this.loading = false;
+        },
+        async guestRefresh() {
+            if (!this.isGuest) return;
+            this.loading = true;
+            const data = await this.apiCall('getGuestSummary');
+            if (data) { this.rawData = data; this.$nextTick(() => this.renderGuestCharts()); }
+            this.loading = false;
+        },
+        async exitGuest() {
+            this.destroyGuestCharts(); this.isGuest = false; this.guestSel = ''; this.rawData = { users: [] };
+            await this.loadData();
+        },
+        pickGuestStock(k) {
+            this.guestSel = (this.guestSel === k) ? '' : k; this.guestTab = 'top';
+            if (this.guestSel) this.$nextTick(() => { const el = document.getElementById('guestDetail'); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+        },
+        destroyGuestCharts() { if (!window.__gd) return; ['val', 'mon'].forEach(k => { try { if (window.__gd[k]) window.__gd[k].destroy(); } catch (e) {} window.__gd[k] = null; }); },
+        renderGuestCharts(tries) {
+            tries = tries || 0;
+            const c1 = document.getElementById('guestValChart'), c2 = document.getElementById('guestMonthChart');
+            if (!c1 || !c2 || typeof Chart === 'undefined') { if (tries < 20 && this.isGuest) setTimeout(() => this.renderGuestCharts(tries + 1), 150); return; }
+            window.__gd = window.__gd || {}; this.destroyGuestCharts();
+            const st = this.guestStats, cols = ['#0d6efd', '#198754', '#fd7e14', '#6f42c1'];
+            window.__gd.val = new Chart(c1, { type: 'bar', data: { labels: st.map(s => s.label), datasets: [{ label: 'มูลค่าคงคลัง (บาท)', data: st.map(s => Math.round(s.value * 100) / 100), backgroundColor: cols }] }, options: { animation: false, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } } });
+            const ms = this.guestCalc.months;
+            window.__gd.mon = new Chart(c2, { type: 'line', data: { labels: ms, datasets: st.map((s, i) => ({ label: s.label, data: ms.map(m => Math.round((s.mon[m] || 0) * 100) / 100), borderColor: cols[i % 4], backgroundColor: cols[i % 4], tension: .25, pointRadius: 3 })) }, options: { animation: false, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } } });
         },
 
         // --- 🔐 ระบบสิทธิและควบคุมเมนู ---
