@@ -161,7 +161,7 @@
                             <a @click="navTo('stockTake', 'MAIN')" class="nav-link" :class="{active: page==='stockTake' && globalStock==='MAIN'}">🔍 เช็คสต็อก (Stock take)</a>
                             <a @click="navTo('stockCard', 'MAIN')" class="nav-link" :class="{active: page==='stockCard' && globalStock==='MAIN'}">💳 Stock Card</a>
                             <a @click="navTo('valueCheck', 'MAIN')" class="nav-link" :class="{active: page==='valueCheck' && globalStock==='MAIN'}">💲 ตรวจสอบมูลค่ายา</a>
-                            <a @click="navTo('reports', 'MAIN')" class="nav-link" :class="{active: page==='reports' && globalStock==='MAIN'}">📈 รายงานวิเคราะห์</a>
+                            <a @click="navTo('reports', 'MAIN')" class="nav-link" :class="{active: page==='reports' && globalStock==='MAIN'}">📈 สรุปรายงาน</a>
                             <a @click="navTo('dispenseReport', 'MAIN')" class="nav-link" :class="{active: page==='dispenseReport' && globalStock==='MAIN'}">📊 สรุปยอดเบิกรายตัว</a>
                             <a v-if="canMainOps" @click="navTo('poCreate', 'MAIN')" class="nav-link text-warning fw-bold" :class="{active: page==='poCreate'}">🧾 สร้างใบ PO</a>
                             <a @click="navTo('purchasePlan', 'MAIN')" class="nav-link text-info fw-bold" :class="{active: page==='purchasePlan'}">🗂️ แผนจัดซื้อประจำปี</a>
@@ -187,7 +187,7 @@
                             <a @click="navTo('stockOut', 'OPD')" class="nav-link" :class="{active: page==='stockOut' && globalStock==='OPD'}">📤 จ่ายยาขึ้นชั้น/ผู้ป่วย</a>
                             <a @click="navTo('stockTake', 'OPD')" class="nav-link" :class="{active: page==='stockTake' && globalStock==='OPD'}">🔍 เช็คสต็อก (OPD)</a>
                             <a @click="navTo('stockCard', 'OPD')" class="nav-link" :class="{active: page==='stockCard' && globalStock==='OPD'}">💳 Stock Card (OPD)</a>
-                            <a @click="navTo('reports', 'OPD')" class="nav-link" :class="{active: page==='reports' && globalStock==='OPD'}">📦 รายงานยาคงคลัง</a>
+                            <a @click="navTo('reports', 'OPD')" class="nav-link" :class="{active: page==='reports' && globalStock==='OPD'}">📈 สรุปรายงาน</a>
                             <a @click="navTo('history', 'OPD')" class="nav-link" :class="{active: page==='history' && globalStock==='OPD'}">📜 ประวัติรับ-จ่าย (OPD)</a>
                         </div>
                     </div>
@@ -209,7 +209,7 @@
                             <a @click="navTo('stockOut', 'IPD')" class="nav-link" :class="{active: page==='stockOut' && globalStock==='IPD'}">📤 จ่ายยาขึ้นชั้น/ผู้ป่วย</a>
                             <a @click="navTo('stockTake', 'IPD')" class="nav-link" :class="{active: page==='stockTake' && globalStock==='IPD'}">🔍 เช็คสต็อก (IPD)</a>
                             <a @click="navTo('stockCard', 'IPD')" class="nav-link" :class="{active: page==='stockCard' && globalStock==='IPD'}">💳 Stock Card (IPD)</a>
-                            <a @click="navTo('reports', 'IPD')" class="nav-link" :class="{active: page==='reports' && globalStock==='IPD'}">📦 รายงานยาคงคลัง</a>
+                            <a @click="navTo('reports', 'IPD')" class="nav-link" :class="{active: page==='reports' && globalStock==='IPD'}">📈 สรุปรายงาน</a>
                             <a @click="navTo('history', 'IPD')" class="nav-link" :class="{active: page==='history' && globalStock==='IPD'}">📜 ประวัติรับ-จ่าย (IPD)</a>
                         </div>
                     </div>
@@ -233,7 +233,7 @@
                             <a @click="navTo('stockOut', 'เวชภัณฑ์มิใช่ยา')" class="nav-link" :class="{active: page==='stockOut' && globalStock==='เวชภัณฑ์มิใช่ยา'}">📤 จ่ายเวชภัณฑ์</a>
                             <a @click="navTo('stockTake', 'เวชภัณฑ์มิใช่ยา')" class="nav-link" :class="{active: page==='stockTake' && globalStock==='เวชภัณฑ์มิใช่ยา'}">🔍 เช็คสต็อก</a>
                             <a @click="navTo('stockCard', 'เวชภัณฑ์มิใช่ยา')" class="nav-link" :class="{active: page==='stockCard' && globalStock==='เวชภัณฑ์มิใช่ยา'}">💳 Stock Card</a>
-                            <a @click="navTo('reports', 'เวชภัณฑ์มิใช่ยา')" class="nav-link" :class="{active: page==='reports' && globalStock==='เวชภัณฑ์มิใช่ยา'}">📦 รายงานคงคลัง</a>
+                            <a @click="navTo('reports', 'เวชภัณฑ์มิใช่ยา')" class="nav-link" :class="{active: page==='reports' && globalStock==='เวชภัณฑ์มิใช่ยา'}">📈 สรุปรายงาน</a>
                             <a @click="navTo('history', 'เวชภัณฑ์มิใช่ยา')" class="nav-link" :class="{active: page==='history' && globalStock==='เวชภัณฑ์มิใช่ยา'}">📜 ประวัติรับ-จ่าย</a>
                         </div>
                     </div>
@@ -310,6 +310,27 @@
                             <div class="text-muted small fw-bold">จุดสั่งซื้อ & สินค้าหมด</div>
                             <h3 class="fw-bold text-danger mt-1">{{ dashReorderItems.length }} <span class="fs-6">รายการ</span></h3>
                             <div class="small mt-auto text-secondary">ดูตารางด้านล่าง</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-12">
+                        <div class="card card-shadow p-3">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                                <h6 class="fw-bold text-primary mb-0">🎯 ABC-VEN Matrix (ยา) <span class="small text-muted fw-normal">ปีงบ {{ abcFY }} · คลิกช่องเพื่อดูรายการ</span></h6>
+                                <a href="#" @click.prevent="openAbcVen('', '')" class="small text-decoration-none">เปิดสรุปรายงาน ABC-VEN ›</a>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered text-center align-middle mb-0" style="font-size:.9rem">
+                                    <thead class="table-light"><tr><th></th><th>V</th><th>E</th><th>N</th><th>ยังไม่ระบุ</th><th>รวม</th></tr></thead>
+                                    <tbody>
+                                        <tr v-for="r in abcVenMatrix.rows" :key="r"><th class="table-light">{{ r === '-' ? 'ไม่มีซื้อ' : r }}</th>
+                                            <td v-for="c in abcVenMatrix.cols" :key="c" :class="abcvenTone(r, c)" style="cursor:pointer" @click="openAbcVen(r, c)"><b>{{ abcVenMatrix.cells[r + c].n }}</b></td>
+                                            <td class="fw-bold">{{ abcVenMatrix.rowTotal[r] }}</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1231,6 +1252,7 @@
                     </div>
                 </div>
                 
+                <div class="mb-3 no-print"><button class="btn btn-outline-success fw-bold shadow-sm" @click="openMmBulk"><i class="bi bi-calculator"></i> เทียบ Min/Max กับค่าที่คำนวณจากการเบิกจ่ายจริง (ทั้งคลัง) แล้ว Apply</button></div>
                 <div class="card card-shadow p-3" v-if="scProdId">
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3">
                         <div>
@@ -2050,6 +2072,7 @@
                                 <option value="category_val">2. สรุปมูลค่าตามประเภทยา (ED/NED)</option>
                                 <option value="expiry">3. รายงานวันหมดอายุ (Expiry Report)</option>
                                 <option value="usage">4. สรุปมูลค่าการเบิกจ่ายแยกตามหน่วยงาน</option>
+                                <option value="abcven">5. วิเคราะห์ ABC-VEN Matrix (ยา)</option>
                             </select>
                         </div>
                         <div class="col-12 col-md-3" v-if="reportFilter.type === 'inventory'">
@@ -2062,7 +2085,7 @@
                         <div class="col-6 col-md-2" v-if="['usage'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ถึงวันที่</label><input type="date" v-model="reportFilter.end" class="form-control shadow-sm"></div>
                         <div class="col-12 col-md-3 d-flex gap-2 ms-auto align-items-end mt-3 mt-md-0">
                             <button class="btn btn-outline-primary w-100 fw-bold shadow-sm" onclick="window.print()"><i class="bi bi-printer"></i> พิมพ์ PDF</button>
-                            <button class="btn btn-success w-100 fw-bold shadow-sm" @click="exportExcel('reportArea', 'Report')"><i class="bi bi-file-excel"></i> ส่งออก Excel</button>
+                            <button class="btn btn-success w-100 fw-bold shadow-sm" @click="reportFilter.type === 'abcven' ? exportAbcVen() : exportExcel('reportArea', 'Report')"><i class="bi bi-file-excel"></i> ส่งออก Excel</button>
                         </div>
                     </div>
                 </div>
@@ -2106,6 +2129,39 @@
                                 <tbody>
                                     <tr v-for="lot in sortedActiveLots" :key="lot.lot"><td class="fw-bold">{{ lot.productName }}</td><td class="text-center">{{ lot.lot }}</td><td class="text-center fw-bold">{{ lot.exp }}</td><td class="text-end fw-bold text-primary fs-5">{{ formatNumber(lot.qty) }}</td><td class="text-center"><span class="badge px-3 py-2" :class="isExpired(lot.exp)?'bg-danger':(isNearExp(lot.exp)?'bg-warning text-dark':'bg-success')">{{ isExpired(lot.exp)?'หมดอายุแล้ว':(isNearExp(lot.exp)?'ใกล้หมด (6 เดือน)':'ปกติ') }}</span></td></tr>
                                     <tr v-if="sortedActiveLots.length===0"><td colspan="5" class="text-center text-muted p-4">-- ไม่พบข้อมูล Lot สินค้าในคลัง --</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div v-if="reportFilter.type==='abcven'">
+                            <div class="row g-2 mb-3 no-print align-items-end">
+                                <div class="col-6 col-md-2"><label class="small fw-bold text-muted">ปีงบประมาณ (พ.ศ.)</label><select v-model.number="abcFY" class="form-select form-select-sm"><option v-for="y in abcYearOptions" :key="y" :value="y">{{ y }}</option></select></div>
+                                <div class="col-6 col-md-2"><label class="small fw-bold text-muted">กลุ่ม A สะสมถึง (%)</label><input type="number" min="1" max="99" v-model.number="abcThr.a" @change="saveAbcThr" class="form-control form-control-sm"></div>
+                                <div class="col-6 col-md-2"><label class="small fw-bold text-muted">กลุ่ม B สะสมถึง (%)</label><input type="number" min="2" max="99.9" v-model.number="abcThr.b" @change="saveAbcThr" class="form-control form-control-sm"></div>
+                                <div class="col-6 col-md-3"><label class="small fw-bold text-muted">แสดงรายการ</label><select v-model="abcFilter.objType" class="form-select form-select-sm"><option value="ยา">ยา (ใช้ VEN)</option><option value="เวชภัณฑ์มิใช่ยา">เวชภัณฑ์มิใช่ยา</option></select></div>
+                                <div class="col-12 col-md-3 small text-muted">ABC แบ่งตาม<b>มูลค่าจัดซื้อ</b>ของปีงบนี้ (เฉพาะบิลที่ตรวจรับแล้ว) เรียงแยกตามประเภทสินค้า · VEN กำหนดที่ตั้งค่าระบบรวม</div>
+                            </div>
+                            <table class="table table-bordered text-center align-middle" style="max-width:760px">
+                                <thead class="table-dark"><tr><th>ABC \ VEN</th><th>V (Vital)</th><th>E (Essential)</th><th>N (Non-essential)</th><th>ยังไม่ระบุ VEN</th><th>รวม</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="r in abcVenMatrix.rows" :key="r">
+                                        <th class="table-light">{{ r === '-' ? 'ไม่มีการจัดซื้อ' : 'กลุ่ม ' + r }}</th>
+                                        <td v-for="c in abcVenMatrix.cols" :key="c" :class="[abcvenTone(r, c), {'border-primary border-3': abcFilter.abc === r && abcFilter.ven === c}]" style="cursor:pointer" @click="setAbcFilter(r, c)">
+                                            <div class="fs-5 fw-bold">{{ abcVenMatrix.cells[r + c].n }}</div><div class="small text-muted">{{ formatCurrency(abcVenMatrix.cells[r + c].v) }}</div>
+                                        </td>
+                                        <td class="fw-bold">{{ abcVenMatrix.rowTotal[r] }}</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot><tr class="table-light"><th>รวม</th><td v-for="c in abcVenMatrix.cols" :key="c" class="fw-bold">{{ abcVenMatrix.colTotal[c] }}</td><td class="fw-bold">{{ abcVenMatrix.total }}</td></tr></tfoot>
+                            </table>
+                            <div class="small mb-3 no-print"><span class="badge bg-danger me-1">กลุ่มสำคัญสูงสุด</span> AV · AE · BV <span class="badge bg-warning text-dark mx-1">กลุ่มรอง</span> AN · BE · CV <span class="badge bg-success mx-1">กลุ่มทั่วไป</span> BN · CE · CN <span class="text-muted ms-2">คลิกช่องในตารางเพื่อกรองรายการด้านล่าง</span></div>
+                            <div class="d-flex justify-content-between align-items-center mb-2"><h6 class="fw-bold mb-0">รายการ{{ abcFilter.abc ? ' — กลุ่ม ' + (abcFilter.abc === '-' ? 'ไม่มีการจัดซื้อ' : abcFilter.abc) + ' / VEN ' + (abcFilter.ven === '?' ? 'ยังไม่ระบุ' : abcFilter.ven) : ' ทั้งหมด'}} ({{ abcList.length }})</h6><button v-if="abcFilter.abc" class="btn btn-sm btn-outline-secondary no-print" @click="abcFilter.abc = ''; abcFilter.ven = ''">ล้างตัวกรอง</button></div>
+                            <table class="table table-bordered table-striped table-sm text-nowrap">
+                                <thead class="table-dark"><tr><th>#</th><th>รหัส</th><th>ชื่อสินค้า</th><th class="text-center">ABC</th><th class="text-center">VEN</th><th class="text-end">มูลค่าจัดซื้อ (บาท)</th><th class="text-end">% ของทั้งหมด</th><th class="text-end">% สะสม</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="(r, i) in abcList" :key="r.id"><td>{{ i + 1 }}</td><td>{{ r.id }}</td><td class="fw-bold">{{ r.name }}</td>
+                                        <td class="text-center"><span class="badge" :class="r.abc === 'A' ? 'bg-danger' : (r.abc === 'B' ? 'bg-warning text-dark' : (r.abc === 'C' ? 'bg-success' : 'bg-secondary'))">{{ r.abc || '-' }}</span></td>
+                                        <td class="text-center">{{ r.ven || '-' }}</td><td class="text-end">{{ formatCurrency(r.value) }}</td><td class="text-end">{{ r.pct.toFixed(2) }}</td><td class="text-end">{{ r.cum.toFixed(2) }}</td></tr>
+                                    <tr v-if="abcList.length === 0"><td colspan="8" class="text-center text-muted p-4">-- ไม่พบรายการ --</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -2180,6 +2236,12 @@
                             </div>
                         </div>
                         <div><label class="small text-muted fw-bold">ชื่อสินค้า</label><input v-model="modalForm.name" class="form-control border-primary fw-bold text-primary"></div>
+                        <div class="row g-2">
+                            <div class="col-12 col-md-6"><label class="small text-muted fw-bold">ประเภทสินค้า</label><select v-model="modalForm.objType" class="form-select"><option value="ยา">ยา</option><option value="เวชภัณฑ์มิใช่ยา">เวชภัณฑ์มิใช่ยา</option></select></div>
+                            <div class="col-12 col-md-6" v-if="modalForm.objType === 'ยา'"><label class="small text-muted fw-bold">VEN <span class="text-success">(ความจำเป็นทางการแพทย์)</span></label>
+                                <select v-model="modalForm.ven" class="form-select"><option value="">— ยังไม่ระบุ —</option><option value="V">V — Vital (ช่วยชีวิต/ขาดไม่ได้)</option><option value="E">E — Essential (จำเป็น)</option><option value="N">N — Non-essential (ไม่จำเป็นมาก/ทดแทนได้)</option></select></div>
+                            <div class="col-12 small text-muted" v-if="modalForm.isEdit">ABC ปีงบ {{ abcFY }}: <b>{{ abcOf(modalForm.id) || '-' }}</b> (ระบบคำนวณให้อัตโนมัติจากมูลค่าจัดซื้อ)</div>
+                        </div>
                         <div v-if="modalForm.isEdit" class="border rounded p-2 bg-light">
                             <label class="small fw-bold text-primary"><i class="bi bi-upc-scan"></i> บาร์โค้ดของสินค้านี้ (ผูกได้หลายบาร์โค้ด)</label>
                             <div class="d-flex flex-wrap gap-1 my-2">
@@ -2314,8 +2376,44 @@
             <div v-if="scanToast.msg" class="no-print" style="position: fixed; left: 50%; transform: translateX(-50%); top: 14px; z-index: 3000; max-width: 92vw;">
                 <div class="alert shadow mb-0 py-2 px-3 fw-bold" :class="scanToast.type === 'err' ? 'alert-danger' : 'alert-success'">{{ scanToast.msg }}</div>
             </div>
+            <div v-if="showMmBulk" class="modal-overlay-bg" style="z-index: 1060;">
+                <div class="card p-3 shadow-lg mx-2" style="width: 100%; max-width: 980px; border-radius: 12px; max-height: 92vh; overflow-y: auto;">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="fw-bold text-primary mb-0"><i class="bi bi-calculator me-2"></i>เทียบ Min/Max — {{ locLabel(globalStock) }}</h5>
+                        <button type="button" class="btn-close" @click="showMmBulk = false"></button>
+                    </div>
+                    <div class="row g-2 mb-2 small align-items-end">
+                        <div class="col-4 col-md-2"><label class="text-muted">ย้อนหลัง (เดือน)</label><select v-model.number="mmParams.lookback" @change="saveMmParams" class="form-select form-select-sm"><option :value="3">3</option><option :value="6">6</option><option :value="12">12</option></select></div>
+                        <div class="col-4 col-md-2"><label class="text-muted">Min = × เดือนใช้ ({{ rateLabel(formMinMax.stockLocation) }})</label><input type="number" min="0" step="0.5" v-model.number="mmRate(formMinMax.stockLocation).minM" @change="saveMmParams" class="form-control form-control-sm"></div>
+                        <div class="col-4 col-md-2"><label class="text-muted">Max = × เดือนใช้</label><input type="number" min="0" step="0.5" v-model.number="mmRate(formMinMax.stockLocation).maxM" @change="saveMmParams" class="form-control form-control-sm"></div>
+                        <div class="col-12 col-md-6 text-md-end"><button class="btn btn-sm btn-outline-secondary me-1" @click="mmSelectDiff">เลือกที่ค่าต่างกัน</button><button class="btn btn-sm btn-outline-secondary" @click="mmSel = {}">ล้างที่เลือก</button></div>
+                    </div>
+                    <div class="small text-muted mb-2">ค่าที่ Apply จะกลายเป็น Min/Max ที่ใช้ในโหมด Auto ของ{{ globalStock === 'MAIN' ? 'ใบ PO' : 'ใบขอเบิก' }} และใน Dashboard (ค่าเดิมที่ตั้งเองยังแก้ได้ภายหลัง)</div>
+                    <div class="table-responsive border rounded" style="max-height: 58vh; overflow-y: auto;">
+                        <table class="table table-sm table-hover align-middle mb-0 text-nowrap">
+                            <thead class="table-dark" style="position: sticky; top: 0;"><tr><th></th><th>รายการ</th><th class="text-end">ใช้/เดือน</th><th class="text-end">Min ปัจจุบัน</th><th class="text-end">Max ปัจจุบัน</th><th class="text-end text-success">Min คำนวณ</th><th class="text-end text-success">Max คำนวณ</th></tr></thead>
+                            <tbody>
+                                <tr v-for="r in mmBulkRows" :key="r.id" :class="{'table-warning': mmSel[r.id]}">
+                                    <td><input type="checkbox" class="form-check-input" v-model="mmSel[r.id]" :disabled="r.calcMin === 0 && r.calcMax === 0"></td>
+                                    <td class="fw-bold">{{ r.name }} <small class="text-muted fw-normal">{{ r.unit }}</small></td>
+                                    <td class="text-end">{{ r.perMonth.toFixed(1) }}</td>
+                                    <td class="text-end">{{ formatNumber(r.curMin) }}</td><td class="text-end">{{ formatNumber(r.curMax) }}</td>
+                                    <td class="text-end fw-bold" :class="r.calcMin !== r.curMin ? 'text-success' : 'text-muted'">{{ formatNumber(r.calcMin) }}</td>
+                                    <td class="text-end fw-bold" :class="r.calcMax !== r.curMax ? 'text-success' : 'text-muted'">{{ formatNumber(r.calcMax) }}</td>
+                                </tr>
+                                <tr v-if="mmBulkRows.length === 0"><td colspan="7" class="text-center text-muted p-4">ยังไม่มีข้อมูลการเบิกจ่ายในช่วงที่เลือก</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex gap-2 mt-3">
+                        <button class="btn btn-success fw-bold flex-grow-1" :disabled="loading || mmSelCount === 0" @click="applyMmBulk"><i class="bi bi-check2-circle"></i> Apply ที่เลือก ({{ mmSelCount }} รายการ)</button>
+                        <button class="btn btn-outline-secondary" @click="showMmBulk = false">ปิด</button>
+                    </div>
+                </div>
+            </div>
+
             <div v-if="showMinMaxModal" class="modal-overlay-bg" style="z-index: 1060;">
-                <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 400px; border-radius: 12px;">
+                <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 460px; border-radius: 12px;">
                     <h5 class="fw-bold text-primary mb-3"><i class="bi bi-sliders me-2"></i>ตั้งค่า Min / Max <br><small class="text-muted fs-6">(สำหรับคลัง: {{ formMinMax.stockLocation }})</small></h5>
                     <div class="mb-3">
                         <label class="small text-muted fw-bold">สินค้า</label>
@@ -2329,6 +2427,19 @@
                         <div class="col-6">
                             <label class="small fw-bold text-primary">จุดสูงสุด (Max)</label>
                             <input type="number" v-model.number="formMinMax.max" class="form-control border-primary text-center fw-bold fs-5">
+                        </div>
+                    </div>
+                    <div v-if="mmCalcView" class="border rounded p-2 mb-3 bg-light">
+                        <div class="small fw-bold text-success mb-1"><i class="bi bi-calculator"></i> คำนวณจากอัตราเบิกจ่ายจริง</div>
+                        <div class="row g-1 mb-2 small">
+                            <div class="col-4"><label class="text-muted">ย้อนหลัง (เดือน)</label><select v-model.number="mmParams.lookback" @change="saveMmParams" class="form-select form-select-sm"><option :value="3">3</option><option :value="6">6</option><option :value="12">12</option></select></div>
+                            <div class="col-4"><label class="text-muted">Min = × เดือนใช้ ({{ rateLabel(globalStock) }})</label><input type="number" min="0" step="0.5" v-model.number="mmRate(globalStock).minM" @change="saveMmParams" class="form-control form-control-sm"></div>
+                            <div class="col-4"><label class="text-muted">Max = × เดือนใช้</label><input type="number" min="0" step="0.5" v-model.number="mmRate(globalStock).maxM" @change="saveMmParams" class="form-control form-control-sm"></div>
+                        </div>
+                        <div class="small text-muted mb-1">ใช้ไป {{ formatNumber(mmCalcView.usage) }} ใน {{ mmCalcView.months }} เดือน (เฉลี่ย {{ mmCalcView.perMonth.toFixed(1) }}/เดือน)</div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="fw-bold">คำนวณได้ Min <span class="text-danger">{{ formatNumber(mmCalcView.min) }}</span> / Max <span class="text-primary">{{ formatNumber(mmCalcView.max) }}</span></div>
+                            <button type="button" class="btn btn-sm btn-outline-success fw-bold" @click="formMinMax.min = mmCalcView.min; formMinMax.max = mmCalcView.max"><i class="bi bi-arrow-up-circle"></i> ใช้ค่านี้</button>
                         </div>
                     </div>
                     <div class="d-flex gap-2">
@@ -2376,7 +2487,11 @@ const app = createApp({
             globalStock: 'MAIN', // คลังปัจจุบัน: MAIN, OPD, IPD, เวชภัณฑ์มิใช่ยา, ALL
             
             rawData: { users: [], products: [], vendors: [], depts: [], categories: [], units: [], transactions: [], requests: [], budget: [], bills: [], purchasePlans: [], map_lampang: [], stockLevels: [], barcodes: [], purchaseOrders: [] },
-            showMinMaxModal: false, 
+            showMinMaxModal: false, showMmBulk: false, mmSel: {},
+            mmParams: (() => { const d = { lookback: 12, rates: { MAIN: { minM: 2, maxM: 3 }, OPD: { minM: 1.5, maxM: 2 }, IPD: { minM: 1.5, maxM: 2 }, 'เวชภัณฑ์มิใช่ยา': { minM: 1.5, maxM: 2 } } }; try { const o = JSON.parse(localStorage.getItem('jvlMmParams2') || '{}'); if (o.lookback) d.lookback = o.lookback; if (o.rates) Object.keys(o.rates).forEach(k => { d.rates[k] = Object.assign({}, d.rates[k] || { minM: 1.5, maxM: 2 }, o.rates[k]); }); } catch (e) {} return d; })(),
+            abcThr: (() => { const d = { a: 80, b: 95 }; try { return Object.assign(d, JSON.parse(localStorage.getItem('jvlAbcThr') || '{}')); } catch (e) { return d; } })(),
+            abcFY: 0, abcFilter: { abc: '', ven: '', objType: 'ยา' },
+            
             formMinMax: { productId: '', stockLocation: '', min: 0, max: 0, productName: '' },
 
             formOpen: { date: new Date().toISOString().slice(0, 10), refDoc: 'ยอดยกมาปีปัจจุบัน' }, 
@@ -2396,7 +2511,7 @@ const app = createApp({
             confirmAct: { show: false, title: '', lines: [], danger: false, okText: 'ยืนยัน', onOk: null },
             docEdit: { transId: '', headOpen: false, form: { lot: '', exp: '', qty: 0, unitPrice: 0, total: 0 }, head: { date: '', entity: '', refBillNo: '', docNo: '', inspectDate: '', newDocId: '' } },
             activityLogs: [], logLoading: false, logFilter: { q: '', user: '', action: '' },
-            LOG_LABEL: { PO_SAVE: 'สร้างใบ PO', PO_EDIT: 'แก้ไขใบ PO', PO_DELETE: 'ลบใบ PO', REQ_EDIT: 'แก้ไขใบขอเบิก', REQ_DELETE: 'ลบใบขอเบิก', EDIT_ITEM: 'แก้ไขรายการ', EDIT_DOC: 'แก้ไขหัวเอกสาร', DELETE_ITEM: 'ลบรายการ', DELETE_DOC: 'ลบทั้งใบ', PLAN_SAVE: 'บันทึกแผนจัดซื้อ', PLAN_REPLACE: 'แทนที่แผนจัดซื้อ', PLAN_DELETE_ITEM: 'ลบรายการแผน', PLAN_DELETE_YEAR: 'ลบแผนทั้งปี', ID_MIGRATE: 'ปรับรหัส (ID)', PRODUCT_ID_CHANGE: 'เปลี่ยนรหัสสินค้า' },
+            LOG_LABEL: { MINMAX_APPLY: 'Apply Min/Max', PO_SAVE: 'สร้างใบ PO', PO_EDIT: 'แก้ไขใบ PO', PO_DELETE: 'ลบใบ PO', REQ_EDIT: 'แก้ไขใบขอเบิก', REQ_DELETE: 'ลบใบขอเบิก', EDIT_ITEM: 'แก้ไขรายการ', EDIT_DOC: 'แก้ไขหัวเอกสาร', DELETE_ITEM: 'ลบรายการ', DELETE_DOC: 'ลบทั้งใบ', PLAN_SAVE: 'บันทึกแผนจัดซื้อ', PLAN_REPLACE: 'แทนที่แผนจัดซื้อ', PLAN_DELETE_ITEM: 'ลบรายการแผน', PLAN_DELETE_YEAR: 'ลบแผนทั้งปี', ID_MIGRATE: 'ปรับรหัส (ID)', PRODUCT_ID_CHANGE: 'เปลี่ยนรหัสสินค้า' },
             planYear: (() => { const d = new Date(); return String(d.getFullYear() + 543 + (d.getMonth() >= 9 ? 1 : 0)); })(),
             planCountPending: true, planFilter: { q: '', status: 'all' }, planSort: { key: 'pctQty', asc: true },
             planForm: { productName: '', productId: '', unit: '', price: 0, qty: 0 },
@@ -2474,7 +2589,7 @@ const app = createApp({
                 controlList: r[8] || 'General list', workingCode: r[9] || '', 
                 isActive: String(r[12]) !== '4', 
                 tpuid: r[14] || '99', packSize: parseFloat(r[15]) || 1,
-                manufacturer: r[19] || '', barcodeText: (bcm[String(r[0])] || []).join(' ') 
+                manufacturer: r[19] || '', ven: String(r[20] || ''), barcodeText: (bcm[String(r[0])] || []).join(' ') 
             })); 
         },
         vendors() { return (this.rawData.vendors || []).map(r => ({ id: r[0], name: r[1], address: r[2], contact: r[3], taxId: r[4] || '' })); },
@@ -2587,6 +2702,74 @@ const app = createApp({
 
         // ===== ขอเบิก / รับเข้าคลังย่อย =====
         myRequests() { return this.requests.filter(r => r.dept === this.globalStock).slice().reverse().slice(0, 50); },
+        // ---- ABC / VEN ----
+        abcYearOptions() {
+            const set = new Set([this.fiscalYearOf(new Date().toISOString().slice(0, 10))]);
+            this.bills.forEach(b => { if (b.status === 'Completed') set.add(this.fiscalYearOf(String(b.receivedDate || '').slice(0, 10))); });
+            return [...set].filter(y => y > 2500).sort((a, b) => b - a);
+        },
+        abcData() {
+            const fy = this.abcFY || this.fiscalYearOf(new Date().toISOString().slice(0, 10));
+            const from = (fy - 544) + '-10-01', to = (fy - 543) + '-09-30';
+            const done = new Set(this.bills.filter(b => b.status === 'Completed').map(b => b.id));
+            const val = {};
+            this.transactions.forEach(t => {
+                if (t.type !== 'IN' || t.status !== 'Completed' || !done.has(t.billId)) return;
+                const d = String(t.date).slice(0, 10);
+                if (d >= from && d <= to) val[t.productId] = (val[t.productId] || 0) + (t.totalPrice || 0);
+            });
+            const A = Math.min(Math.max(parseFloat(this.abcThr.a) || 80, 1), 99), B = Math.min(Math.max(parseFloat(this.abcThr.b) || 95, A + 0.1), 99.9);
+            const map = {};
+            ['ยา', 'เวชภัณฑ์มิใช่ยา'].forEach(tp => {
+                const items = this.products.filter(p => (p.objType === 'ยา' ? 'ยา' : 'เวชภัณฑ์มิใช่ยา') === tp && (val[p.id] || 0) > 0).map(p => ({ id: p.id, value: val[p.id] })).sort((a, b) => b.value - a.value);
+                const total = items.reduce((s, i) => s + i.value, 0);
+                let cum = 0;
+                items.forEach((i, idx) => {
+                    const prev = total ? cum / total * 100 : 0; cum += i.value;
+                    map[i.id] = { cls: prev < A ? 'A' : (prev < B ? 'B' : 'C'), value: i.value, pct: total ? i.value / total * 100 : 0, cum: total ? cum / total * 100 : 0, rank: idx + 1 };
+                });
+            });
+            return { map: map };
+        },
+        stockProductSet() {
+            if (this.globalStock === 'MAIN' || this.globalStock === 'ALL') return null;
+            const s = new Set(); this.transactions.forEach(t => { if ((t.stockLocation || 'MAIN') === this.globalStock) s.add(t.productId); }); return s;
+        },
+        abcVenMatrix() {
+            const rows = ['A', 'B', 'C', '-'], cols = ['V', 'E', 'N', '?'];
+            const cells = {}, rowTotal = {}, colTotal = {}; let total = 0;
+            rows.forEach(r => { rowTotal[r] = 0; cols.forEach(c => { cells[r + c] = { n: 0, v: 0 }; }); }); cols.forEach(c => { colTotal[c] = 0; });
+            const set = this.stockProductSet;
+            this.products.forEach(p => {
+                if (!p.isActive || p.objType !== 'ยา' || (set && !set.has(p.id))) return;
+                const a = (this.abcData.map[p.id] || {}).cls || '-', v = p.ven || '?';
+                cells[a + v].n++; cells[a + v].v += (this.abcData.map[p.id] || {}).value || 0; rowTotal[a]++; colTotal[v]++; total++;
+            });
+            return { rows: rows, cols: cols, cells: cells, rowTotal: rowTotal, colTotal: colTotal, total: total };
+        },
+        abcList() {
+            const f = this.abcFilter, set = this.stockProductSet;
+            return this.products.filter(p => p.isActive && (p.objType === 'ยา' ? 'ยา' : 'เวชภัณฑ์มิใช่ยา') === f.objType && (!set || set.has(p.id))).map(p => {
+                const m = this.abcData.map[p.id] || {};
+                return { id: p.id, name: p.name, abc: m.cls || '', ven: p.ven || '', value: m.value || 0, pct: m.pct || 0, cum: m.cum || 0 };
+            }).filter(r => !f.abc || (r.abc || '-') === f.abc && (r.ven || '?') === f.ven).sort((a, b) => b.value - a.value || String(a.name).localeCompare(String(b.name), 'th'));
+        },
+        // ---- Min/Max จากการเบิกจ่ายจริง ----
+        mmCalcView() {
+            if (!this.showMinMaxModal || !this.formMinMax.productId) return null;
+            const cu = this.calcUsage(this.formMinMax.stockLocation);
+            return { ...this.mmCalc(this.formMinMax.productId, cu, this.formMinMax.stockLocation), months: cu.months };
+        },
+        mmBulkRows() {
+            if (!this.showMmBulk) return [];
+            const loc = this.globalStock, cu = this.calcUsage(loc);
+            const hasSl = new Set(this.stockLevels.filter(s => s.stockLocation === loc).map(s => s.productId));
+            return this.products.filter(p => p.isActive && ((cu.tot[p.id] || 0) > 0 || hasSl.has(p.id))).map(p => {
+                const c = this.mmCalc(p.id, cu, loc), cur = this.getLocMinMax(p.id, loc);
+                return { id: p.id, name: p.name, unit: p.unit, perMonth: c.perMonth, usage: c.usage, curMin: parseFloat(cur.min) || 0, curMax: parseFloat(cur.max) || 0, calcMin: c.min, calcMax: c.max };
+            }).sort((a, b) => b.perMonth - a.perMonth || String(a.name).localeCompare(String(b.name), 'th'));
+        },
+        mmSelCount() { return Object.keys(this.mmSel).filter(k => this.mmSel[k]).length; },
         purchaseOrders() {
             return (this.rawData.purchaseOrders || []).map(r => {
                 let items = []; try { items = JSON.parse(r[7]) || []; } catch (e) {}
@@ -2834,17 +3017,27 @@ const app = createApp({
         historyGroups() { 
             let g = {}; 
             const bm = {}; this.bills.forEach(b => { bm[b.id] = b; });
+            const docIdOf = (t) => t.transId.startsWith('RCV-') || t.transId.startsWith('ISS-') || t.transId.startsWith('STK-') || t.transId.startsWith('ADJ-') ? t.transId : t.billId;
+            // ใบจ่ายที่คลังใหญ่ทำ (มีรายการตัดจากคลังใหญ่) อาจรวมรายการที่ตัดจากคลังย่อยไว้ในใบเดียวกัน -> แสดงที่ประวัติของคลังใหญ่เท่านั้น เป็นใบเดียว
+            const mainOut = {};
+            this.transactions.forEach(t => { if (t.type === 'OUT' && (t.stockLocation || 'MAIN') === 'MAIN') mainOut[docIdOf(t)] = true; });
             this.transactions.forEach(t => { 
-                if (this.globalStock !== 'ALL' && t.stockLocation !== this.globalStock) return;
-                let id = t.transId.startsWith('RCV-') || t.transId.startsWith('ISS-') || t.transId.startsWith('STK-') || t.transId.startsWith('ADJ-') ? t.transId : t.billId; 
+                const id = docIdOf(t);
+                const loc = t.stockLocation || 'MAIN';
+                const combined = t.type === 'OUT' && !!mainOut[id];
+                if (this.globalStock !== 'ALL') {
+                    if (combined) { if (this.globalStock !== 'MAIN') return; }
+                    else if (loc !== this.globalStock) return;
+                }
                 if (!g[id]) {
                     // รับเข้า (IN) จากบริษัท: เลขที่เอกสาร = "หมายเลขเอกสาร (ระบบราชการ)" ที่กรอกตอนตรวจรับ
                     const bl = t.type === 'IN' ? (bm[id] || null) : null;
-                    g[id] = { id: id, date: t.date, type: t.type, ref: t.refDoc || '-', entity: t.vendorOrDept, user: t.user, items: [], total: 0, stockLoc: t.stockLocation,
-                              bill: bl, docLabel: bl ? (bl.docNo || ('รอตรวจรับ · บิล ' + bl.refBillNo)) : id, docPending: !!(bl && !bl.docNo) };
+                    g[id] = { id: id, date: t.date, type: t.type, ref: t.refDoc || '-', entity: t.vendorOrDept, user: t.user, items: [], total: 0, stockLoc: combined ? 'MAIN' : t.stockLocation,
+                              bill: bl, docLabel: bl ? (bl.docNo || ('รอตรวจรับ · บิล ' + bl.refBillNo)) : id, docPending: !!(bl && !bl.docNo), combined: false };
                 }
+                if (combined && loc !== 'MAIN') g[id].combined = true;
                 let p = this.products.find(x => x.id == t.productId); 
-                g[id].items.push({ transId: t.transId, name: p ? p.name : t.productId, productId: t.productId, lot: t.lotNo, exp: t.expDate, qty: t.qty, unit: p ? p.unit : '', price: t.unitPrice, total: t.totalPrice }); 
+                g[id].items.push({ transId: t.transId, name: p ? p.name : t.productId, productId: t.productId, lot: t.lotNo, exp: t.expDate, qty: t.qty, unit: p ? p.unit : '', price: t.unitPrice, total: t.totalPrice, stockLoc: loc }); 
                 g[id].total += (parseFloat(t.totalPrice) || 0); 
             }); 
             return Object.values(g).sort((a, b) => new Date(b.date) - new Date(a.date)); 
@@ -2880,7 +3073,7 @@ const app = createApp({
         adminCols() {
             const L = { id: 'รหัส', name: 'ชื่อ' };
             const C = k => ({ key: k, label: L[k] || k });
-            if (this.page === 'manage_prod') return [{key:'id',label:'รหัสสินค้า'},{key:'name',label:'ชื่อสินค้า'},{key:'unit',label:'หน่วยนับ'},{key:'objType',label:'ประเภท'},{key:'drugClass',label:'ED/NED'},{key:'min',label:'Min',cls:'text-end'},{key:'isActive',label:'สถานะ',cls:'text-center'}];
+            if (this.page === 'manage_prod') return [{key:'id',label:'รหัสสินค้า'},{key:'name',label:'ชื่อสินค้า'},{key:'unit',label:'หน่วยนับ'},{key:'objType',label:'ประเภท'},{key:'drugClass',label:'ED/NED'},{key:'ven',label:'VEN',cls:'text-center'},{key:'abc',label:'ABC',cls:'text-center'},{key:'min',label:'Min',cls:'text-end'},{key:'isActive',label:'สถานะ',cls:'text-center'}];
             if (this.page === 'manage_vendor') return [{key:'id',label:'รหัสบริษัท'},{key:'name',label:'ชื่อบริษัท'},{key:'taxId',label:'เลขผู้เสียภาษี'},{key:'contact',label:'ติดต่อ'}];
             if (this.page === 'manage_dept') return [{key:'id',label:'รหัส'},{key:'name',label:'ชื่อปลายทาง'},{key:'deptGroup',label:'กลุ่มหน่วยเบิก',cls:'text-center'}];
             return [{key:'user',label:'Username'},{key:'name',label:'ชื่อ'}];
@@ -3114,6 +3307,60 @@ const app = createApp({
             let p = this.products.find(x => x.id === pid);
             return { min: p ? p.min : 0, max: p ? p.max : 0 };
         },
+        // ---------- ABC / VEN ----------
+        abcOf(pid) { const m = this.abcData.map[pid]; return m ? m.cls : ''; },
+        abcvenTone(a, v) { const k = a + v; return ['AV', 'AE', 'BV'].includes(k) ? 'table-danger' : (['AN', 'BE', 'CV'].includes(k) ? 'table-warning' : (['BN', 'CE', 'CN'].includes(k) ? 'table-success' : '')); },
+        saveAbcThr() { try { localStorage.setItem('jvlAbcThr', JSON.stringify(this.abcThr)); } catch (e) {} },
+        setAbcFilter(a, v) { if (this.abcFilter.abc === a && this.abcFilter.ven === v) { this.abcFilter.abc = ''; this.abcFilter.ven = ''; } else { this.abcFilter.abc = a; this.abcFilter.ven = v; this.abcFilter.objType = 'ยา'; } },
+        openAbcVen(a, v) { this.reportFilter.type = 'abcven'; this.abcFilter = { abc: a, ven: v, objType: 'ยา' }; this.navTo('reports', this.globalStock); },
+        exportAbcVen() {
+            const m = this.abcVenMatrix;
+            const mat = [['ABC \\ VEN', 'V', 'E', 'N', 'ยังไม่ระบุ', 'รวม']];
+            m.rows.forEach(r => mat.push([r === '-' ? 'ไม่มีการจัดซื้อ' : 'กลุ่ม ' + r, ...m.cols.map(c => m.cells[r + c].n), m.rowTotal[r]]));
+            mat.push(['รวม', ...m.cols.map(c => m.colTotal[c]), m.total]);
+            const lst = [['ลำดับ', 'รหัส', 'ชื่อสินค้า', 'ABC', 'VEN', 'มูลค่าจัดซื้อ', '% ของทั้งหมด', '% สะสม']];
+            this.abcList.forEach((r, i) => lst.push([i + 1, r.id, r.name, r.abc || '-', r.ven || '-', Math.round(r.value * 100) / 100, Math.round(r.pct * 100) / 100, Math.round(r.cum * 100) / 100]));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(mat), 'Matrix');
+            const ws = XLSX.utils.aoa_to_sheet(lst); ws['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 44 }, { wch: 6 }, { wch: 6 }, { wch: 16 }, { wch: 14 }, { wch: 12 }];
+            XLSX.utils.book_append_sheet(wb, ws, 'รายการ');
+            XLSX.writeFile(wb, 'ABC-VEN_ปีงบ' + this.abcFY + '_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+        },
+        // ---------- Min/Max คำนวณจากการเบิกจ่ายจริง ----------
+        saveMmParams() { try { localStorage.setItem('jvlMmParams2', JSON.stringify(this.mmParams)); } catch (e) {} },
+        mmRate(loc) { if (!this.mmParams.rates[loc]) this.mmParams.rates[loc] = { minM: 1.5, maxM: 2 }; return this.mmParams.rates[loc]; },
+        rateLabel(loc) { return loc === 'MAIN' ? 'คลังใหญ่' : 'คลังย่อย'; },
+        calcUsage(loc) {
+            const now = new Date(), lb = parseInt(this.mmParams.lookback) || 12;
+            const f = new Date(now.getFullYear(), now.getMonth() - lb, now.getDate());
+            const fromS = f.getFullYear() + '-' + String(f.getMonth() + 1).padStart(2, '0') + '-' + String(f.getDate()).padStart(2, '0');
+            let first = null; const tot = {};
+            this.transactions.forEach(t => {
+                if ((t.stockLocation || 'MAIN') !== loc || t.status !== 'Completed') return;
+                const d = String(t.date).slice(0, 10);
+                if (!first || d < first) first = d;
+                if (t.type === 'OUT' && t.lotNo !== 'ADJUST' && d >= fromS) tot[t.productId] = (tot[t.productId] || 0) + t.qty;
+            });
+            let months = lb;
+            if (first) { const span = (now - new Date(first)) / (86400000 * 30.4); months = Math.max(1, Math.min(lb, Math.ceil(span))); }
+            return { tot: tot, months: months };
+        },
+        mmCalc(pid, cu, loc) {
+            const u = cu.tot[pid] || 0, mo = u / cu.months, r = this.mmRate(loc);
+            return { usage: u, perMonth: mo, min: Math.ceil(mo * (parseFloat(r.minM) || 0)), max: Math.ceil(mo * (parseFloat(r.maxM) || 0)) };
+        },
+        openMmBulk() { this.mmSel = {}; this.showMmBulk = true; },
+        mmSelectDiff() { const s = {}; this.mmBulkRows.forEach(r => { if ((r.calcMin || r.calcMax) && (r.calcMin !== r.curMin || r.calcMax !== r.curMax)) s[r.id] = true; }); this.mmSel = s; },
+        applyMmBulk() {
+            const items = this.mmBulkRows.filter(r => this.mmSel[r.id]).map(r => ({ productId: r.id, min: r.calcMin, max: r.calcMax }));
+            if (!items.length) return;
+            this.askConfirm({ title: 'Apply Min/Max ที่คำนวณ?', lines: [items.length + ' รายการ ในคลัง ' + this.locLabel(this.globalStock), 'ค่า Min/Max เดิมของรายการเหล่านี้จะถูกแทนที่'], okText: 'Apply', onOk: async () => {
+                this.loading = true;
+                const res = await this.apiCall('saveStockLevels', { stockLocation: this.globalStock, items: items, username: this.currentUser.user });
+                if (res) { this.toast('Apply Min/Max แล้ว ' + items.length + ' รายการ'); this.showMmBulk = false; await this.loadData(); }
+                this.loading = false;
+            } });
+        },
         openMinMaxModal() {
             if(!this.scProdId) return;
             let vals = this.getLocMinMax(this.scProdId, this.globalStock);
@@ -3167,6 +3414,7 @@ const app = createApp({
             if (this.reportFilter.type === 'category_val') return 'สรุปมูลค่าคงคลังตามประเภท (ED/NED)'; 
             if (this.reportFilter.type === 'expiry') return 'รายงานวันหมดอายุ (Expiry Report)'; 
             if (this.reportFilter.type === 'usage') return 'สรุปการเบิกจ่ายแยกรายหน่วยงาน'; 
+            if (this.reportFilter.type === 'abcven') return 'วิเคราะห์ ABC-VEN Matrix ปีงบประมาณ ' + this.abcFY + ' (' + (this.globalStock === 'ALL' ? 'รวมทุกคลัง' : this.locLabel(this.globalStock)) + ')'; 
             return ''; 
         },
 
@@ -3218,7 +3466,7 @@ const app = createApp({
 
         focusPassword() { this.$refs.passInput.focus(); },
         adminSortBy(k) { if (this.adminSort.key === k) this.adminSort.asc = !this.adminSort.asc; else this.adminSort = { key: k, asc: true }; },
-        adminCell(it, k) { const v = it[k]; if (k === 'isActive') return v ? 'ใช้งาน' : 'เลิกใช้'; return v === undefined || v === null ? '' : v; },
+        adminCell(it, k) { if (k === 'abc') return this.abcOf(it.id) || (it.objType === 'ยา' ? '-' : ''); if (k === 'ven' && it.objType !== 'ยา') return ''; const v = it[k]; if (k === 'isActive') return v ? 'ใช้งาน' : 'เลิกใช้'; return v === undefined || v === null ? '' : v; },
         exportAdminExcel() {
             const head = this.adminCols.map(c => c.label);
             const rows = this.adminRows.map(it => this.adminCols.map(c => { const v = this.adminCell(it, c.key); return v; }));
@@ -3252,7 +3500,7 @@ const app = createApp({
             this.loading = true; 
             const data = await this.apiCall("getData"); 
             if (data) { 
-                this.rawData = data; 
+                this.rawData = data; if (!this.abcFY) this.abcFY = this.fiscalYearOf(new Date().toISOString().slice(0, 10)); 
                 this.$nextTick(() => { this.renderCharts(); this.initTomSelects(); }); 
             } 
             this.loading = false; 
@@ -3639,6 +3887,7 @@ const app = createApp({
             if (l.action === 'DELETE_ITEM' || l.action === 'DELETE_DOC') return [(d.itemNames && d.itemNames.length ? d.itemNames : (d.items || []).map(i => i.product_id + ' × ' + i.qty + ' (' + i.total_price + ')')).join('\n'), d.billDeleted ? 'ลบบิลบริษัทด้วย' : ''].join('\n').split('\n').filter(x => x);
             if (l.action.startsWith('PLAN_SAVE') || l.action === 'PLAN_REPLACE') return ['ปี ' + d.year + ' · ' + (d.mode === 'replace' ? 'แทนที่ทั้งปี' : 'เพิ่ม/อัปเดต') + ' · ' + d.itemsSaved + ' รายการ · มูลค่า ' + this.formatCurrency(d.valueSaved) + (d.fileName ? ' · ไฟล์ ' + d.fileName : ''), 'ก่อนหน้า: ' + d.beforeCount + ' รายการ · ' + this.formatCurrency(d.beforeValue)];
             if (l.action.startsWith('PLAN_DELETE')) return ['ปี ' + d.year + (d.productId ? ' · รหัส ' + d.productId : '') + ' · ลบ ' + (d.deleted || []).length + ' รายการ'];
+            if (l.action === 'MINMAX_APPLY') return [(d.location || '') + ' · ' + (d.count || 0) + ' รายการ'];
             if (l.action === 'PO_SAVE') return ['PO ' + (d.poId || '') + ' · ' + d.items + ' รายการ · โหมด ' + d.mode];
             if (l.action === 'PO_EDIT') return ['PO ' + (d.poId || '') + ' · รายการหลังแก้ ' + (d.afterItems || []).length + ' รายการ · สถานะ ' + d.status];
             if (l.action === 'PO_DELETE') return ['ลบ PO ' + ((d.deleted && (d.deleted.po_no || d.deleted.po_id)) || '')];
