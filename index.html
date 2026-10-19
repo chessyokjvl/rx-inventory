@@ -319,7 +319,7 @@
                         <div class="card card-shadow p-3">
                             <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
                                 <h6 class="fw-bold text-primary mb-0">🎯 ABC-VEN Matrix (ยา) <span class="small text-muted fw-normal">ปีงบ {{ abcFY }} · คลิกช่องเพื่อดูรายการ</span></h6>
-                                <a href="#" @click.prevent="openAbcVen('', '')" class="small text-decoration-none">เปิดสรุปรายงาน ABC-VEN ›</a>
+                                <span class="no-print"><select v-model="abcMode" @change="saveAbcMode" class="form-select form-select-sm d-inline-block w-auto ms-2" style="max-width:260px"><option value="purchase">มูลค่าจัดซื้อปีงบนี้</option><option value="carry">ยอดยกมา + จัดซื้อปีงบนี้</option></select></span><a href="#" @click.prevent="openAbcVen('', '')" class="small text-decoration-none ms-2">เปิดสรุปรายงาน ABC-VEN ›</a>
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-bordered text-center align-middle mb-0" style="font-size:.9rem">
@@ -2140,7 +2140,8 @@
                                 <div class="col-6 col-md-2"><label class="small fw-bold text-muted">กลุ่ม A สะสมถึง (%)</label><input type="number" min="1" max="99" v-model.number="abcThr.a" @change="saveAbcThr" class="form-control form-control-sm"></div>
                                 <div class="col-6 col-md-2"><label class="small fw-bold text-muted">กลุ่ม B สะสมถึง (%)</label><input type="number" min="2" max="99.9" v-model.number="abcThr.b" @change="saveAbcThr" class="form-control form-control-sm"></div>
                                 <div class="col-6 col-md-3"><label class="small fw-bold text-muted">แสดงรายการ</label><select v-model="abcFilter.objType" class="form-select form-select-sm"><option value="ยา">ยา (ใช้ VEN)</option><option value="เวชภัณฑ์มิใช่ยา">เวชภัณฑ์มิใช่ยา</option></select></div>
-                                <div class="col-12 col-md-3 small text-muted">ABC แบ่งตาม<b>มูลค่าจัดซื้อ</b>ของปีงบนี้ (เฉพาะบิลที่ตรวจรับแล้ว) เรียงแยกตามประเภทสินค้า · VEN กำหนดที่ตั้งค่าระบบรวม</div>
+                                <div class="col-12 col-md-3"><label class="small fw-bold text-muted">ฐานมูลค่าที่ใช้จัด ABC</label><select v-model="abcMode" @change="saveAbcMode" class="form-select form-select-sm"><option value="purchase">มูลค่าจัดซื้อปีงบนี้</option><option value="carry">ยอดยกมา + จัดซื้อปีงบนี้</option></select></div>
+                                <div class="col-12 small text-muted">ฐาน: <b>{{ abcModeLabel }}</b> (จัดซื้อนับเฉพาะบิลที่ตรวจรับแล้ว · ยอดยกมา = มูลค่าที่บันทึกเป็น "ยอดยกมา" ในปีงบนี้ ถ้าไม่มีจะใช้จำนวนคงเหลือรวมทุกคลัง ณ 1 ต.ค. × ราคาเฉลี่ยต่อหน่วย) เรียงแยกตามประเภทสินค้า · VEN กำหนดที่ตั้งค่าระบบรวม</div>
                             </div>
                             <table class="table table-bordered text-center align-middle" style="max-width:760px">
                                 <thead class="table-dark"><tr><th>ABC \ VEN</th><th>V (Vital)</th><th>E (Essential)</th><th>N (Non-essential)</th><th>ยังไม่ระบุ VEN</th><th>รวม</th></tr></thead>
@@ -2158,7 +2159,7 @@
                             <div class="small mb-3 no-print"><span class="badge bg-danger me-1">กลุ่มสำคัญสูงสุด</span> AV · AE · BV <span class="badge bg-warning text-dark mx-1">กลุ่มรอง</span> AN · BE · CV <span class="badge bg-success mx-1">กลุ่มทั่วไป</span> BN · CE · CN <span class="text-muted ms-2">คลิกช่องในตารางเพื่อกรองรายการด้านล่าง</span></div>
                             <div class="d-flex justify-content-between align-items-center mb-2"><h6 class="fw-bold mb-0">รายการ{{ abcFilter.abc ? ' — กลุ่ม ' + (abcFilter.abc === '-' ? 'ไม่มีการจัดซื้อ' : abcFilter.abc) + ' / VEN ' + (abcFilter.ven === '?' ? 'ยังไม่ระบุ' : abcFilter.ven) : ' ทั้งหมด'}} ({{ abcList.length }})</h6><button v-if="abcFilter.abc" class="btn btn-sm btn-outline-secondary no-print" @click="abcFilter.abc = ''; abcFilter.ven = ''">ล้างตัวกรอง</button></div>
                             <table class="table table-bordered table-striped table-sm text-nowrap">
-                                <thead class="table-dark"><tr><th>#</th><th>รหัส</th><th>ชื่อสินค้า</th><th class="text-center">ABC</th><th class="text-center">VEN</th><th class="text-end">มูลค่าจัดซื้อ (บาท)</th><th class="text-end">% ของทั้งหมด</th><th class="text-end">% สะสม</th></tr></thead>
+                                <thead class="table-dark"><tr><th>#</th><th>รหัส</th><th>ชื่อสินค้า</th><th class="text-center">ABC</th><th class="text-center">VEN</th><th class="text-end">{{ abcMode === 'carry' ? 'มูลค่ายกมา+จัดซื้อ' : 'มูลค่าจัดซื้อ' }} (บาท)</th><th class="text-end">% ของทั้งหมด</th><th class="text-end">% สะสม</th></tr></thead>
                                 <tbody>
                                     <tr v-for="(r, i) in abcList" :key="r.id"><td>{{ i + 1 }}</td><td>{{ r.id }}</td><td class="fw-bold">{{ r.name }}</td>
                                         <td class="text-center"><span class="badge" :class="r.abc === 'A' ? 'bg-danger' : (r.abc === 'B' ? 'bg-warning text-dark' : (r.abc === 'C' ? 'bg-success' : 'bg-secondary'))">{{ r.abc || '-' }}</span></td>
@@ -2492,7 +2493,7 @@ const app = createApp({
             showMinMaxModal: false, showMmBulk: false, mmSel: {},
             mmParams: (() => { const d = { lookback: 12, rates: { MAIN: { minM: 2, maxM: 3 }, OPD: { minM: 1.5, maxM: 2 }, IPD: { minM: 1.5, maxM: 2 }, 'เวชภัณฑ์มิใช่ยา': { minM: 1.5, maxM: 2 } } }; try { const o = JSON.parse(localStorage.getItem('jvlMmParams2') || '{}'); if (o.lookback) d.lookback = o.lookback; if (o.rates) Object.keys(o.rates).forEach(k => { d.rates[k] = Object.assign({}, d.rates[k] || { minM: 1.5, maxM: 2 }, o.rates[k]); }); } catch (e) {} return d; })(),
             abcThr: (() => { const d = { a: 80, b: 95 }; try { return Object.assign(d, JSON.parse(localStorage.getItem('jvlAbcThr') || '{}')); } catch (e) { return d; } })(),
-            abcFY: 0, abcFilter: { abc: '', ven: '', objType: 'ยา' },
+            abcMode: (() => { try { return localStorage.getItem('jvlAbcMode') === 'carry' ? 'carry' : 'purchase'; } catch (e) { return 'purchase'; } })(), abcFY: 0, abcFilter: { abc: '', ven: '', objType: 'ยา' },
             
             formMinMax: { productId: '', stockLocation: '', min: 0, max: 0, productName: '' },
 
@@ -2710,6 +2711,7 @@ const app = createApp({
             this.bills.forEach(b => { if (b.status === 'Completed') set.add(this.fiscalYearOf(String(b.receivedDate || '').slice(0, 10))); });
             return [...set].filter(y => y > 2500).sort((a, b) => b - a);
         },
+        abcModeLabel() { return this.abcMode === 'carry' ? 'ยอดยกมา + จัดซื้อปีงบนี้' : 'มูลค่าจัดซื้อปีงบนี้'; },
         abcData() {
             const fy = this.abcFY || this.fiscalYearOf(new Date().toISOString().slice(0, 10));
             const from = (fy - 544) + '-10-01', to = (fy - 543) + '-09-30';
@@ -2720,6 +2722,21 @@ const app = createApp({
                 const d = String(t.date).slice(0, 10);
                 if (d >= from && d <= to) val[t.productId] = (val[t.productId] || 0) + (t.totalPrice || 0);
             });
+            if (this.abcMode === 'carry') {
+                // ยอดยกมา ณ ต้นปีงบ = (รับเข้า - จ่ายออก) ทุกคลัง ก่อนวันที่ 1 ต.ค. × ราคาเฉลี่ยต่อหน่วย
+                const net = {}, inQ = {}, inV = {};
+                this.transactions.forEach(t => {
+                    if (t.status !== 'Completed' || String(t.date).slice(0, 10) >= from) return;
+                    const q = parseFloat(t.qty) || 0;
+                    if (t.type === 'IN') { net[t.productId] = (net[t.productId] || 0) + q; if ((t.totalPrice || 0) > 0 && q > 0) { inQ[t.productId] = (inQ[t.productId] || 0) + q; inV[t.productId] = (inV[t.productId] || 0) + t.totalPrice; } }
+                    else if (t.type === 'OUT') net[t.productId] = (net[t.productId] || 0) - q;
+                });
+                // ถ้ามีการบันทึก "ยอดยกมา" ลงในปีงบนี้ ให้ใช้มูลค่านั้นก่อน (กันนับซ้ำกับยอดคงเหลือปีก่อน)
+                const rec = {};
+                this.transactions.forEach(t => { const d = String(t.date).slice(0, 10); if (t.type === 'IN' && t.status === 'Completed' && t.vendorOrDept === 'ยอดยกมา' && d >= from && d <= to) rec[t.productId] = (rec[t.productId] || 0) + (t.totalPrice || 0); });
+                Object.keys(rec).forEach(pid => { if (rec[pid] > 0) { val[pid] = (val[pid] || 0) + rec[pid]; delete net[pid]; } });
+                Object.keys(net).forEach(pid => { if (net[pid] > 0 && inQ[pid]) val[pid] = (val[pid] || 0) + net[pid] * inV[pid] / inQ[pid]; });
+            }
             const A = Math.min(Math.max(parseFloat(this.abcThr.a) || 80, 1), 99), B = Math.min(Math.max(parseFloat(this.abcThr.b) || 95, A + 0.1), 99.9);
             const map = {};
             ['ยา', 'เวชภัณฑ์มิใช่ยา'].forEach(tp => {
@@ -3312,6 +3329,7 @@ const app = createApp({
         // ---------- ABC / VEN ----------
         abcOf(pid) { const m = this.abcData.map[pid]; return m ? m.cls : ''; },
         abcvenTone(a, v) { const k = a + v; return ['AV', 'AE', 'BV'].includes(k) ? 'table-danger' : (['AN', 'BE', 'CV'].includes(k) ? 'table-warning' : (['BN', 'CE', 'CN'].includes(k) ? 'table-success' : '')); },
+        saveAbcMode() { try { localStorage.setItem('jvlAbcMode', this.abcMode); } catch (e) {} },
         saveAbcThr() { try { localStorage.setItem('jvlAbcThr', JSON.stringify(this.abcThr)); } catch (e) {} },
         setAbcFilter(a, v) { if (this.abcFilter.abc === a && this.abcFilter.ven === v) { this.abcFilter.abc = ''; this.abcFilter.ven = ''; } else { this.abcFilter.abc = a; this.abcFilter.ven = v; this.abcFilter.objType = 'ยา'; } },
         openAbcVen(a, v) { this.reportFilter.type = 'abcven'; this.abcFilter = { abc: a, ven: v, objType: 'ยา' }; this.navTo('reports', this.globalStock); },
@@ -3320,7 +3338,7 @@ const app = createApp({
             const mat = [['ABC \\ VEN', 'V', 'E', 'N', 'ยังไม่ระบุ', 'รวม']];
             m.rows.forEach(r => mat.push([r === '-' ? 'ไม่มีการจัดซื้อ' : 'กลุ่ม ' + r, ...m.cols.map(c => m.cells[r + c].n), m.rowTotal[r]]));
             mat.push(['รวม', ...m.cols.map(c => m.colTotal[c]), m.total]);
-            const lst = [['ลำดับ', 'รหัส', 'ชื่อสินค้า', 'ABC', 'VEN', 'มูลค่าจัดซื้อ', '% ของทั้งหมด', '% สะสม']];
+            const lst = [['ลำดับ', 'รหัส', 'ชื่อสินค้า', 'ABC', 'VEN', this.abcMode === 'carry' ? 'มูลค่ายกมา+จัดซื้อ' : 'มูลค่าจัดซื้อ', '% ของทั้งหมด', '% สะสม']];
             this.abcList.forEach((r, i) => lst.push([i + 1, r.id, r.name, r.abc || '-', r.ven || '-', Math.round(r.value * 100) / 100, Math.round(r.pct * 100) / 100, Math.round(r.cum * 100) / 100]));
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(mat), 'Matrix');
@@ -3416,7 +3434,7 @@ const app = createApp({
             if (this.reportFilter.type === 'category_val') return 'สรุปมูลค่าคงคลังตามประเภท (ED/NED)'; 
             if (this.reportFilter.type === 'expiry') return 'รายงานวันหมดอายุ (Expiry Report)'; 
             if (this.reportFilter.type === 'usage') return 'สรุปการเบิกจ่ายแยกรายหน่วยงาน'; 
-            if (this.reportFilter.type === 'abcven') return 'วิเคราะห์ ABC-VEN Matrix ปีงบประมาณ ' + this.abcFY + ' (' + (this.globalStock === 'ALL' ? 'รวมทุกคลัง' : this.locLabel(this.globalStock)) + ')'; 
+            if (this.reportFilter.type === 'abcven') return 'วิเคราะห์ ABC-VEN Matrix ปีงบประมาณ ' + this.abcFY + ' [' + this.abcModeLabel + '] (' + (this.globalStock === 'ALL' ? 'รวมทุกคลัง' : this.locLabel(this.globalStock)) + ')'; 
             return ''; 
         },
 
