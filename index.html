@@ -1514,7 +1514,7 @@
                                 <tr v-for="(item, i) in printDoc.items" style="height: 26px;">
                                     <td style="border: 1px solid #000; text-align: center;">{{ i+1 }}</td>
                                     <!-- แสดงตัว "น" เฉพาะเมื่อเบิกจากคลัง OPD ตามต้นฉบับ แสดงตัว "ฉ" เมื่อเบิกจากคลัง Pending หรือมีหมายเหตุ "ฉ." -->
-                                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">{{ printDoc.stockLoc === 'Pending' || (printDoc.note && printDoc.note.includes('ฉ.')) ? 'ฉ.' : (printDoc.stockLoc === 'OPD' ? 'น' : '') }}</td>
+                                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">{{ printDoc.stockLoc === 'Pending' || (printDoc.note && printDoc.note.includes('ฉ.')) ? 'ฉ.' : ((printDoc.combined ? item.stockLoc : printDoc.stockLoc) === 'OPD' ? 'น' : '') }}</td>
                                     <td style="border: 1px solid #000; padding-left: 6px; font-size: 13px;">{{ item.name }}</td>
                                     <td style="border: 1px solid #000; text-align: center;"></td>
                                     <!-- แสดงหน่วยนับพร้อม Pack Size (ถ้ามี) -->
