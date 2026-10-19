@@ -43,6 +43,11 @@
   - จัดซื้อ = IN ของบิลที่ตรวจรับแล้ว แบ่งตามยอดเงินบำรุง/งบประมาณของบิล (งบยาเสพติดนับเป็นงบประมาณ) · รายจ่าย = OUT ของคลังใหญ่ ไม่รวม lot `ADJUST` · ยอดยกมา/ยกไป = Σรับ − Σจ่าย (มูลค่าตามบันทึก) ของคลังใหญ่ ณ สิ้นเดือน โดยมีแถว "รายการปรับปรุงอื่น ๆ" เมื่อมีนับสต็อก/ปรับมูลค่า/รับเข้านอกบิล
 - **แผนจัดซื้อประจำปี**, **ตรวจนับสต็อก/ปรับมูลค่า**, **ปรับรหัสสินค้า/ผู้ขาย/หน่วยงาน (ID migration)**, **ตั้งค่าระบบรวม** (สินค้า, ผู้ขาย, หน่วยงาน, ผู้ใช้, หน่วยนับ)
 
+## โหมด Guest (ดูอย่างเดียว)
+
+ปุ่ม **เข้าชมแบบ Guest** ที่หน้า Login เปิด Dashboard กลางสำหรับผู้บริหาร: มูลค่าคงคลัง/ใกล้หมดอายุ/ถึงจุดสั่งซื้อ/ตัวชี้วัดการใช้งาน แยกคลังใหญ่ (MAIN, เวชภัณฑ์มิใช่ยา) และคลังย่อย (OPD, IPD) คลิกดูรายละเอียดได้ ทำรายการไม่ได้
+- ดึงข้อมูลด้วย action `getGuestSummary` (อ่านอย่างเดียว ไม่ส่งตารางผู้ใช้/รหัสผ่าน และตัดชื่อผู้ทำรายการออก) ฝั่งหน้าเว็บบล็อกทุก action อื่นขณะเป็น Guest และไม่บันทึกสถานะลง localStorage
+
 ## บทบาทผู้ใช้
 
 | Role | สิทธิ์ |
@@ -68,7 +73,7 @@ POST JSON `{ "action": "...", "data": { ... } }` — ส่ง `username` สำ
 
 | กลุ่ม | Action |
 |---|---|
-| ทั่วไป | `testConnection`, `getData`, `getNextId`, `saveUnit`, `registerUser` |
+| ทั่วไป | `testConnection`, `getData`, `getGuestSummary`, `getNextId`, `saveUnit`, `registerUser` |
 | ข้อมูลหลัก | `saveMasterData`, `deleteMasterData`, `saveBarcode`, `deleteBarcode`, `migrateIds` |
 | รับ/จ่าย | `savePendingBill`, `approveBill`, `saveBatchTransaction`, `saveSubReceive`, `saveStockTake`, `saveValueAdjustment`, `clearEmergency` |
 | ขอเบิก | `saveRequest`, `updateRequest`, `deleteRequest`, `updateRequestStatus`, `updateToActualReq` |
@@ -86,5 +91,5 @@ POST JSON `{ "action": "...", "data": { ... } }` — ส่ง `username` สำ
 - ชุดทดสอบที่ใช้พัฒนาเป็นการทดสอบหน้าเว็บกับ API จำลอง ยังไม่ได้ทดสอบอัตโนมัติกับ MySQL จริง — ควรสำรองข้อมูลก่อนอัปเดตทุกครั้ง
 
 ## ผู้พัฒนา
-
+ภก.พิชญ์พงศ์ คงนาวัง
 กลุ่มงานพัฒนาคุณภาพบริการและมาตรฐาน โรงพยาบาลจิตเวชเลยราชนครินทร์
