@@ -393,6 +393,45 @@
                     </div>
                 </div>
 
+                <!-- Run / Control Chart จากรายงาน สจ.รง.1051 (เฉพาะคลังใหญ่) -->
+                <div class="row g-3 mb-4" v-if="globalStock === 'MAIN' && sjAll.months.length">
+                    <div class="col-12">
+                        <div class="card card-shadow p-3 border-start border-5 border-success">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                <h6 class="fw-bold text-success mb-0">📊 แนวโน้มรายเดือน (ตามรายงาน สจ.รง.1051) <span class="small text-muted fw-normal">คลังใหญ่</span></h6>
+                                <a href="#" @click.prevent="reportFilter.type = 'sjrong'; navTo('reports', 'MAIN')" class="small text-decoration-none">เปิดรายงาน สจ.รง.1051 ›</a>
+                            </div>
+                            <div class="row g-2 mb-2 align-items-end">
+                                <div class="col-6 col-md-2"><label class="small fw-bold text-muted">ตั้งแต่เดือน</label><select v-model="sjDash.from" @change="sjRedraw" class="form-select form-select-sm"><option v-for="m in sjAll.months" :key="m" :value="m">{{ sjMonthLabel(m) }}</option></select></div>
+                                <div class="col-6 col-md-2"><label class="small fw-bold text-muted">ถึงเดือน</label><select v-model="sjDash.to" @change="sjRedraw" class="form-select form-select-sm"><option v-for="m in sjAll.months" :key="m" :value="m">{{ sjMonthLabel(m) }}</option></select></div>
+                                <div class="col-12 col-md-8 d-flex flex-wrap gap-1">
+                                    <button v-for="pr in sjPresets" :key="pr.k" @click="sjPreset(pr.k)" class="btn btn-sm btn-outline-success">{{ pr.t }}</button>
+                                </div>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-12 col-xl-6">
+                                    <div class="d-flex justify-content-between align-items-center mb-1"><b class="small">คงคลัง · จ่ายออก · จัดซื้อ รายเดือน</b>
+                                        <select v-model="sjDash.ov" @change="sjRedraw" class="form-select form-select-sm w-auto"><option value="all">รวมทุกประเภท</option><option value="drug">ยา</option><option value="non">เวชภัณฑ์มิใช่ยา</option></select></div>
+                                    <div style="height: 300px; position: relative;"><canvas id="sjOvChart"></canvas></div>
+                                </div>
+                                <div class="col-12 col-xl-6">
+                                    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-1"><b class="small">{{ sjDash.mode === 'control' ? 'Control Chart (I-Chart)' : 'Run Chart' }}</b>
+                                        <div class="d-flex gap-1">
+                                            <select v-model="sjDash.metric" @change="sjRedraw" class="form-select form-select-sm" style="max-width:280px"><optgroup v-for="g in sjMetricGroups" :key="g.g" :label="g.g"><option v-for="m in g.items" :key="m.k" :value="m.k">{{ m.t }}</option></optgroup></select>
+                                            <select v-model="sjDash.mode" @change="sjRedraw" class="form-select form-select-sm w-auto"><option value="run">Run Chart</option><option value="control">Control Chart</option></select>
+                                        </div></div>
+                                    <div style="height: 300px; position: relative;"><canvas id="sjCtlChart"></canvas></div>
+                                    <div class="small text-muted mt-1" v-if="sjStats">
+                                        <span v-if="sjDash.mode === 'control'">ค่าเฉลี่ย {{ sjFmt(sjStats.center) }} · UCL {{ sjFmt(sjStats.ucl) }} · LCL {{ sjFmt(sjStats.lcl) }} · จุดนอกเส้นควบคุม <b :class="sjStats.out ? 'text-danger' : 'text-success'">{{ sjStats.out }}</b></span>
+                                        <span v-else>มัธยฐาน {{ sjFmt(sjStats.center) }} · จุดที่อยู่ในช่วงเลื่อนไหล (≥ 6 จุดติดกันด้านเดียวกัน) <b :class="sjStats.shift ? 'text-warning' : 'text-success'">{{ sjStats.shift }}</b></span>
+                                        <span v-if="sjStats.n < 8" class="text-warning ms-2">⚠ ข้อมูลน้อยกว่า 8 เดือน การแปลผลอาจไม่แม่นยำ</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="row g-3 mb-4">
                     <div class="col-12 col-lg-4">
                         <div class="card card-shadow p-3 h-100">
@@ -1099,12 +1138,13 @@
                         <div class="col-12 col-md-3"><label class="small fw-bold text-muted">วันที่จ่าย</label><input type="date" v-model="formOut.date" class="form-control"></div>
                         <div class="col-12 col-md-3">
                             <label class="small fw-bold text-muted">ประเภทเอกสาร</label>
-                            <select v-model="formOut.reqType" class="form-select border-warning text-dark fw-bold"><option value="เบิกจริง">เบิกจริง (ปกติ)</option><option value="เบิกฉุกเฉิน">เบิกฉุกเฉิน</option><option value="ยืม">ยืม</option><option value="จ่ายขึ้นชั้นยา">จ่ายขึ้นชั้นยา/จ่ายใช้งาน</option></select>
+                            <select v-model="formOut.reqType" class="form-select border-warning text-dark fw-bold"><option v-if="isSubShelfStock" value="จ่ายขึ้น Shelf">จ่ายขึ้น Shelf</option><option value="เบิกจริง">เบิกจริง (ปกติ)</option><option value="เบิกฉุกเฉิน">เบิกฉุกเฉิน</option><option value="ยืม">ยืม</option><option value="จ่ายขึ้นชั้นยา">จ่ายขึ้นชั้นยา/จ่ายใช้งาน</option></select>
                         </div>
-                        <div class="col-12 col-md-3"><label class="small fw-bold text-muted">เลขที่เอกสาร</label><input v-model="formOut.docNo" type="text" class="form-control" placeholder="บ.1/70"></div>
-                        <div class="col-12 col-md-6"><label class="small fw-bold text-muted">หลักฐานที่ใช้เบิก / ส่งคืน <span class="fw-normal">(ไม่บังคับ — เลขที่เอกสาร)</span></label><input v-model="formOut.evNo" type="text" class="form-control" placeholder="เช่น หนังสือที่ ลย 0xxx/xxxx"></div>
-                        <div class="col-12 col-md-3"><label class="small fw-bold text-muted">ลงวันที่ <span class="fw-normal">(ไม่บังคับ)</span></label><input v-model="formOut.evDate" type="date" class="form-control"></div>
-                        <div class="col-12 col-md-3"><label class="small fw-bold text-muted">ปลายทาง (จ่ายให้ใคร)</label><select id="stockOutDeptSelect" placeholder="เลือกหน่วยงาน/ห้องยา..."></select></div>
+                        <div class="col-12 col-md-3" v-if="!shelfMode"><label class="small fw-bold text-muted">เลขที่เอกสาร</label><input v-model="formOut.docNo" type="text" class="form-control" placeholder="บ.1/70"></div>
+                        <div class="col-12 col-md-6" v-if="shelfMode"><div class="alert alert-success py-2 mb-0 small"><i class="bi bi-check-circle-fill"></i> <b>จ่ายขึ้น Shelf</b> — ไม่ต้องกรอกเลขที่เอกสารและปลายทาง ระบบจะบันทึกเป็น "จ่ายขึ้น Shelf" ให้อัตโนมัติ</div></div>
+                        <div class="col-12 col-md-6" v-if="!shelfMode"><label class="small fw-bold text-muted">หลักฐานที่ใช้เบิก / ส่งคืน <span class="fw-normal">(ไม่บังคับ — เลขที่เอกสาร)</span></label><input v-model="formOut.evNo" type="text" class="form-control" placeholder="เช่น หนังสือที่ ลย 0xxx/xxxx"></div>
+                        <div class="col-12 col-md-3" v-if="!shelfMode"><label class="small fw-bold text-muted">ลงวันที่ <span class="fw-normal">(ไม่บังคับ)</span></label><input v-model="formOut.evDate" type="date" class="form-control"></div>
+                        <div class="col-12 col-md-3" v-show="!shelfMode"><label class="small fw-bold text-muted">ปลายทาง (จ่ายให้ใคร)</label><select id="stockOutDeptSelect" placeholder="เลือกหน่วยงาน/ห้องยา..."></select></div>
                     </div>
                 </div>
                 
@@ -1310,7 +1350,7 @@
                             <tbody>
                                 <tr v-for="row in stockCardHistory" :key="row.transId">
                                     <td class="text-center">{{ formatThaiDate(row.date.split(' ')[0]) }}</td>
-                                    <td>{{ row.refDoc || row.billId || '-' }} <span v-if="row.stockLocation === 'Pending' || (row.note && row.note.includes('เคลียร์ ฉ.'))" class="text-danger fw-bold fs-6">(ฉ.)</span><br><small class="text-muted">{{ row.note }}</small></td>
+                                    <td>{{ scDocOf(row) }} <span v-if="row.stockLocation === 'Pending' || (row.note && row.note.includes('เคลียร์ ฉ.'))" class="text-danger fw-bold fs-6">(ฉ.)</span><br><small class="text-muted" v-if="!isShelfRow(row)">{{ row.note }}</small></td>
                                     <td>{{ row.vendorOrDept || '-' }}</td>
                                     <td class="text-end">{{ formatNumber(row.unitPrice) }}</td>
                                     <td class="text-center">{{ formatThaiDate(row.expDate) || '-' }}</td>
@@ -1334,8 +1374,10 @@
                         <select v-model="historyFilterType" class="form-select border-primary shadow-sm" style="max-width: 250px;">
                             <option value="">แสดงทั้งหมด</option><option value="IN">เฉพาะรับเข้า (IN)</option><option value="OUT">เฉพาะจ่ายออก (OUT)</option>
                         </select>
+                        <label v-if="isSubShelfStock" class="form-check d-flex align-items-center gap-2 mb-0 text-nowrap small fw-bold"><input type="checkbox" class="form-check-input mt-0" v-model="showShelfHist" @change="saveShowShelf"> แสดงรายการจ่ายขึ้น Shelf</label>
                     </div>
                 </div>
+                <div v-if="shelfHiddenCount > 0" class="small text-muted mb-2 no-print"><i class="bi bi-eye-slash"></i> ซ่อนรายการจ่ายขึ้น Shelf {{ shelfHiddenCount }} รายการ — ดูสรุปได้ที่ <a href="#" @click.prevent="reportFilter.type = 'shelf'; navTo('reports', globalStock)">สรุปรายงาน › จ่ายขึ้น Shelf</a></div>
                 <div class="card card-shadow p-3" id="historyTable">
                     <div class="table-responsive">
                         <table class="table table-hover align-middle text-nowrap">
@@ -1667,7 +1709,7 @@
                                 <!-- สำหรับพิมพ์ เราจะกลับอาเรย์ให้เรียงจาก เก่า -> ใหม่ ตามหลักการบัญชี F-SP-018 -->
                                 <tr v-for="row in [...stockCardHistory].reverse()" style="height: 28px;">
                                     <td style="border: 1px solid #000; text-align: center;">{{ formatThaiDate(row.date.split(' ')[0]) }}</td>
-                                    <td style="border: 1px solid #000; text-align: center;">{{ row.refDoc || row.billId || '-' }} <span v-if="row.stockLocation === 'Pending' || (row.note && row.note.includes('เคลียร์ ฉ.'))" style="color: red; font-weight: bold;">(ฉ.)</span></td>
+                                    <td style="border: 1px solid #000; text-align: center;">{{ scDocOf(row) }} <span v-if="row.stockLocation === 'Pending' || (row.note && row.note.includes('เคลียร์ ฉ.'))" style="color: red; font-weight: bold;">(ฉ.)</span></td>
                                     <td style="border: 1px solid #000; padding-left: 6px;">{{ row.vendorOrDept || '-' }}</td>
                                     <td style="border: 1px solid #000; text-align: right; padding-right: 6px;">{{ formatNumber(row.unitPrice) }}</td>
                                     <td style="border: 1px solid #000; text-align: center;">{{ formatThaiDate(row.expDate) || '-' }}</td>
@@ -2094,6 +2136,8 @@
                                 <option value="expiry">3. รายงานวันหมดอายุ (Expiry Report)</option>
                                 <option value="usage">4. สรุปมูลค่าการเบิกจ่ายแยกตามหน่วยงาน</option>
                                 <option value="abcven">5. วิเคราะห์ ABC-VEN Matrix (ยา)</option>
+                                <option v-if="isSubShelfStock" value="shelf">7. สรุปการจ่ายขึ้น Shelf</option>
+                                <option v-if="globalStock === 'MAIN'" value="sjrong">6. รายงาน สจ.รง.1051 (เฉพาะคลังใหญ่)</option>
                             </select>
                         </div>
                         <div class="col-12 col-md-3" v-if="reportFilter.type === 'inventory'">
@@ -2102,11 +2146,11 @@
                                 <option value="all">แสดงทั้งหมด</option><option value="Must list">Must list (ห้ามขาด)</option><option value="Watch list">Watch list (เฝ้าระวัง)</option><option value="General list">General list (ทั่วไป)</option>
                             </select>
                         </div>
-                        <div class="col-6 col-md-2" v-if="['usage'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ตั้งแต่วันที่</label><input type="date" v-model="reportFilter.start" class="form-control shadow-sm"></div>
-                        <div class="col-6 col-md-2" v-if="['usage'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ถึงวันที่</label><input type="date" v-model="reportFilter.end" class="form-control shadow-sm"></div>
+                        <div class="col-6 col-md-2" v-if="['usage', 'shelf'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ตั้งแต่วันที่</label><input type="date" v-model="reportFilter.start" class="form-control shadow-sm"></div>
+                        <div class="col-6 col-md-2" v-if="['usage', 'shelf'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ถึงวันที่</label><input type="date" v-model="reportFilter.end" class="form-control shadow-sm"></div>
                         <div class="col-12 col-md-3 d-flex gap-2 ms-auto align-items-end mt-3 mt-md-0">
                             <button class="btn btn-outline-primary w-100 fw-bold shadow-sm" onclick="window.print()"><i class="bi bi-printer"></i> พิมพ์ PDF</button>
-                            <button class="btn btn-success w-100 fw-bold shadow-sm" @click="reportFilter.type === 'abcven' ? exportAbcVen() : exportExcel('reportArea', 'Report')"><i class="bi bi-file-excel"></i> ส่งออก Excel</button>
+                            <button class="btn btn-success w-100 fw-bold shadow-sm" @click="reportFilter.type === 'abcven' ? exportAbcVen() : (reportFilter.type === 'sjrong' ? exportSjrong() : exportExcel('reportArea', 'Report'))"><i class="bi bi-file-excel"></i> ส่งออก Excel</button>
                         </div>
                     </div>
                 </div>
@@ -2152,6 +2196,69 @@
                                     <tr v-if="sortedActiveLots.length===0"><td colspan="5" class="text-center text-muted p-4">-- ไม่พบข้อมูล Lot สินค้าในคลัง --</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+                        <div v-if="reportFilter.type==='shelf'">
+                            <div class="d-flex flex-wrap gap-2 align-items-center mb-3 no-print">
+                                <span class="small fw-bold text-muted">ช่วงเวลา:</span>
+                                <button class="btn btn-sm btn-outline-primary" @click="shelfRange('m')">เดือนนี้</button>
+                                <button class="btn btn-sm btn-outline-primary" @click="shelfRange('pm')">เดือนที่แล้ว</button>
+                                <button class="btn btn-sm btn-outline-primary" @click="shelfRange('fy')">ปีงบนี้</button>
+                                <button class="btn btn-sm btn-outline-secondary" @click="shelfRange('all')">ทั้งหมด</button>
+                                <select v-model="shelfView" class="form-select form-select-sm w-auto ms-auto"><option value="product">สรุปตามรายการยา</option><option value="month">สรุปรายเดือน</option></select>
+                            </div>
+                            <div class="small text-muted mb-2">รายการที่ตัดสต็อกด้วยโหมด "จ่ายขึ้น Shelf" ของคลัง {{ globalStock }} (เฉพาะรายการที่จ่ายสำเร็จแล้ว) · รวม {{ shelfReport.totTimes }} ครั้ง มูลค่า {{ formatCurrency(shelfReport.totValue) }}</div>
+                            <table v-if="shelfView === 'product'" class="table table-bordered table-striped align-middle text-nowrap">
+                                <thead class="table-dark"><tr><th>#</th><th>รหัส</th><th>ชื่อสินค้า</th><th class="text-end">จำนวนครั้ง</th><th class="text-end">จำนวนที่จ่ายขึ้น Shelf</th><th>หน่วย</th><th class="text-end">มูลค่า (บาท)</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="(r, i) in shelfReport.rows" :key="r.id"><td>{{ i + 1 }}</td><td>{{ r.id }}</td><td>{{ r.name }}</td><td class="text-end">{{ r.times }}</td><td class="text-end fw-bold">{{ formatNumber(r.qty) }}</td><td>{{ r.unit }}</td><td class="text-end">{{ formatCurrency(r.value) }}</td></tr>
+                                    <tr v-if="!shelfReport.rows.length"><td colspan="7" class="text-center text-muted p-4">ไม่มีรายการจ่ายขึ้น Shelf ในช่วงเวลานี้</td></tr>
+                                </tbody>
+                                <tfoot v-if="shelfReport.rows.length"><tr class="fw-bold table-light"><td colspan="3" class="text-end">รวม</td><td class="text-end">{{ shelfReport.totTimes }}</td><td class="text-end">{{ formatNumber(shelfReport.totQty) }}</td><td></td><td class="text-end">{{ formatCurrency(shelfReport.totValue) }}</td></tr></tfoot>
+                            </table>
+                            <table v-else class="table table-bordered table-striped align-middle text-nowrap">
+                                <thead class="table-dark"><tr><th>เดือน</th><th class="text-end">จำนวนรายการยา (ชนิด)</th><th class="text-end">จำนวนครั้ง</th><th class="text-end">มูลค่า (บาท)</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="m in shelfReport.months" :key="m.ym"><td>{{ sjMonthLabel(m.ym) }}</td><td class="text-end">{{ m.kinds }}</td><td class="text-end">{{ m.times }}</td><td class="text-end">{{ formatCurrency(m.value) }}</td></tr>
+                                    <tr v-if="!shelfReport.months.length"><td colspan="4" class="text-center text-muted p-4">ไม่มีรายการจ่ายขึ้น Shelf ในช่วงเวลานี้</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div v-if="reportFilter.type==='sjrong'">
+                            <div v-if="globalStock !== 'MAIN'" class="alert alert-warning">รายงาน สจ.รง.1051 ใช้ได้เฉพาะคลังใหญ่ กรุณาสลับไปที่คลังยาใหญ่</div>
+                            <template v-else>
+                            <div class="row g-2 mb-3 no-print align-items-end">
+                                <div class="col-12 col-md-3"><label class="small fw-bold text-muted">ประจำเดือน</label><select v-model="sjMonth" class="form-select form-select-sm"><option v-for="m in sjMonthOptions" :key="m" :value="m">{{ sjMonthLabel(m) }}</option></select></div>
+                                <div class="col-12 col-md-9 small text-muted">คำนวณจากรายการรับ-จ่ายของ<b>คลังใหญ่</b> (เฉพาะรายการที่ตรวจรับ/จ่ายสำเร็จแล้ว) · จัดซื้อ = รายการรับเข้าจากบิลบริษัทที่ตรวจรับแล้ว แยกตามเงินงบประมาณ/เงินบำรุงของบิล (งบยาเสพติดนับเป็นเงินงบประมาณ) · รายจ่าย = ยอดจ่ายออกจากคลังใหญ่ (รวมจ่ายให้คลังย่อย)</div>
+                                <div class="col-12 d-flex flex-wrap gap-2"><input v-model="sjSign.n1" @change="saveSjSign" class="form-control form-control-sm" style="width:200px" placeholder="ชื่อเจ้าหน้าที่"><input v-model="sjSign.n2" @change="saveSjSign" class="form-control form-control-sm" style="width:200px" placeholder="ชื่อหัวหน้าเจ้าหน้าที่"><input v-model="sjSign.n3" @change="saveSjSign" class="form-control form-control-sm" style="width:240px" placeholder="ชื่อผู้อำนวยการ/ผู้รักษาการ"></div>
+                            </div>
+                            <div v-if="sjRep" style="font-size: 14px;">
+                                <div class="text-end small fw-bold">สจ.รง.1051</div>
+                                <div class="text-center fw-bold mb-3" style="line-height:1.6">รายงานการบริหารเวชภัณฑ์ยาและเวชภัณฑ์ที่ไม่ใช่ยา<br>หน่วยงาน โรงพยาบาลจิตเวชเลยราชนครินทร์<br>กรมสุขภาพจิต กระทรวงสาธารณสุข<br>ประจำเดือน {{ sjMonthLabel(sjMonth) }}</div>
+                                <div class="fw-bold mb-1">1. ผลการจัดซื้อเวชภัณฑ์</div>
+                                <table class="table table-bordered text-center align-middle" style="font-size:.95em">
+                                    <thead><tr class="table-light"><th rowspan="2" class="text-start">ประเภทเวชภัณฑ์</th><th colspan="2">ประเภทเงิน</th><th rowspan="2">รวม</th><th rowspan="2" class="table-secondary">รวมแต่ต้นปี</th></tr><tr class="table-light"><th>เงินงบประมาณ</th><th>เงินบำรุง</th></tr></thead>
+                                    <tbody>
+                                        <tr v-for="r in sjRep.rows" :key="r.key"><td class="text-start">{{ r.label }}</td><td class="text-end">{{ sjFmt(r.bud) }}</td><td class="text-end">{{ sjFmt(r.mnt) }}</td><td class="text-end">{{ sjFmt(r.bud + r.mnt) }}</td><td class="text-end table-secondary">{{ sjFmt(r.ytd) }}</td></tr>
+                                        <tr class="fw-bold"><td class="text-start">รวม</td><td class="text-end">{{ sjFmt(sjRep.tot.bud) }}</td><td class="text-end">{{ sjFmt(sjRep.tot.mnt) }}</td><td class="text-end">{{ sjFmt(sjRep.tot.bud + sjRep.tot.mnt) }}</td><td class="text-end table-secondary">{{ sjFmt(sjRep.tot.ytd) }}</td></tr>
+                                        <tr class="fw-bold table-secondary"><td class="text-start">รวมแต่ต้นปี</td><td class="text-end">{{ sjFmt(sjRep.ytdBud) }}</td><td class="text-end">{{ sjFmt(sjRep.ytdMnt) }}</td><td class="text-end">{{ sjFmt(sjRep.ytdBud + sjRep.ytdMnt) }}</td><td></td></tr>
+                                    </tbody>
+                                </table>
+                                <div class="fw-bold mb-1 mt-3">2. เวชภัณฑ์คงคลัง</div>
+                                <table class="table table-bordered text-center align-middle" style="font-size:.95em">
+                                    <thead><tr class="table-light"><th class="text-start"></th><th>ยา (บาท)</th><th>เวชภัณฑ์มิใช่ยาและวัสดุการแพทย์ (บาท)</th></tr></thead>
+                                    <tbody>
+                                        <tr v-for="r in sjRep.stockRows" :key="r.label" :class="{'fw-bold': r.bold}"><td class="text-start">{{ r.label }}</td><td class="text-end">{{ sjFmt(r.drug) }}</td><td class="text-end">{{ sjFmt(r.non) }}</td></tr>
+                                    </tbody>
+                                </table>
+                                <div class="small mb-3">หมายเหตุ : เวชภัณฑ์ หมายถึง ยา, เวชภัณฑ์มิใช่ยาและวัสดุการแพทย์<span v-if="sjRep.hasOther"> · แถว "รายการปรับปรุงอื่น ๆ" คือผลต่างจากการนับสต็อก/ปรับมูลค่า/รับเข้านอกบิลบริษัท เพื่อให้ยอดยกไปตรงกับยอดคงคลังจริงในระบบ</span></div>
+                                <div class="row text-center mt-4" style="font-size:.95em">
+                                    <div class="col-12 mb-4">ทราบ<br>ลงชื่อ ........................................<br>{{ sjSign.n1 ? '(' + sjSign.n1 + ')' : '' }}<br>เจ้าหน้าที่</div>
+                                    <div class="col-6">-ทราบ<br>ลงชื่อ ........................................<br>{{ sjSign.n2 ? '(' + sjSign.n2 + ')' : '' }}<br>หัวหน้าเจ้าหน้าที่</div>
+                                    <div class="col-6">-ทราบ<br>ลงชื่อ ........................................<br>{{ sjSign.n3 ? '(' + sjSign.n3 + ')' : '' }}<br>ผู้อำนวยการโรงพยาบาลจิตเวชเลยราชนครินทร์</div>
+                                </div>
+                            </div>
+                            <div v-else class="text-muted text-center p-4">ยังไม่มีข้อมูลรับ-จ่ายของคลังใหญ่</div>
+                            </template>
                         </div>
                         <div v-if="reportFilter.type==='abcven'">
                             <div class="row g-2 mb-3 no-print align-items-end">
@@ -2512,7 +2619,9 @@ const app = createApp({
             showMinMaxModal: false, showMmBulk: false, mmSel: {},
             mmParams: (() => { const d = { lookback: 12, rates: { MAIN: { minM: 2, maxM: 3 }, OPD: { minM: 1.5, maxM: 2 }, IPD: { minM: 1.5, maxM: 2 }, 'เวชภัณฑ์มิใช่ยา': { minM: 1.5, maxM: 2 } } }; try { const o = JSON.parse(localStorage.getItem('jvlMmParams2') || '{}'); if (o.lookback) d.lookback = o.lookback; if (o.rates) Object.keys(o.rates).forEach(k => { d.rates[k] = Object.assign({}, d.rates[k] || { minM: 1.5, maxM: 2 }, o.rates[k]); }); } catch (e) {} return d; })(),
             abcThr: (() => { const d = { a: 80, b: 95 }; try { return Object.assign(d, JSON.parse(localStorage.getItem('jvlAbcThr') || '{}')); } catch (e) { return d; } })(),
-            abcMode: (() => { try { return localStorage.getItem('jvlAbcMode') === 'carry' ? 'carry' : 'purchase'; } catch (e) { return 'purchase'; } })(), abcFY: 0, abcFilter: { abc: '', ven: '', objType: 'ยา' },
+            abcMode: (() => { try { return localStorage.getItem('jvlAbcMode') === 'carry' ? 'carry' : 'purchase'; } catch (e) { return 'purchase'; } })(), showShelfHist: (() => { try { return localStorage.getItem('jvlShowShelf') === '1'; } catch (e) { return false; } })(), shelfView: 'product', sjMonth: '', sjDash: { from: '', to: '', ov: 'all', metric: 'stockTotal', mode: 'run' },
+            sjSign: (() => { const d = { n1: '', n2: '', n3: '' }; try { return Object.assign(d, JSON.parse(localStorage.getItem('jvlSjSign') || '{}')); } catch (e) { return d; } })(),
+            abcFY: 0, abcFilter: { abc: '', ven: '', objType: 'ยา' },
             
             formMinMax: { productId: '', stockLocation: '', min: 0, max: 0, productName: '' },
 
@@ -2730,6 +2839,110 @@ const app = createApp({
             this.bills.forEach(b => { if (b.status === 'Completed') set.add(this.fiscalYearOf(String(b.receivedDate || '').slice(0, 10))); });
             return [...set].filter(y => y > 2500).sort((a, b) => b - a);
         },
+        // ===== สจ.รง.1051 / Run-Control Chart (คลังใหญ่) =====
+        sjAll() {
+            const done = new Set(this.bills.filter(b => b.status === 'Completed').map(b => b.id));
+            const bm = {}; this.bills.forEach(b => { bm[b.id] = b; });
+            const pm = {}; this.products.forEach(p => { pm[p.id] = p; });
+            const mk = () => ({ buy: { ed: { b: 0, m: 0 }, ned: { b: 0, m: 0 }, non: { b: 0, m: 0 } }, exp: { drug: 0, non: 0 }, led: { drug: 0, non: 0 } });
+            const M = {};
+            this.transactions.forEach(t => {
+                if (t.status !== 'Completed' || (t.stockLocation || 'MAIN') !== 'MAIN') return;
+                const d = String(t.date || '').slice(0, 7); if (!/^\d{4}-\d{2}$/.test(d)) return;
+                const p = pm[t.productId], kind = p && p.objType === 'ยา' ? 'drug' : 'non', v = parseFloat(t.totalPrice) || 0;
+                const o = M[d] || (M[d] = mk());
+                if (t.type === 'IN') {
+                    o.led[kind] += v;
+                    if (done.has(t.billId)) {
+                        const sub = kind === 'non' ? 'non' : (p.drugClass === 'ED' ? 'ed' : 'ned'), b = bm[t.billId];
+                        let bum = b.budgetBumrung || 0, ng = (b.budgetNgob || 0) + (b.budgetNarcotic || 0), fb, fn;
+                        if (bum + ng > 0) { fb = bum / (bum + ng); fn = ng / (bum + ng); }
+                        else { const src = b.budgetSource || 'เงินบำรุง'; fn = (src.includes('งบประมาณ') || src.includes('ยาเสพติด')) ? 1 : 0; fb = 1 - fn; }
+                        o.buy[sub].m += v * fb; o.buy[sub].b += v * fn;
+                    }
+                } else if (t.type === 'OUT') {
+                    o.led[kind] -= v;
+                    if (t.lotNo !== 'ADJUST') o.exp[kind] += v;
+                }
+            });
+            const keys = Object.keys(M).sort();
+            const nowYm = new Date().toISOString().slice(0, 7);
+            if (!keys.length) return { months: [], m: {} };
+            let last = keys[keys.length - 1]; if (nowYm > last) last = nowYm;
+            const months = []; let y = parseInt(keys[0].slice(0, 4)), mo = parseInt(keys[0].slice(5, 7));
+            for (let guard = 0; guard < 600; guard++) { const ym = y + '-' + String(mo).padStart(2, '0'); months.push(ym); if (ym >= last) break; mo++; if (mo > 12) { mo = 1; y++; } }
+            const out = {}; let cd = 0, cn = 0;
+            months.forEach(ym => {
+                const o = M[ym] || mk();
+                const buyDrug = o.buy.ed.b + o.buy.ed.m + o.buy.ned.b + o.buy.ned.m, buyNon = o.buy.non.b + o.buy.non.m;
+                const openD = cd, openN = cn; cd += o.led.drug; cn += o.led.non;
+                out[ym] = {
+                    buy: o.buy, buyDrug: buyDrug, buyNon: buyNon, exp: o.exp,
+                    open: { drug: openD, non: openN }, close: { drug: cd, non: cn },
+                    other: { drug: o.led.drug - buyDrug + o.exp.drug, non: o.led.non - buyNon + o.exp.non }
+                };
+            });
+            return { months: months, m: out };
+        },
+        sjMonthOptions() { return this.sjAll.months.slice().reverse(); },
+        sjRep() {
+            const A = this.sjAll, ym = this.sjMonth; if (!ym || !A.m[ym]) return null;
+            const o = A.m[ym], y = parseInt(ym.slice(0, 4)), mo = parseInt(ym.slice(5, 7));
+            const fy0 = (mo >= 10 ? y : y - 1) + '-10';
+            const ytd = { ed: 0, ned: 0, non: 0, bud: 0, mnt: 0 };
+            A.months.filter(m => m >= fy0 && m <= ym).forEach(m => { const b = A.m[m].buy; ['ed', 'ned', 'non'].forEach(k => { ytd[k] += b[k].b + b[k].m; ytd.bud += b[k].b; ytd.mnt += b[k].m; }); });
+            const lab = { ed: 'ยาในบัญชียาหลักแห่งชาติ', ned: 'ยานอกบัญชียาหลักแห่งชาติ', non: 'เวชภัณฑ์มิใช่ยาและวัสดุการแพทย์' };
+            const rows = ['ed', 'ned', 'non'].map(k => ({ key: k, label: lab[k], bud: o.buy[k].b, mnt: o.buy[k].m, ytd: ytd[k] }));
+            const tot = { bud: rows.reduce((a, r) => a + r.bud, 0), mnt: rows.reduce((a, r) => a + r.mnt, 0), ytd: ytd.ed + ytd.ned + ytd.non };
+            const hasOther = Math.abs(o.other.drug) > 0.005 || Math.abs(o.other.non) > 0.005;
+            const sr = [
+                { label: 'ยอดยกมาจากเดือนก่อน', drug: o.open.drug, non: o.open.non },
+                { label: 'ยอดเงินจัดซื้อเดือนนี้', drug: o.buyDrug, non: o.buyNon },
+                { label: 'รวมยอดคงคลังตลอดเดือน', drug: o.open.drug + o.buyDrug, non: o.open.non + o.buyNon, bold: true },
+                { label: 'ยอดรายจ่ายเดือนนี้', drug: o.exp.drug, non: o.exp.non }
+            ];
+            if (hasOther) sr.push({ label: 'รายการปรับปรุงอื่น ๆ (นับสต็อก/ปรับมูลค่า/รับเข้านอกบิล)', drug: o.other.drug, non: o.other.non });
+            sr.push({ label: 'ยอดยกไปเดือนต่อไป', drug: o.close.drug, non: o.close.non, bold: true });
+            return { rows: rows, tot: tot, ytdBud: ytd.bud, ytdMnt: ytd.mnt, stockRows: sr, hasOther: hasOther };
+        },
+        sjPresets() { return [{ k: '12', t: '12 เดือนล่าสุด' }, { k: '6', t: '6 เดือนล่าสุด' }, { k: 'fy', t: 'ปีงบนี้' }, { k: 'pfy', t: 'ปีงบก่อน' }, { k: 'all', t: 'ทั้งหมด' }]; },
+        sjMetricGroups() {
+            return [
+                { g: 'มูลค่าคงคลังปลายเดือน', items: [{ k: 'stockTotal', t: 'คงคลัง — รวมทุกประเภท' }, { k: 'stockDrug', t: 'คงคลัง — ยา' }, { k: 'stockNon', t: 'คงคลัง — เวชภัณฑ์มิใช่ยา' }] },
+                { g: 'ยอดรายจ่าย (จ่ายออก)', items: [{ k: 'expTotal', t: 'รายจ่าย — รวมทุกประเภท' }, { k: 'expDrug', t: 'รายจ่าย — ยา' }, { k: 'expNon', t: 'รายจ่าย — เวชภัณฑ์มิใช่ยา' }] },
+                { g: 'ยอดจัดซื้อ', items: [{ k: 'buyTotal', t: 'จัดซื้อ — รวมทุกประเภท' }, { k: 'buyEd', t: 'จัดซื้อ — ยาในบัญชียาหลักแห่งชาติ' }, { k: 'buyNed', t: 'จัดซื้อ — ยานอกบัญชียาหลักแห่งชาติ' }, { k: 'buyNon', t: 'จัดซื้อ — เวชภัณฑ์มิใช่ยา' }, { k: 'buyBud', t: 'จัดซื้อ — เงินงบประมาณ' }, { k: 'buyMnt', t: 'จัดซื้อ — เงินบำรุง' }] }
+            ];
+        },
+        sjRange() {
+            const ms = this.sjAll.months; if (!ms.length) return [];
+            let f = this.sjDash.from, t = this.sjDash.to;
+            if (!f || !t) { const nowYm = new Date().toISOString().slice(0, 7); const hi = ms.filter(m => m <= nowYm); t = hi.length ? hi[hi.length - 1] : ms[ms.length - 1]; const ti = ms.indexOf(t); f = ms[Math.max(0, ti - 11)]; }
+            if (f > t) { const x = f; f = t; t = x; }
+            return ms.filter(m => m >= f && m <= t);
+        },
+        sjSeries() {
+            const A = this.sjAll, r = this.sjRange;
+            const g = (m, k) => { const o = A.m[m]; switch (k) {
+                case 'stockTotal': return o.close.drug + o.close.non; case 'stockDrug': return o.close.drug; case 'stockNon': return o.close.non;
+                case 'expTotal': return o.exp.drug + o.exp.non; case 'expDrug': return o.exp.drug; case 'expNon': return o.exp.non;
+                case 'buyTotal': return o.buyDrug + o.buyNon; case 'buyEd': return o.buy.ed.b + o.buy.ed.m; case 'buyNed': return o.buy.ned.b + o.buy.ned.m; case 'buyNon': return o.buyNon;
+                case 'buyBud': return o.buy.ed.b + o.buy.ned.b + o.buy.non.b; case 'buyMnt': return o.buy.ed.m + o.buy.ned.m + o.buy.non.m;
+            } return 0; };
+            const ser = k => r.map(m => g(m, k));
+            return { months: r, labels: r.map(m => this.sjMonthShort(m)), get: ser };
+        },
+        sjStats() {
+            const v = this.sjSeries.get(this.sjDash.metric); if (!v.length) return null;
+            const mean = v.reduce((a, b) => a + b, 0) / v.length;
+            if (this.sjDash.mode === 'control') {
+                let mr = 0; for (let i = 1; i < v.length; i++) mr += Math.abs(v[i] - v[i - 1]); mr = v.length > 1 ? mr / (v.length - 1) : 0;
+                const ucl = mean + 2.66 * mr, lcl = Math.max(0, mean - 2.66 * mr);
+                return { center: mean, ucl: ucl, lcl: lcl, out: v.filter(x => x > ucl + 1e-9 || x < lcl - 1e-9).length, n: v.length };
+            }
+            const sorted = v.slice().sort((a, b) => a - b), mid = Math.floor(sorted.length / 2);
+            const med = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+            return { center: med, shift: this.sjShiftFlags(v, med).filter(Boolean).length, n: v.length };
+        },
         abcModeLabel() { return this.abcMode === 'carry' ? 'ยอดยกมา + จัดซื้อปีงบนี้' : 'มูลค่าจัดซื้อปีงบนี้'; },
         abcData() {
             const fy = this.abcFY || this.fiscalYearOf(new Date().toISOString().slice(0, 10));
@@ -2808,6 +3021,26 @@ const app = createApp({
             }).sort((a, b) => b.perMonth - a.perMonth || String(a.name).localeCompare(String(b.name), 'th'));
         },
         mmSelCount() { return Object.keys(this.mmSel).filter(k => this.mmSel[k]).length; },
+        shelfHiddenCount() { return this.isSubShelfStock && !this.showShelfHist ? this.historyGroups.filter(g => g.shelf).length : 0; },
+        shelfReport() {
+            const loc = this.globalStock, f = this.reportFilter.start || '0000-00-00', t = this.reportFilter.end || '9999-99-99';
+            const pm = {}; this.products.forEach(p => { pm[p.id] = p; });
+            const byP = {}, byM = {};
+            this.transactions.forEach(x => {
+                if (x.status !== 'Completed' || (x.stockLocation || 'MAIN') !== loc || !this.isShelfRow(x)) return;
+                const d = String(x.date).slice(0, 10); if (d < f || d > t) return;
+                const q = parseFloat(x.qty) || 0, v = parseFloat(x.totalPrice) || 0, p = pm[x.productId];
+                const r = byP[x.productId] || (byP[x.productId] = { id: x.productId, name: p ? p.name : x.productId, unit: p ? p.unit : '', times: 0, qty: 0, value: 0 });
+                r.times++; r.qty += q; r.value += v;
+                const m = d.slice(0, 7), mm = byM[m] || (byM[m] = { ym: m, times: 0, value: 0, items: {} });
+                mm.times++; mm.value += v; mm.items[x.productId] = true;
+            });
+            const rows = Object.values(byP).sort((a, b) => b.value - a.value);
+            const months = Object.values(byM).sort((a, b) => a.ym.localeCompare(b.ym)).map(m => ({ ym: m.ym, times: m.times, value: m.value, kinds: Object.keys(m.items).length }));
+            return { rows: rows, months: months, totQty: rows.reduce((a, r) => a + r.qty, 0), totValue: rows.reduce((a, r) => a + r.value, 0), totTimes: rows.reduce((a, r) => a + r.times, 0) };
+        },
+        isSubShelfStock() { return this.globalStock === 'OPD' || this.globalStock === 'IPD'; },
+        shelfMode() { return this.isSubShelfStock && this.formOut.reqType === 'จ่ายขึ้น Shelf'; },
         evidenceMap() { const m = {}; (this.rawData.docEvidence || []).forEach(r => { m[r[0]] = { no: r[1] || '', date: r[2] || '' }; }); return m; },
         printEvidence() { if (!this.printDoc || this.printDoc.isRequest) return null; const e = this.evidenceMap[this.printDoc.id || this.printDoc.docLabel]; return e && (e.no || e.date) ? e : null; },
         purchaseOrders() {
@@ -3073,7 +3306,7 @@ const app = createApp({
                     // รับเข้า (IN) จากบริษัท: เลขที่เอกสาร = "หมายเลขเอกสาร (ระบบราชการ)" ที่กรอกตอนตรวจรับ
                     const bl = t.type === 'IN' ? (bm[id] || null) : null;
                     g[id] = { id: id, date: t.date, type: t.type, ref: t.refDoc || '-', entity: t.vendorOrDept, user: t.user, items: [], total: 0, stockLoc: combined ? 'MAIN' : t.stockLocation,
-                              bill: bl, docLabel: bl ? (bl.docNo || ('รอตรวจรับ · บิล ' + bl.refBillNo)) : id, docPending: !!(bl && !bl.docNo), combined: false };
+                              shelf: this.isShelfRow(t), bill: bl, docLabel: bl ? (bl.docNo || ('รอตรวจรับ · บิล ' + bl.refBillNo)) : id, docPending: !!(bl && !bl.docNo), combined: false };
                 }
                 if (combined && loc !== 'MAIN') g[id].combined = true;
                 let p = this.products.find(x => x.id == t.productId); 
@@ -3085,6 +3318,7 @@ const app = createApp({
         filteredHistory() { 
             let l = this.historyGroups; 
             if (this.historyFilterType) l = l.filter(g => g.type === this.historyFilterType); 
+            if (this.isSubShelfStock && !this.showShelfHist) l = l.filter(g => !g.shelf);
             if (this.searchQuery) {
                 const q = String(this.searchQuery).toLowerCase();
                 l = l.filter(g => String(g.id).toLowerCase().includes(q) || String(g.docLabel).toLowerCase().includes(q) || String(g.entity || '').toLowerCase().includes(q)
@@ -3198,6 +3432,7 @@ const app = createApp({
         page(val) { 
             this.isSidebarOpen = false; this.adminQuery = ''; this.adminSort = { key: '', asc: true };
             if (val === 'dashboard') this.$nextTick(() => this.renderCharts()); 
+            if (val !== 'dashboard' && window.__sj) { ['ov', 'ctl'].forEach(k => { try { if (window.__sj[k]) window.__sj[k].destroy(); } catch (e) {} window.__sj[k] = null; }); }
             if (['stockOut', 'stockTake', 'receive', 'opening', 'stockCard', 'dispenseReport', 'subReceive'].includes(val)) this.$nextTick(() => this.initTomSelects());
         },
         dashFilteredInventory: { 
@@ -3322,7 +3557,7 @@ const app = createApp({
             let exportData = [...this.stockCardHistory].reverse();
             
             exportData.forEach(t => {
-                let doc = t.refDoc || t.billId || '-';
+                let doc = this.scDocOf(t);
                 let entity = t.vendorOrDept || '-';
                 let uPrice = t.unitPrice || 0;
                 let exp = t.expDate || '-';
@@ -3350,6 +3585,83 @@ const app = createApp({
         // ---------- ABC / VEN ----------
         abcOf(pid) { const m = this.abcData.map[pid]; return m ? m.cls : ''; },
         abcvenTone(a, v) { const k = a + v; return ['AV', 'AE', 'BV'].includes(k) ? 'table-danger' : (['AN', 'BE', 'CV'].includes(k) ? 'table-warning' : (['BN', 'CE', 'CN'].includes(k) ? 'table-success' : '')); },
+        sjFmt(n) { return (parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
+        sjMonthLabel(ym) { if (!ym) return ''; const N = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม']; return N[parseInt(ym.slice(5, 7)) - 1] + ' ' + (parseInt(ym.slice(0, 4)) + 543); },
+        sjMonthShort(ym) { const N = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']; return N[parseInt(ym.slice(5, 7)) - 1] + ' ' + String((parseInt(ym.slice(0, 4)) + 543) % 100).padStart(2, '0'); },
+        saveSjSign() { try { localStorage.setItem('jvlSjSign', JSON.stringify(this.sjSign)); } catch (e) {} },
+        sjShiftFlags(v, c) {
+            const f = v.map(() => false); let i = 0;
+            while (i < v.length) { const sg = Math.sign(v[i] - c); let j = i; while (j + 1 < v.length && sg !== 0 && Math.sign(v[j + 1] - c) === sg) j++; if (sg !== 0 && j - i + 1 >= 6) for (let k = i; k <= j; k++) f[k] = true; i = j + 1; }
+            return f;
+        },
+        sjPreset(k) {
+            const ms = this.sjAll.months; if (!ms.length) return;
+            const nowYm = new Date().toISOString().slice(0, 7), hi = ms.filter(m => m <= nowYm), t = hi.length ? hi[hi.length - 1] : ms[ms.length - 1], ti = ms.indexOf(t);
+            const y = parseInt(t.slice(0, 4)), mo = parseInt(t.slice(5, 7)), fy = mo >= 10 ? y : y - 1;
+            let f = t, to = t;
+            if (k === '12') f = ms[Math.max(0, ti - 11)];
+            else if (k === '6') f = ms[Math.max(0, ti - 5)];
+            else if (k === 'fy') { f = fy + '-10'; to = (fy + 1) + '-09'; }
+            else if (k === 'pfy') { f = (fy - 1) + '-10'; to = fy + '-09'; }
+            else if (k === 'all') { f = ms[0]; to = ms[ms.length - 1]; }
+            if (f < ms[0]) f = ms[0]; if (to > ms[ms.length - 1]) to = ms[ms.length - 1];
+            this.sjDash.from = f; this.sjDash.to = to; this.sjRedraw();
+        },
+        sjRedraw() { this.$nextTick(() => this.renderSjCharts()); },
+        renderSjCharts() {
+            if (this.page !== 'dashboard' || typeof Chart === 'undefined') return;
+            const c1 = document.getElementById('sjOvChart'), c2 = document.getElementById('sjCtlChart'); if (!c1 || !c2) return;
+            const S = this.sjSeries, lb = S.labels, ov = this.sjDash.ov;
+            const stock = ov === 'drug' ? S.get('stockDrug') : (ov === 'non' ? S.get('stockNon') : S.get('stockTotal'));
+            const exp = ov === 'drug' ? S.get('expDrug') : (ov === 'non' ? S.get('expNon') : S.get('expTotal'));
+            const buy = ov === 'drug' ? S.get('buyEd').map((x, i) => x + S.get('buyNed')[i]) : (ov === 'non' ? S.get('buyNon') : S.get('buyTotal'));
+            window.__sj = window.__sj || {};
+            if (window.__sj.ov) window.__sj.ov.destroy();
+            window.__sj.ov = new Chart(c1, { type: 'bar', data: { labels: lb, datasets: [
+                { type: 'bar', label: 'จัดซื้อ', data: buy, backgroundColor: 'rgba(13,110,253,.35)', borderRadius: 3 },
+                { type: 'line', label: 'คงคลังปลายเดือน', data: stock, borderColor: '#198754', backgroundColor: '#198754', tension: .2 },
+                { type: 'line', label: 'จ่ายออก', data: exp, borderColor: '#dc3545', backgroundColor: '#dc3545', tension: .2 }
+            ] }, options: { animation: false, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom' } }, scales: { y: { ticks: { callback: v => (v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 1 }) + ' ล.' } } } } });
+            const k = this.sjDash.metric, v = S.get(k), st = this.sjStats; if (!st) return;
+            const name = (this.sjMetricGroups.flatMap(g => g.items).find(x => x.k === k) || {}).t || k;
+            let colors, ds;
+            if (this.sjDash.mode === 'control') {
+                colors = v.map(x => (x > st.ucl + 1e-9 || x < st.lcl - 1e-9) ? '#dc3545' : '#0d6efd');
+                ds = [{ label: name, data: v, borderColor: '#0d6efd', pointBackgroundColor: colors, pointRadius: 5, tension: 0 },
+                    { label: 'ค่าเฉลี่ย (CL)', data: v.map(() => st.center), borderColor: '#198754', borderDash: [], pointRadius: 0 },
+                    { label: 'UCL', data: v.map(() => st.ucl), borderColor: '#dc3545', borderDash: [6, 4], pointRadius: 0 },
+                    { label: 'LCL', data: v.map(() => st.lcl), borderColor: '#dc3545', borderDash: [6, 4], pointRadius: 0 }];
+            } else {
+                const fl = this.sjShiftFlags(v, st.center); colors = v.map((x, i) => fl[i] ? '#fd7e14' : '#0d6efd');
+                ds = [{ label: name, data: v, borderColor: '#0d6efd', pointBackgroundColor: colors, pointRadius: 5, tension: 0 },
+                    { label: 'มัธยฐาน', data: v.map(() => st.center), borderColor: '#198754', pointRadius: 0 }];
+            }
+            if (window.__sj.ctl) window.__sj.ctl.destroy();
+            window.__sj.ctl = new Chart(c2, { type: 'line', data: { labels: lb, datasets: ds }, options: { animation: false, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { position: 'bottom' }, title: { display: true, text: name } }, scales: { y: { ticks: { callback: x => (x / 1e6).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' ล.' } } } } });
+        },
+        exportSjrong() {
+            const r = this.sjRep; if (!r) return alert('ไม่มีข้อมูล');
+            const aoa = [['สจ.รง.1051'], ['รายงานการบริหารเวชภัณฑ์ยาและเวชภัณฑ์ที่ไม่ใช่ยา'], ['หน่วยงาน โรงพยาบาลจิตเวชเลยราชนครินทร์ กรมสุขภาพจิต กระทรวงสาธารณสุข'], ['ประจำเดือน ' + this.sjMonthLabel(this.sjMonth)], [],
+                ['1. ผลการจัดซื้อเวชภัณฑ์'], ['ประเภทเวชภัณฑ์', 'เงินงบประมาณ', 'เงินบำรุง', 'รวม', 'รวมแต่ต้นปี']];
+            r.rows.forEach(x => aoa.push([x.label, x.bud, x.mnt, x.bud + x.mnt, x.ytd]));
+            aoa.push(['รวม', r.tot.bud, r.tot.mnt, r.tot.bud + r.tot.mnt, r.tot.ytd], ['รวมแต่ต้นปี', r.ytdBud, r.ytdMnt, r.ytdBud + r.ytdMnt, ''], [], ['2. เวชภัณฑ์คงคลัง'], ['', 'ยา (บาท)', 'เวชภัณฑ์มิใช่ยาและวัสดุการแพทย์ (บาท)']);
+            r.stockRows.forEach(x => aoa.push([x.label, x.drug, x.non]));
+            const ws = XLSX.utils.aoa_to_sheet(aoa); ws['!cols'] = [{ wch: 52 }, { wch: 18 }, { wch: 22 }, { wch: 16 }, { wch: 16 }];
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'สจ.รง.1051');
+            XLSX.writeFile(wb, 'SJRONG1051_' + this.sjMonth + '.xlsx');
+        },
+        isShelfRow(t) { const n = String(t.note || ''), d = String(t.refDoc || t.billId || ''); return t.type === 'OUT' && (n.startsWith('จ่ายขึ้น Shelf') || n.startsWith('จ่ายขึ้นชั้นยา') || d.startsWith('SHF-')); },
+        scDocOf(t) { return this.isShelfRow(t) ? 'จ่ายขึ้น Shelf' : (t.refDoc || t.billId || '-'); },
+        saveShowShelf() { try { localStorage.setItem('jvlShowShelf', this.showShelfHist ? '1' : '0'); } catch (e) {} },
+        shelfRange(k) {
+            const n = new Date(), y = n.getFullYear(), m = n.getMonth(), iso = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+            let a, b = new Date(y, m + 1, 0);
+            if (k === 'm') a = new Date(y, m, 1);
+            else if (k === 'pm') { a = new Date(y, m - 1, 1); b = new Date(y, m, 0); }
+            else if (k === 'fy') { a = new Date(m >= 9 ? y : y - 1, 9, 1); b = new Date(a.getFullYear() + 1, 8, 30); }
+            else { this.reportFilter.start = ''; this.reportFilter.end = ''; return; }
+            this.reportFilter.start = iso(a); this.reportFilter.end = iso(b);
+        },
         saveAbcMode() { try { localStorage.setItem('jvlAbcMode', this.abcMode); } catch (e) {} },
         saveAbcThr() { try { localStorage.setItem('jvlAbcThr', JSON.stringify(this.abcThr)); } catch (e) {} },
         setAbcFilter(a, v) { if (this.abcFilter.abc === a && this.abcFilter.ven === v) { this.abcFilter.abc = ''; this.abcFilter.ven = ''; } else { this.abcFilter.abc = a; this.abcFilter.ven = v; this.abcFilter.objType = 'ยา'; } },
@@ -3455,6 +3767,8 @@ const app = createApp({
             if (this.reportFilter.type === 'category_val') return 'สรุปมูลค่าคงคลังตามประเภท (ED/NED)'; 
             if (this.reportFilter.type === 'expiry') return 'รายงานวันหมดอายุ (Expiry Report)'; 
             if (this.reportFilter.type === 'usage') return 'สรุปการเบิกจ่ายแยกรายหน่วยงาน'; 
+            if (this.reportFilter.type === 'shelf') return 'สรุปการจ่ายขึ้น Shelf (คลัง ' + this.globalStock + ')' + (this.reportFilter.start || this.reportFilter.end ? ' ' + (this.reportFilter.start || '') + ' ถึง ' + (this.reportFilter.end || '') : '');
+            if (this.reportFilter.type === 'sjrong') return 'รายงานการบริหารเวชภัณฑ์ยาและเวชภัณฑ์ที่ไม่ใช่ยา (สจ.รง.1051)';
             if (this.reportFilter.type === 'abcven') return 'วิเคราะห์ ABC-VEN Matrix ปีงบประมาณ ' + this.abcFY + ' [' + this.abcModeLabel + '] (' + (this.globalStock === 'ALL' ? 'รวมทุกคลัง' : this.locLabel(this.globalStock)) + ')'; 
             return ''; 
         },
@@ -3541,7 +3855,7 @@ const app = createApp({
             this.loading = true; 
             const data = await this.apiCall("getData"); 
             if (data) { 
-                this.rawData = data; if (!this.abcFY) this.abcFY = this.fiscalYearOf(new Date().toISOString().slice(0, 10)); 
+                this.rawData = data; this.$nextTick(() => { if (!this.sjMonth && this.sjAll.months.length) { const nowYm = new Date().toISOString().slice(0, 7), ms = this.sjAll.months.filter(m => m < nowYm); this.sjMonth = ms.length ? ms[ms.length - 1] : this.sjAll.months[this.sjAll.months.length - 1]; } if (!this.sjDash.from && this.sjAll.months.length) { const r = this.sjRange; if (r.length) { this.sjDash.from = r[0]; this.sjDash.to = r[r.length - 1]; } } }); if (!this.abcFY) this.abcFY = this.fiscalYearOf(new Date().toISOString().slice(0, 10)); 
                 this.$nextTick(() => { this.renderCharts(); this.initTomSelects(); }); 
             } 
             this.loading = false; 
@@ -3575,6 +3889,10 @@ const app = createApp({
             this.globalStock = stockLoc;
             this.isSidebarOpen = false;
             this.tempOut.stockSource = stockLoc; 
+            if (pageName === 'stockOut') {
+                if (stockLoc === 'OPD' || stockLoc === 'IPD') { if (!this.cartOut.length) this.formOut.reqType = 'จ่ายขึ้น Shelf'; }
+                else if (this.formOut.reqType === 'จ่ายขึ้น Shelf') this.formOut.reqType = 'เบิกจริง';
+            }
             if (pageName === 'activityLog') this.loadLogs();
             this.$nextTick(() => { if (pageName === 'dashboard') this.renderCharts(); if (['stockOut', 'stockTake'].includes(pageName)) this.initTomSelects(); });
         },
@@ -3731,6 +4049,7 @@ const app = createApp({
                 }
 
                 } catch (e) { console.error('chart2', e); }
+                try { this.renderSjCharts(); } catch (e) { console.error('chartSj', e); }
                 try {
                 // 3. Dept Chart
                 let deptUsage = {};
@@ -3797,13 +4116,18 @@ const app = createApp({
             this.tempOut = { productName: '', qty: 1, selectedLotIdx: -1, stockSource: this.tempOut.stockSource }; 
         },
         async submitBatchOut() { 
-            if (this.cartOut.length === 0) return alert('ยังไม่มีรายการในตะกร้าจ่าย'); if (!this.formOut.docNo || !this.formOut.dept) return alert('กรุณาระบุเลขที่เอกสารและหน่วยงานปลายทาง'); 
-            if (!confirm(`ยืนยันจ่ายออกและตัดสต็อก?\n(อิงตามคลังที่ระบุในรายการ)`)) return; 
+            if (this.cartOut.length === 0) return alert('ยังไม่มีรายการในตะกร้าจ่าย');
+            const shelf = this.shelfMode;
+            if (!shelf && (!this.formOut.docNo || !this.formOut.dept)) return alert('กรุณาระบุเลขที่เอกสารและหน่วยงานปลายทาง'); 
+            if (!confirm(shelf ? 'ยืนยันจ่ายขึ้น Shelf และตัดสต็อก?' : `ยืนยันจ่ายออกและตัดสต็อก?\n(อิงตามคลังที่ระบุในรายการ)`)) return; 
+            const nw = new Date(), z = n => String(n).padStart(2, '0');
+            const shelfDoc = 'SHF-' + nw.getFullYear() + z(nw.getMonth() + 1) + z(nw.getDate()) + '-' + z(nw.getHours()) + z(nw.getMinutes()) + z(nw.getSeconds());
+            if (shelf) { this.formOut.docNo = shelfDoc; this.formOut.dept = 'Shelf (' + this.globalStock + ')'; this.formOut.evNo = ''; this.formOut.evDate = ''; }
             this.loading = true; 
             let outItems = this.cartOut.map(i => ({ ...i, date: this.formOut.date, vendorOrDept: this.formOut.dept, refDoc: this.formOut.docNo, note: this.formOut.reqType + (this.formOut.reqId ? ' | ' + this.formOut.reqId : ''), stockLocation: i.stockSource })); 
             const res = await this.apiCall("saveBatchTransaction", { user: this.currentUser.name, type: 'OUT', reqId: this.formOut.reqId, items: outItems }); 
             if (res && (this.formOut.evNo || this.formOut.evDate)) { await this.apiCall('saveDocEvidence', { username: this.currentUser.user, docId: this.formOut.docNo, evidenceNo: this.formOut.evNo, evidenceDate: this.formOut.evDate }); }
-            if (res) { alert('สำเร็จ'); this.cartOut = []; this.formOut.docNo = ''; this.formOut.evNo = ''; this.formOut.evDate = ''; this.formOut.reqId = ''; if (this.tsStockOutDept) this.tsStockOutDept.clear(); await this.loadData(); } 
+            if (res) { alert('สำเร็จ'); this.cartOut = []; this.formOut.docNo = ''; this.formOut.evNo = ''; this.formOut.evDate = ''; this.formOut.reqId = ''; this.formOut.dept = ''; if (this.tsStockOutDept) this.tsStockOutDept.clear(); await this.loadData(); } 
             this.loading = false; 
         },
 
