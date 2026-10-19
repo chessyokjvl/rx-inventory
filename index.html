@@ -813,9 +813,25 @@
                         </table>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
+                        <button v-if="docView.type === 'OUT'" @click="openEvidence(docView, false)" class="btn btn-outline-secondary"><i class="bi bi-pencil-square"></i> หลักฐานที่ใช้เบิก</button>
                         <button v-if="docView.type === 'OUT'" @click="showDocModal=false; openPrintFSP011(docView)" class="btn btn-outline-dark fw-bold"><i class="bi bi-printer"></i> ใบเบิก รพ. (F-SP-011)</button>
                         <button v-if="isEditor" @click="askDeleteDoc(docView)" class="btn btn-outline-danger fw-bold"><i class="bi bi-trash"></i> ลบทั้งใบ</button>
                         <button @click="closeDocModal" class="btn btn-secondary flex-grow-1 fw-bold shadow-sm">ปิดหน้าต่าง</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- หลักฐานที่ใช้เบิก / ส่งคืน (F-SP-011) -->
+            <div v-if="evForm.show" class="modal-overlay-bg" style="z-index: 2550;">
+                <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 480px; border-radius: 12px;">
+                    <h5 class="fw-bold text-primary mb-1"><i class="bi bi-file-earmark-text me-2"></i>หลักฐานที่ใช้เบิก / ส่งคืน</h5>
+                    <div class="small text-muted mb-3">ใบเบิกเลขที่ <b>{{ evForm.docId }}</b> · ไม่บังคับ กรอกไว้เพื่อใช้ติดตามย้อนหลัง และจะพิมพ์ลงในช่อง "หลักฐานที่ใช้เบิก / ส่งคืน" ของแบบฟอร์ม</div>
+                    <div class="mb-2"><label class="small fw-bold text-muted">เลขที่เอกสาร</label><input v-model="evForm.no" type="text" class="form-control" placeholder="เช่น หนังสือที่ ลย 0xxx/xxxx"></div>
+                    <div class="mb-3"><label class="small fw-bold text-muted">ลงวันที่</label><input v-model="evForm.date" type="date" class="form-control"></div>
+                    <div class="d-flex gap-2">
+                        <button v-if="evForm.thenPrint" @click="saveEvidence(true)" :disabled="loading" class="btn btn-primary fw-bold flex-grow-1"><i class="bi bi-printer"></i> {{ (evForm.no || evForm.date) ? 'บันทึกและพิมพ์' : 'พิมพ์โดยไม่ระบุ' }}</button>
+                        <button v-else @click="saveEvidence(false)" :disabled="loading" class="btn btn-primary fw-bold flex-grow-1">บันทึก</button>
+                        <button @click="evForm.show=false" class="btn btn-outline-secondary">ยกเลิก</button>
                     </div>
                 </div>
             </div>
@@ -1086,6 +1102,8 @@
                             <select v-model="formOut.reqType" class="form-select border-warning text-dark fw-bold"><option value="เบิกจริง">เบิกจริง (ปกติ)</option><option value="เบิกฉุกเฉิน">เบิกฉุกเฉิน</option><option value="ยืม">ยืม</option><option value="จ่ายขึ้นชั้นยา">จ่ายขึ้นชั้นยา/จ่ายใช้งาน</option></select>
                         </div>
                         <div class="col-12 col-md-3"><label class="small fw-bold text-muted">เลขที่เอกสาร</label><input v-model="formOut.docNo" type="text" class="form-control" placeholder="บ.1/70"></div>
+                        <div class="col-12 col-md-6"><label class="small fw-bold text-muted">หลักฐานที่ใช้เบิก / ส่งคืน <span class="fw-normal">(ไม่บังคับ — เลขที่เอกสาร)</span></label><input v-model="formOut.evNo" type="text" class="form-control" placeholder="เช่น หนังสือที่ ลย 0xxx/xxxx"></div>
+                        <div class="col-12 col-md-3"><label class="small fw-bold text-muted">ลงวันที่ <span class="fw-normal">(ไม่บังคับ)</span></label><input v-model="formOut.evDate" type="date" class="form-control"></div>
                         <div class="col-12 col-md-3"><label class="small fw-bold text-muted">ปลายทาง (จ่ายให้ใคร)</label><select id="stockOutDeptSelect" placeholder="เลือกหน่วยงาน/ห้องยา..."></select></div>
                     </div>
                 </div>
@@ -1541,6 +1559,7 @@
                                 <tr>
                                     <td colspan="5" rowspan="2" style="border: 1px solid #000; vertical-align: top; padding: 6px; font-size: 12px;">
                                         หลักฐานที่ใช้เบิก / ส่งคืน
+                                        <div v-if="printEvidence" style="margin-top: 4px; font-size: 13px; font-weight: bold; color: blue;">{{ printEvidence.no }}<span v-if="printEvidence.date"> &nbsp;ลงวันที่ {{ formatThaiDate(printEvidence.date) }}</span></div>
                                     </td>
                                     <td colspan="3" style="border: 1px solid #000; text-align: right; font-weight: bold; padding: 4px 8px;">รวมแผ่นนี้</td>
                                     <td style="border: 1px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">{{ printDoc.isRequest ? '' : formatNumber(printDoc.total) }}</td>
@@ -2510,11 +2529,11 @@ const app = createApp({
             showInspectModal: false, 
             formInspect: { billId: '', refBillNo: '', vendor: '', docNo: '', inspectDate: new Date().toISOString().slice(0, 10), budgetSource: 'เงินบำรุง', budgetBumrung: 0, budgetNgob: 0, budgetNarcotic: 0, totalBillVal: 0, items: [] },
             
-            showBillDetailsModal: false, showDocModal: false, docView: { items: [] },
+            showBillDetailsModal: false, showDocModal: false, docView: { items: [] }, evForm: { show: false, docId: '', no: '', date: '', doc: null, thenPrint: true },
             confirmAct: { show: false, title: '', lines: [], danger: false, okText: 'ยืนยัน', onOk: null },
             docEdit: { transId: '', headOpen: false, form: { lot: '', exp: '', qty: 0, unitPrice: 0, total: 0 }, head: { date: '', entity: '', refBillNo: '', docNo: '', inspectDate: '', newDocId: '' } },
             activityLogs: [], logLoading: false, logFilter: { q: '', user: '', action: '' },
-            LOG_LABEL: { MINMAX_APPLY: 'Apply Min/Max', PO_SAVE: 'สร้างใบ PO', PO_EDIT: 'แก้ไขใบ PO', PO_DELETE: 'ลบใบ PO', REQ_EDIT: 'แก้ไขใบขอเบิก', REQ_DELETE: 'ลบใบขอเบิก', EDIT_ITEM: 'แก้ไขรายการ', EDIT_DOC: 'แก้ไขหัวเอกสาร', DELETE_ITEM: 'ลบรายการ', DELETE_DOC: 'ลบทั้งใบ', RESTORE: 'กู้คืนรายการที่ลบ', PLAN_SAVE: 'บันทึกแผนจัดซื้อ', PLAN_REPLACE: 'แทนที่แผนจัดซื้อ', PLAN_DELETE_ITEM: 'ลบรายการแผน', PLAN_DELETE_YEAR: 'ลบแผนทั้งปี', ID_MIGRATE: 'ปรับรหัส (ID)', PRODUCT_ID_CHANGE: 'เปลี่ยนรหัสสินค้า' },
+            LOG_LABEL: { MINMAX_APPLY: 'Apply Min/Max', PO_SAVE: 'สร้างใบ PO', PO_EDIT: 'แก้ไขใบ PO', PO_DELETE: 'ลบใบ PO', REQ_EDIT: 'แก้ไขใบขอเบิก', REQ_DELETE: 'ลบใบขอเบิก', EDIT_ITEM: 'แก้ไขรายการ', EDIT_DOC: 'แก้ไขหัวเอกสาร', EVIDENCE_EDIT: 'แก้ไขหลักฐานที่ใช้เบิก', DELETE_ITEM: 'ลบรายการ', DELETE_DOC: 'ลบทั้งใบ', RESTORE: 'กู้คืนรายการที่ลบ', PLAN_SAVE: 'บันทึกแผนจัดซื้อ', PLAN_REPLACE: 'แทนที่แผนจัดซื้อ', PLAN_DELETE_ITEM: 'ลบรายการแผน', PLAN_DELETE_YEAR: 'ลบแผนทั้งปี', ID_MIGRATE: 'ปรับรหัส (ID)', PRODUCT_ID_CHANGE: 'เปลี่ยนรหัสสินค้า' },
             planYear: (() => { const d = new Date(); return String(d.getFullYear() + 543 + (d.getMonth() >= 9 ? 1 : 0)); })(),
             planCountPending: true, planFilter: { q: '', status: 'all' }, planSort: { key: 'pctQty', asc: true },
             planForm: { productName: '', productId: '', unit: '', price: 0, qty: 0 },
@@ -2523,7 +2542,7 @@ const app = createApp({
             idMig: { plan: null, done: false },
             currentViewBill: {},
 
-            formOut: { date: new Date().toISOString().slice(0, 10), dept: '', reqId: '', reqType: 'เบิกจริง', docNo: '' }, 
+            formOut: { date: new Date().toISOString().slice(0, 10), dept: '', reqId: '', reqType: 'เบิกจริง', docNo: '', evNo: '', evDate: '' }, 
             tempOut: { productName: '', productId: '', qty: 1, selectedLotIdx: -1, unitPrice: 0, stockSource: 'MAIN' }, 
             cartOut: [],
             
@@ -2789,6 +2808,8 @@ const app = createApp({
             }).sort((a, b) => b.perMonth - a.perMonth || String(a.name).localeCompare(String(b.name), 'th'));
         },
         mmSelCount() { return Object.keys(this.mmSel).filter(k => this.mmSel[k]).length; },
+        evidenceMap() { const m = {}; (this.rawData.docEvidence || []).forEach(r => { m[r[0]] = { no: r[1] || '', date: r[2] || '' }; }); return m; },
+        printEvidence() { if (!this.printDoc || this.printDoc.isRequest) return null; const e = this.evidenceMap[this.printDoc.id || this.printDoc.docLabel]; return e && (e.no || e.date) ? e : null; },
         purchaseOrders() {
             return (this.rawData.purchaseOrders || []).map(r => {
                 let items = []; try { items = JSON.parse(r[7]) || []; } catch (e) {}
@@ -3781,7 +3802,8 @@ const app = createApp({
             this.loading = true; 
             let outItems = this.cartOut.map(i => ({ ...i, date: this.formOut.date, vendorOrDept: this.formOut.dept, refDoc: this.formOut.docNo, note: this.formOut.reqType + (this.formOut.reqId ? ' | ' + this.formOut.reqId : ''), stockLocation: i.stockSource })); 
             const res = await this.apiCall("saveBatchTransaction", { user: this.currentUser.name, type: 'OUT', reqId: this.formOut.reqId, items: outItems }); 
-            if (res) { alert('สำเร็จ'); this.cartOut = []; this.formOut.docNo = ''; this.formOut.reqId = ''; if (this.tsStockOutDept) this.tsStockOutDept.clear(); await this.loadData(); } 
+            if (res && (this.formOut.evNo || this.formOut.evDate)) { await this.apiCall('saveDocEvidence', { username: this.currentUser.user, docId: this.formOut.docNo, evidenceNo: this.formOut.evNo, evidenceDate: this.formOut.evDate }); }
+            if (res) { alert('สำเร็จ'); this.cartOut = []; this.formOut.docNo = ''; this.formOut.evNo = ''; this.formOut.evDate = ''; this.formOut.reqId = ''; if (this.tsStockOutDept) this.tsStockOutDept.clear(); await this.loadData(); } 
             this.loading = false; 
         },
 
@@ -3938,6 +3960,7 @@ const app = createApp({
             if (l.action === 'DELETE_ITEM' || l.action === 'DELETE_DOC') return [d.restored ? '↩ กู้คืนแล้ว ' + (d.restored.time || '') + ' โดย ' + (d.restored.by || '') : '', (d.itemNames && d.itemNames.length ? d.itemNames : (d.items || []).map(i => i.product_id + ' × ' + i.qty + ' (' + i.total_price + ')')).join('\n'), d.billDeleted ? 'ลบบิลบริษัทด้วย' : ''].join('\n').split('\n').filter(x => x);
             if (l.action.startsWith('PLAN_SAVE') || l.action === 'PLAN_REPLACE') return ['ปี ' + d.year + ' · ' + (d.mode === 'replace' ? 'แทนที่ทั้งปี' : 'เพิ่ม/อัปเดต') + ' · ' + d.itemsSaved + ' รายการ · มูลค่า ' + this.formatCurrency(d.valueSaved) + (d.fileName ? ' · ไฟล์ ' + d.fileName : ''), 'ก่อนหน้า: ' + d.beforeCount + ' รายการ · ' + this.formatCurrency(d.beforeValue)];
             if (l.action.startsWith('PLAN_DELETE')) return ['ปี ' + d.year + (d.productId ? ' · รหัส ' + d.productId : '') + ' · ลบ ' + (d.deleted || []).length + ' รายการ'];
+            if (l.action === 'EVIDENCE_EDIT') return [((d.before && (d.before.evidence_no || d.before.evidence_date)) ? (d.before.evidence_no || '-') + ' / ' + (d.before.evidence_date || '-') : '(ว่าง)') + '  →  ' + ((d.after && (d.after.evidence_no || d.after.evidence_date)) ? (d.after.evidence_no || '-') + ' / ' + (d.after.evidence_date || '-') : '(ลบออก)')];
             if (l.action === 'RESTORE') return [(d.rows || 0) + ' รายการ · Log #' + (d.logIds || []).join(', #')];
             if (l.action === 'MINMAX_APPLY') return [(d.location || '') + ' · ' + (d.count || 0) + ' รายการ'];
             if (l.action === 'PO_SAVE') return ['PO ' + (d.poId || '') + ' · ' + d.items + ' รายการ · โหมด ' + d.mode];
@@ -4052,7 +4075,28 @@ const app = createApp({
         },
 
         // --- 🖨️ เปิดฟอร์มพิมพ์ รพ. F-SP-011 ---
-        openPrintFSP011(doc) { this.printDoc = doc; },
+        openPrintFSP011(doc) {
+            if (!doc.isRequest) { const e = this.evidenceMap[doc.id || doc.docLabel]; if (!e || (!e.no && !e.date)) { this.openEvidence(doc, true); return; } }
+            this.printDoc = doc;
+        },
+        openEvidence(doc, thenPrint) {
+            const id = doc.id || doc.docLabel, e = this.evidenceMap[id] || { no: '', date: '' };
+            this.evForm = { show: true, docId: id, no: e.no, date: e.date, doc: doc, thenPrint: !!thenPrint };
+        },
+        async saveEvidence(andPrint) {
+            const f = this.evForm;
+            if (f.no || f.date || this.evidenceMap[f.docId]) {
+                this.loading = true;
+                const res = await this.apiCall('saveDocEvidence', { username: this.currentUser.user, docId: f.docId, evidenceNo: f.no, evidenceDate: f.date });
+                this.loading = false;
+                if (!res) return;
+                if (!this.rawData.docEvidence) this.rawData.docEvidence = [];
+                this.rawData.docEvidence = this.rawData.docEvidence.filter(r => r[0] !== f.docId);
+                if (f.no || f.date) this.rawData.docEvidence.push([f.docId, f.no, f.date]);
+            }
+            const doc = f.doc; this.evForm.show = false;
+            if (andPrint) this.printDoc = doc;
+        },
         openDocDetail(doc) { this.docView = doc; this.showDocModal = true; },
         // หน้าตรวจรับ: เปิดหน้าต่างแก้ไข/ลบรายการของบิลที่ยังรอตรวจรับ (ตัวเดียวกับในประวัติรับจ่าย)
         openBillEdit(bill) {
