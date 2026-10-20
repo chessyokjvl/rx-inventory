@@ -1582,7 +1582,7 @@
                     <button class="btn btn-secondary fw-bold" @click="printDoc=null">ปิดหน้าต่าง</button>
                 </div>
                 <div class="bg-white p-4 mx-auto" style="width: 100%; max-width: 850px; color: #000;" id="printSection">
-                    <div class="fsp-form" style="font-family: 'Sarabun', sans-serif; font-size: 14px; width: 100%; background: white; color: #000;">
+                    <div v-for="pg in printPages" :key="pg.n" class="fsp-form fsp-page" :style="'font-family: Sarabun, sans-serif; font-size: 14px; width: 100%; background: white; color: #000;' + (pg.last ? '' : ' page-break-after: always; break-after: page; margin-bottom: 40px;')">
                         
                         <!-- หัวกระดาษ (จัดกลาง) -->
                         <div style="text-align: center; margin-bottom: 15px; position: relative;">
@@ -1596,8 +1596,8 @@
                             <tr>
                                 <td style="width: 45%; border: 1px solid #000; vertical-align: top; padding: 6px;">
                                     <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                        <span>แผ่นที่ ........1........</span>
-                                        <span>ของจำนวน ........1........ แผ่น</span>
+                                        <span>แผ่นที่ <u>&nbsp;{{ pg.n }}&nbsp;</u></span>
+                                        <span>ของจำนวน <u>&nbsp;{{ printPages.length }}&nbsp;</u> แผ่น</span>
                                     </div>
                                     <!-- สลับ จาก และ ถึง ให้ถูกต้อง -->
                                     <div style="margin-bottom: 4px;">จาก <strong>{{ printDoc.entity }}</strong></div>
@@ -1664,8 +1664,8 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="(item, i) in printDoc.items" style="height: 26px;">
-                                    <td style="border: 1px solid #000; text-align: center;">{{ i+1 }}</td>
+                                <tr v-for="(item, i) in pg.items" :key="pg.start + i" style="height: 26px;">
+                                    <td style="border: 1px solid #000; text-align: center;">{{ pg.start + i + 1 }}</td>
                                     <!-- แสดงตัว "น" เฉพาะเมื่อเบิกจากคลัง OPD ตามต้นฉบับ แสดงตัว "ฉ" เมื่อเบิกจากคลัง Pending หรือมีหมายเหตุ "ฉ." -->
                                     <td style="border: 1px solid #000; text-align: center; font-weight: bold;">{{ printDoc.stockLoc === 'Pending' || (printDoc.note && printDoc.note.includes('ฉ.')) ? 'ฉ.' : ((printDoc.combined ? item.stockLoc : printDoc.stockLoc) === 'OPD' ? 'น' : '') }}</td>
                                     <td style="border: 1px solid #000; padding-left: 6px; font-size: 13px;">{{ item.name }}</td>
@@ -1677,8 +1677,8 @@
                                     <td style="border: 1px solid #000; text-align: right; padding-right: 6px;">{{ printDoc.isRequest ? '' : formatNumber(item.price) }}</td>
                                     <td style="border: 1px solid #000; text-align: right; padding-right: 6px;">{{ printDoc.isRequest ? '' : formatNumber(item.total) }}</td>
                                 </tr>
-                                <!-- ล็อคความยาวตารางขั้นต่ำ 15 บรรทัด -->
-                                <tr v-for="j in Math.max(15 - printDoc.items.length, 0)" style="height: 26px;">
+                                <!-- ล็อคความยาวตารางขั้นต่ำ 15 บรรทัดต่อหน้า (เกิน 15 รายการขึ้นหน้าใหม่) -->
+                                <tr v-for="j in Math.max(15 - pg.items.length, 0)" style="height: 26px;">
                                     <td style="border: 1px solid #000; text-align: center; color: transparent;">-</td>
                                     <td style="border: 1px solid #000;"></td>
                                     <td style="border: 1px solid #000;"></td>
@@ -1697,11 +1697,11 @@
                                         <div v-if="printEvidence" style="margin-top: 4px; font-size: 13px; font-weight: bold; color: blue;">{{ printEvidence.no }}<span v-if="printEvidence.date"> &nbsp;ลงวันที่ {{ formatThaiDate(printEvidence.date) }}</span></div>
                                     </td>
                                     <td colspan="3" style="border: 1px solid #000; text-align: right; font-weight: bold; padding: 4px 8px;">รวมแผ่นนี้</td>
-                                    <td style="border: 1px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">{{ printDoc.isRequest ? '' : formatNumber(printDoc.total) }}</td>
+                                    <td style="border: 1px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">{{ printDoc.isRequest ? '' : formatNumber(pg.total) }}</td>
                                 </tr>
                                 <tr>
                                     <td colspan="3" style="border: 1px solid #000; text-align: right; font-weight: bold; padding: 4px 8px;">รวมทั้งสิ้น</td>
-                                    <td style="border: 1px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">{{ printDoc.isRequest ? '' : formatNumber(printDoc.total) }}</td>
+                                    <td style="border: 1px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">{{ printDoc.isRequest || !pg.last ? '' : formatNumber(printDoc.total) }}</td>
                                 </tr>
                                 <!-- ส่วนแสดงยอดเงินเป็นตัวอักษรภาษาไทย -->
                                 <tr>
@@ -1709,7 +1709,7 @@
                                         รวมทั้งสิ้น (ตัวอักษร)
                                     </td>
                                     <td colspan="6" style="border: 1px solid #000; text-align: center; font-weight: bold; background-color: #f8fafc; padding: 5px; font-size: 14px;">
-                                        ( {{ printDoc.isRequest ? '' : bahtText(printDoc.total) }} )
+                                        ( {{ printDoc.isRequest || !pg.last ? '' : bahtText(printDoc.total) }} )
                                     </td>
                                 </tr>
                             </tfoot>
@@ -3136,6 +3136,16 @@ const app = createApp({
         isSubShelfStock() { return this.globalStock === 'OPD' || this.globalStock === 'IPD'; },
         shelfMode() { return this.isSubShelfStock && this.formOut.reqType === 'จ่ายขึ้น Shelf'; },
         evidenceMap() { const m = {}; (this.rawData.docEvidence || []).forEach(r => { m[r[0]] = { no: r[1] || '', date: r[2] || '' }; }); return m; },
+        // แบ่งหน้า F-SP-011: หน้าละไม่เกิน 15 รายการ (รายการที่ 16, 31, 46 ... ขึ้นหน้าใหม่)
+        printPages() {
+            const d = this.printDoc; if (!d) return [];
+            const items = d.items || [], per = 15, n = Math.max(1, Math.ceil(items.length / per)), out = [];
+            for (let p = 0; p < n; p++) {
+                const part = items.slice(p * per, (p + 1) * per);
+                out.push({ n: p + 1, start: p * per, items: part, last: p === n - 1, total: part.reduce((a, x) => a + (parseFloat(x.total) || 0), 0) });
+            }
+            return out;
+        },
         printEvidence() { if (!this.printDoc || this.printDoc.isRequest) return null; const e = this.evidenceMap[this.printDoc.id || this.printDoc.docLabel]; return e && (e.no || e.date) ? e : null; },
         purchaseOrders() {
             return (this.rawData.purchaseOrders || []).map(r => {
