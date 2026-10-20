@@ -1701,7 +1701,7 @@
                                 </tr>
                                 <tr>
                                     <td colspan="3" style="border: 1px solid #000; text-align: right; font-weight: bold; padding: 4px 8px;">รวมทั้งสิ้น</td>
-                                    <td style="border: 1px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">{{ printDoc.isRequest || !pg.last ? '' : formatNumber(printDoc.total) }}</td>
+                                    <td style="border: 1px solid #000; text-align: right; font-weight: bold; padding: 4px 6px;">{{ printDoc.isRequest ? '' : formatNumber(printDoc.total) }}</td>
                                 </tr>
                                 <!-- ส่วนแสดงยอดเงินเป็นตัวอักษรภาษาไทย -->
                                 <tr>
@@ -1709,7 +1709,7 @@
                                         รวมทั้งสิ้น (ตัวอักษร)
                                     </td>
                                     <td colspan="6" style="border: 1px solid #000; text-align: center; font-weight: bold; background-color: #f8fafc; padding: 5px; font-size: 14px;">
-                                        ( {{ printDoc.isRequest || !pg.last ? '' : bahtText(printDoc.total) }} )
+                                        ( {{ printDoc.isRequest ? '' : bahtText(printDoc.total) }} )
                                     </td>
                                 </tr>
                             </tfoot>
