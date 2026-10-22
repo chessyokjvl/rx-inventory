@@ -950,11 +950,11 @@
                                         <template v-if="docView.type === 'OUT'">
                                             <select v-model="docEdit.add.lotIdx" @change="pickAddLot" class="form-select form-select-sm">
                                                 <option :value="-1">{{ docEdit.add.productId ? (addLots.length ? '-- เลือก Lot --' : 'ไม่มีสต็อก') : '(เลือกยาก่อน)' }}</option>
-                                                <option v-for="(l, i) in addLots" :key="l.lot" :value="i">{{ l.lot }} · Exp {{ l.exp || '-' }} · เหลือ {{ formatNumber(l.qty) }}</option>
+                                                <option v-for="(l, i) in addLots" :key="l.lot" :value="i">{{ l.lot || '(ไม่ระบุ Lot)' }} · Exp {{ l.exp || '-' }} · เหลือ {{ formatNumber(l.qty) }}</option>
                                             </select>
                                         </template>
                                         <template v-else>
-                                            <input v-model="docEdit.add.lot" class="form-control form-control-sm mb-1" placeholder="Lot"><exp-picker v-model="docEdit.add.exp"></exp-picker>
+                                            <input v-model="docEdit.add.lot" class="form-control form-control-sm mb-1" placeholder="Lot (ไม่บังคับ)"><exp-picker v-model="docEdit.add.exp"></exp-picker>
                                         </template>
                                     </td>
                                     <td><input type="number" step="any" min="0" v-model.number="docEdit.add.qty" @input="recalcAdd" class="form-control form-control-sm text-end"></td>
@@ -4433,17 +4433,16 @@ const app = createApp({
             const a = this.docEdit.add, d = this.docView;
             if (!a.productId) return alert('เลือกยา/เวชภัณฑ์จากรายการ');
             if (d.type === 'OUT' && a.lotIdx < 0) return alert('เลือก Lot ที่จะจ่าย');
-            if (d.type === 'IN' && !String(a.lot || '').trim()) return alert('ระบุ Lot');
             const q = parseFloat(a.qty), u = parseFloat(a.unitPrice), t = parseFloat(a.total);
             if (isNaN(q) || q <= 0 || isNaN(u) || u < 0 || isNaN(t) || t < 0) return alert('จำนวนต้องมากกว่า 0 และราคา/มูลค่าต้องไม่ติดลบ');
             if (d.type === 'OUT') { const l = this.addLots[a.lotIdx]; if (l && q > l.qty + 0.0001) return alert('จำนวนเกินยอดคงเหลือของ Lot นี้ (' + this.formatNumber(l.qty) + ')'); }
             if (d.items.some(i => i.productId === a.productId && String(i.lot) === String(a.lot) && i.stockLoc === a.loc) && !confirm('ใบนี้มียา + Lot เดียวกันอยู่แล้ว ต้องการเพิ่มซ้ำอีกบรรทัดหรือไม่?')) return;
-            this.askConfirm({ title: 'ยืนยันเพิ่มรายการเข้าใบนี้?', lines: [d.docLabel + ' (' + d.type + ')', a.productName + ' | Lot ' + a.lot + ' | ' + this.formatNumber(q) + ' | ' + this.formatCurrency(t), (d.type === 'OUT' ? 'จะตัดสต็อกคลัง ' + a.loc : 'จะรับเข้าสต็อกคลัง ' + (d.stockLoc || 'MAIN')) + ' ทันที'], okText: 'ยืนยันเพิ่มรายการ', onOk: () => this.doAddItem() });
+            this.askConfirm({ title: 'ยืนยันเพิ่มรายการเข้าใบนี้?', lines: [d.docLabel + ' (' + d.type + ')', a.productName + ' | Lot ' + (a.lot || '-') + ' | ' + this.formatNumber(q) + ' | ' + this.formatCurrency(t), (d.type === 'OUT' ? 'จะตัดสต็อกคลัง ' + a.loc : 'จะรับเข้าสต็อกคลัง ' + (d.stockLoc || 'MAIN')) + ' ทันที'], okText: 'ยืนยันเพิ่มรายการ', onOk: () => this.doAddItem() });
         },
         async doAddItem() {
             const a = this.docEdit.add, d = this.docView;
             this.loading = true;
-            const res = await this.apiCall('addDocItem', { username: this.currentUser.user, docId: d.id, type: d.type, productId: a.productId, productName: a.productName, lotNo: a.lot, expDate: a.exp, qty: a.qty, unitPrice: a.unitPrice, totalPrice: a.total, stockLocation: d.type === 'OUT' ? a.loc : (d.stockLoc || 'MAIN'), docLabel: d.docLabel });
+            const res = await this.apiCall('addDocItem', { username: this.currentUser.user, docId: d.id, type: d.type, productId: a.productId, productName: a.productName, lotNo: String(a.lot || '').trim(), expDate: a.exp, qty: a.qty, unitPrice: a.unitPrice, totalPrice: a.total, stockLocation: d.type === 'OUT' ? a.loc : (d.stockLoc || 'MAIN'), docLabel: d.docLabel });
             this.loading = false;
             if (res) { this.docEdit.add.open = false; this.toast('เพิ่มรายการแล้ว'); await this.refreshDocView(); }
         },
