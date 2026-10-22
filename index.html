@@ -940,8 +940,34 @@
                                     </td>
                                 </tr>
                                 </template>
+                                <tr v-if="isEditor && docEdit.add.open" class="table-info" id="docAddRow">
+                                    <td>
+                                        <input list="listAddProd" v-model="docEdit.add.productName" @change="onAddProd" @input="onAddProd" class="form-control form-control-sm mb-1" placeholder="พิมพ์ชื่อ/รหัสยา..." id="addItemProd">
+                                        <datalist id="listAddProd"><option v-for="p in addProdList" :key="p.id" :value="p.name"></option></datalist>
+                                        <select v-if="docView.type === 'OUT' && addLocOptions.length > 1" v-model="docEdit.add.loc" @change="docEdit.add.lotIdx = -1" class="form-select form-select-sm"><option v-for="l in addLocOptions" :key="l" :value="l">ตัดจากคลัง {{ l }}</option></select>
+                                    </td>
+                                    <td>
+                                        <template v-if="docView.type === 'OUT'">
+                                            <select v-model="docEdit.add.lotIdx" @change="pickAddLot" class="form-select form-select-sm">
+                                                <option :value="-1">{{ docEdit.add.productId ? (addLots.length ? '-- เลือก Lot --' : 'ไม่มีสต็อก') : '(เลือกยาก่อน)' }}</option>
+                                                <option v-for="(l, i) in addLots" :key="l.lot" :value="i">{{ l.lot }} · Exp {{ l.exp || '-' }} · เหลือ {{ formatNumber(l.qty) }}</option>
+                                            </select>
+                                        </template>
+                                        <template v-else>
+                                            <input v-model="docEdit.add.lot" class="form-control form-control-sm mb-1" placeholder="Lot"><exp-picker v-model="docEdit.add.exp"></exp-picker>
+                                        </template>
+                                    </td>
+                                    <td><input type="number" step="any" min="0" v-model.number="docEdit.add.qty" @input="recalcAdd" class="form-control form-control-sm text-end"></td>
+                                    <td><input type="number" step="any" min="0" v-model.number="docEdit.add.unitPrice" @input="recalcAdd" class="form-control form-control-sm text-end"></td>
+                                    <td><input type="number" step="any" min="0" v-model.number="docEdit.add.total" class="form-control form-control-sm text-end fw-bold"></td>
+                                    <td class="text-center text-nowrap">
+                                        <button @click="askAddItem" class="btn btn-sm btn-success py-0 px-1" title="บันทึกรายการ"><i class="bi bi-check2"></i></button>
+                                        <button @click="docEdit.add.open = false" class="btn btn-sm btn-outline-secondary py-0 px-1 ms-1" title="ยกเลิก"><i class="bi bi-x"></i></button>
+                                    </td>
+                                </tr>
                             </tbody>
-                            <tfoot><tr class="table-light"><td colspan="4" class="text-end fw-bold">รวมทั้งสิ้น</td><td class="text-end fw-bold text-primary">{{ formatCurrency(docView.total) }}</td><td v-if="isEditor"></td></tr></tfoot>
+                            <tfoot><tr v-if="isEditor && canAddItem && !docEdit.add.open"><td colspan="6" class="p-1"><button @click="openAddItem" class="btn btn-sm btn-outline-success w-100 fw-bold" id="btnAddItem"><i class="bi bi-plus-lg"></i> เพิ่มรายการยา</button></td></tr>
+                            <tr class="table-light"><td colspan="4" class="text-end fw-bold">รวมทั้งสิ้น</td><td class="text-end fw-bold text-primary">{{ formatCurrency(docView.total) }}</td><td v-if="isEditor"></td></tr></tfoot>
                         </table>
                     </div>
                     <div class="d-flex gap-2 flex-wrap">
@@ -2734,7 +2760,7 @@ const app = createApp({
             
             showBillDetailsModal: false, showDocModal: false, docView: { items: [] }, evForm: { show: false, docId: '', no: '', date: '', doc: null, thenPrint: true },
             confirmAct: { show: false, title: '', lines: [], danger: false, okText: 'ยืนยัน', onOk: null },
-            docEdit: { transId: '', headOpen: false, form: { lot: '', exp: '', qty: 0, unitPrice: 0, total: 0 }, head: { date: '', entity: '', refBillNo: '', docNo: '', inspectDate: '', newDocId: '' } },
+            docEdit: { add: { open: false, productName: '', productId: '', lotIdx: -1, lot: '', exp: '', qty: 1, unitPrice: 0, total: 0, loc: '' }, transId: '', headOpen: false, form: { lot: '', exp: '', qty: 0, unitPrice: 0, total: 0 }, head: { date: '', entity: '', refBillNo: '', docNo: '', inspectDate: '', newDocId: '' } },
             activityLogs: [], logLoading: false, logFilter: { q: '', user: '', action: '' },
             LOG_LABEL: { MINMAX_APPLY: 'Apply Min/Max', PO_SAVE: 'สร้างใบ PO', PO_EDIT: 'แก้ไขใบ PO', PO_DELETE: 'ลบใบ PO', REQ_EDIT: 'แก้ไขใบขอเบิก', REQ_DELETE: 'ลบใบขอเบิก', EDIT_ITEM: 'แก้ไขรายการ', EDIT_DOC: 'แก้ไขหัวเอกสาร', EVIDENCE_EDIT: 'แก้ไขหลักฐานที่ใช้เบิก', DELETE_ITEM: 'ลบรายการ', DELETE_DOC: 'ลบทั้งใบ', RESTORE: 'กู้คืนรายการที่ลบ', PLAN_SAVE: 'บันทึกแผนจัดซื้อ', PLAN_REPLACE: 'แทนที่แผนจัดซื้อ', PLAN_DELETE_ITEM: 'ลบรายการแผน', PLAN_DELETE_YEAR: 'ลบแผนทั้งปี', ID_MIGRATE: 'ปรับรหัส (ID)', PRODUCT_ID_CHANGE: 'เปลี่ยนรหัสสินค้า' },
             planYear: (() => { const d = new Date(); return String(d.getFullYear() + 543 + (d.getMonth() >= 9 ? 1 : 0)); })(),
@@ -3136,6 +3162,14 @@ const app = createApp({
         isSubShelfStock() { return this.globalStock === 'OPD' || this.globalStock === 'IPD'; },
         shelfMode() { return this.isSubShelfStock && this.formOut.reqType === 'จ่ายขึ้น Shelf'; },
         evidenceMap() { const m = {}; (this.rawData.docEvidence || []).forEach(r => { m[r[0]] = { no: r[1] || '', date: r[2] || '' }; }); return m; },
+        // ===== เพิ่มรายการยาเข้าใบเดิม =====
+        canAddItem() { const d = this.docView; return !!d && (d.type === 'IN' || d.type === 'OUT') && !/^(RCV-|ISS-|STK-|ADJ-)/.test(String(d.id || '')); },
+        addProdList() { return this.products.filter(p => p.isActive); },
+        addLocOptions() { const d = this.docView; if (!d) return []; const s = new Set([d.stockLoc || 'MAIN']); if (d.combined) (d.items || []).forEach(i => s.add(i.stockLoc)); return [...s]; },
+        addLots() {
+            const a = this.docEdit.add; if (this.docView.type !== 'OUT' || !a.productId) return [];
+            return this.allLots.filter(l => l.pid === a.productId && l.stockLoc === a.loc && l.qty > 0.01).sort((x, y) => String(x.exp || '9999').localeCompare(String(y.exp || '9999'))).map(l => ({ lot: l.lot, exp: l.exp, qty: l.qty, unitPrice: l.unitPrice }));
+        },
         // แบ่งหน้า F-SP-011: หน้าละไม่เกิน 15 รายการ (รายการที่ 16, 31, 46 ... ขึ้นหน้าใหม่)
         printPages() {
             const d = this.printDoc; if (!d) return [];
@@ -4354,7 +4388,7 @@ const app = createApp({
             const f = this.confirmAct.onOk; this.confirmAct.show = false;
             if (f) await f();
         },
-        closeDocModal() { this.showDocModal = false; this.docEdit.transId = ''; this.docEdit.headOpen = false; },
+        closeDocModal() { this.showDocModal = false; this.docEdit.add.open = false; this.docEdit.transId = ''; this.docEdit.headOpen = false; },
         async refreshDocView(newId) {
             await this.loadData();
             const id = newId || this.docView.id; const g = this.historyGroups.find(x => x.id === id);
@@ -4383,6 +4417,35 @@ const app = createApp({
             const res = await this.apiCall('updateTransactionItem', { username: this.currentUser.user, transId: it.transId, lotNo: v.lot, expDate: v.exp, qty: v.qty, unitPrice: v.unit, totalPrice: v.total, docLabel: this.docView.docLabel, productName: it.name });
             this.loading = false;
             if (res) { this.docEdit.transId = ''; this.toast('แก้ไขรายการแล้ว'); await this.refreshDocView(); }
+        },
+        openAddItem() {
+            const d = this.docView; this.docEdit.transId = ''; this.docEdit.headOpen = false;
+            this.docEdit.add = { open: true, productName: '', productId: '', lotIdx: -1, lot: '', exp: '', qty: 1, unitPrice: 0, total: 0, loc: d.stockLoc || 'MAIN' };
+            this.focusEl('addItemProd');
+        },
+        onAddProd() {
+            const a = this.docEdit.add, p = this.products.find(x => x.name === a.productName);
+            a.productId = p ? p.id : ''; a.lotIdx = -1; if (this.docView.type === 'OUT') { a.unitPrice = 0; a.total = 0; }
+        },
+        pickAddLot() { const a = this.docEdit.add, l = this.addLots[a.lotIdx]; if (l) { a.lot = l.lot; a.exp = l.exp || ''; a.unitPrice = l.unitPrice || 0; this.recalcAdd(); } },
+        recalcAdd() { const a = this.docEdit.add; a.total = Math.round((parseFloat(a.qty) || 0) * (parseFloat(a.unitPrice) || 0) * 100) / 100; },
+        askAddItem() {
+            const a = this.docEdit.add, d = this.docView;
+            if (!a.productId) return alert('เลือกยา/เวชภัณฑ์จากรายการ');
+            if (d.type === 'OUT' && a.lotIdx < 0) return alert('เลือก Lot ที่จะจ่าย');
+            if (d.type === 'IN' && !String(a.lot || '').trim()) return alert('ระบุ Lot');
+            const q = parseFloat(a.qty), u = parseFloat(a.unitPrice), t = parseFloat(a.total);
+            if (isNaN(q) || q <= 0 || isNaN(u) || u < 0 || isNaN(t) || t < 0) return alert('จำนวนต้องมากกว่า 0 และราคา/มูลค่าต้องไม่ติดลบ');
+            if (d.type === 'OUT') { const l = this.addLots[a.lotIdx]; if (l && q > l.qty + 0.0001) return alert('จำนวนเกินยอดคงเหลือของ Lot นี้ (' + this.formatNumber(l.qty) + ')'); }
+            if (d.items.some(i => i.productId === a.productId && String(i.lot) === String(a.lot) && i.stockLoc === a.loc) && !confirm('ใบนี้มียา + Lot เดียวกันอยู่แล้ว ต้องการเพิ่มซ้ำอีกบรรทัดหรือไม่?')) return;
+            this.askConfirm({ title: 'ยืนยันเพิ่มรายการเข้าใบนี้?', lines: [d.docLabel + ' (' + d.type + ')', a.productName + ' | Lot ' + a.lot + ' | ' + this.formatNumber(q) + ' | ' + this.formatCurrency(t), (d.type === 'OUT' ? 'จะตัดสต็อกคลัง ' + a.loc : 'จะรับเข้าสต็อกคลัง ' + (d.stockLoc || 'MAIN')) + ' ทันที'], okText: 'ยืนยันเพิ่มรายการ', onOk: () => this.doAddItem() });
+        },
+        async doAddItem() {
+            const a = this.docEdit.add, d = this.docView;
+            this.loading = true;
+            const res = await this.apiCall('addDocItem', { username: this.currentUser.user, docId: d.id, type: d.type, productId: a.productId, productName: a.productName, lotNo: a.lot, expDate: a.exp, qty: a.qty, unitPrice: a.unitPrice, totalPrice: a.total, stockLocation: d.type === 'OUT' ? a.loc : (d.stockLoc || 'MAIN'), docLabel: d.docLabel });
+            this.loading = false;
+            if (res) { this.docEdit.add.open = false; this.toast('เพิ่มรายการแล้ว'); await this.refreshDocView(); }
         },
         askDeleteItem(it) {
             const only = this.docView.items.length === 1;
