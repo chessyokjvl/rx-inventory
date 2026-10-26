@@ -262,6 +262,7 @@
                             <a @click="navTo('reports', 'MAIN')" class="nav-link" :class="{active: page==='reports' && globalStock==='MAIN'}">📈 สรุปรายงาน</a>
                             <a @click="navTo('dispenseReport', 'MAIN')" class="nav-link" :class="{active: page==='dispenseReport' && globalStock==='MAIN'}">📊 สรุปยอดเบิกรายตัว</a>
                             <a v-if="canMainOps" @click="navTo('poCreate', 'MAIN')" class="nav-link text-warning fw-bold" :class="{active: page==='poCreate'}">🧾 สร้างใบ PO</a>
+                            <a v-if="canMainOps" @click="navTo('hospSupport', 'MAIN')" class="nav-link fw-bold" style="color:#20c997" :class="{active: page==='hospSupport'}">🏥 สนับสนุนยา รพ.ชุมชน</a>
                             <a @click="navTo('purchasePlan', 'MAIN')" class="nav-link text-info fw-bold" :class="{active: page==='purchasePlan'}">🗂️ แผนจัดซื้อประจำปี</a>
                             <a @click="navTo('history', 'MAIN')" class="nav-link" :class="{active: page==='history' && globalStock==='MAIN'}">📜 ประวัติรับจ่าย</a>
                             <a v-if="['Admin', 'God'].includes(currentUser.role)" @click="navTo('mophExport', 'MAIN')" class="nav-link" :class="{active: page==='mophExport'}">ส่งออก 5 แฟ้ม / ลำปาง</a>
@@ -984,6 +985,48 @@
                 </div>
             </div>
 
+            <!-- เพิ่มรายการรับเข้า/จ่ายออกจากหน้า Stock Card -->
+            <div v-if="scAdd.show" class="modal-overlay-bg" style="z-index: 2600;">
+                <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 580px; max-height: 94vh; overflow-y: auto; border-radius: 12px;">
+                    <div class="d-flex justify-content-between"><h5 class="fw-bold text-primary mb-1"><i class="bi bi-plus-circle me-2"></i>เพิ่มรายการใน Stock Card</h5><button class="btn-close" @click="scAdd.show = false"></button></div>
+                    <div class="small text-muted mb-3">{{ getProductName(scProdId) }} · คลัง {{ locLabel(globalStock) }} · คงเหลือ {{ formatNumber(inventory.find(i => i.id === scProdId)?.qty || 0) }}</div>
+                    <div class="btn-group w-100 mb-3">
+                        <button type="button" class="btn btn-sm" :class="scAdd.kind === 'IN' ? 'btn-success' : 'btn-outline-success'" @click="setScAddKind('IN')">รับเข้า</button>
+                        <button type="button" class="btn btn-sm" :class="scAdd.kind === 'OUT' ? 'btn-danger' : 'btn-outline-danger'" @click="setScAddKind('OUT')">จ่ายออก</button>
+                        <button v-if="isSubShelfStock" type="button" class="btn btn-sm" :class="scAdd.kind === 'SHELF' ? 'btn-info text-white' : 'btn-outline-info'" @click="setScAddKind('SHELF')">จ่ายขึ้น Shelf</button>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6"><label class="small fw-bold text-muted">วันที่</label><input type="date" v-model="scAdd.date" class="form-control form-control-sm"></div>
+                        <div class="col-6" v-if="scAdd.kind !== 'SHELF'"><label class="small fw-bold text-muted">เลขที่เอกสาร{{ scAdd.kind === 'OUT' ? ' (ใบเบิก)' : '' }}</label><input v-model.trim="scAdd.docNo" class="form-control form-control-sm" :placeholder="scAdd.kind === 'IN' ? 'ว่างไว้ = สร้างให้อัตโนมัติ' : ''"></div>
+                        <div class="col-12" v-if="scAdd.kind !== 'SHELF'"><label class="small fw-bold text-muted">{{ scAdd.kind === 'IN' ? 'รับจาก / สั่งซื้อจาก' : 'จ่ายให้ (ปลายทาง)' }}</label><input list="listDocEntity" v-model="scAdd.entity" class="form-control form-control-sm"></div>
+                        <div class="col-12">
+                            <label class="small fw-bold text-danger">Lot <span class="fw-normal text-muted">(บังคับ — เพื่อระบุราคาทุนและวันหมดอายุ)</span></label>
+                            <template v-if="scAdd.kind !== 'IN'">
+                                <select v-model="scAdd.lotIdx" @change="pickScAddLot" class="form-select form-select-sm" id="scAddLot">
+                                    <option :value="-1">{{ scAddLots.length ? '-- เลือก Lot --' : 'ไม่มี Lot ที่มีสต็อกในคลังนี้' }}</option>
+                                    <option v-for="(l, i) in scAddLots" :key="l.lot" :value="i">{{ l.lot || '(ไม่ระบุ Lot)' }} · Exp {{ l.exp || '-' }} · ทุน {{ formatNumber(l.unitPrice) }} · เหลือ {{ formatNumber(l.qty) }}</option>
+                                </select>
+                            </template>
+                            <template v-else>
+                                <input list="listScAddLots" v-model.trim="scAdd.lot" @change="pickScAddLotIn" class="form-control form-control-sm" placeholder="พิมพ์/เลือก Lot" id="scAddLotIn">
+                                <datalist id="listScAddLots"><option v-for="l in scAddKnownLots" :key="l.lot" :value="l.lot">Exp {{ l.exp || '-' }} · ทุน {{ formatNumber(l.unitPrice) }}</option></datalist>
+                            </template>
+                        </div>
+                        <div class="col-6"><label class="small fw-bold text-muted">วันหมดอายุ <span class="text-danger" v-if="scAdd.kind === 'IN'">*</span></label>
+                            <exp-picker v-if="scAdd.kind === 'IN'" v-model="scAdd.exp"></exp-picker>
+                            <input v-else :value="scAdd.exp || '-'" class="form-control form-control-sm" readonly></div>
+                        <div class="col-3"><label class="small fw-bold text-muted">จำนวน</label><input type="number" step="any" min="0" v-model.number="scAdd.qty" @input="recalcScAdd" class="form-control form-control-sm text-end"></div>
+                        <div class="col-3"><label class="small fw-bold text-muted">ราคาทุน/หน่วย <span class="text-danger" v-if="scAdd.kind === 'IN'">*</span></label><input type="number" step="any" min="0" v-model.number="scAdd.unitPrice" @input="recalcScAdd" :readonly="scAdd.kind !== 'IN'" class="form-control form-control-sm text-end"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">มูลค่ารวม</label><input type="number" step="any" min="0" v-model.number="scAdd.total" :readonly="scAdd.kind !== 'IN'" class="form-control form-control-sm text-end fw-bold"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">หมายเหตุ</label><input v-model="scAdd.note" class="form-control form-control-sm"></div>
+                    </div>
+                    <div class="d-flex gap-2 mt-3">
+                        <button @click="askScAdd" class="btn btn-primary fw-bold flex-grow-1"><i class="bi bi-check2"></i> บันทึกรายการ</button>
+                        <button @click="scAdd.show = false" class="btn btn-outline-secondary">ยกเลิก</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- แก้ไขรายการใน Stock Card -->
             <div v-if="scEdit.show" class="modal-overlay-bg" style="z-index: 2600;">
                 <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 560px; max-height: 94vh; overflow-y: auto; border-radius: 12px;">
@@ -1365,6 +1408,7 @@
                                 <option value="OPD">คลังยาย่อย (OPD)</option>
                                 <option value="IPD">คลังยาย่อย (IPD)</option>
                                 <option value="เวชภัณฑ์มิใช่ยา">เวชภัณฑ์มิใช่ยา</option>
+                                <option v-if="canMainOps && globalStock === 'MAIN'" value="Pending">รอตรวจรับ (เบิกก่อนตรวจรับ — ฉ.)</option>
                             </select>
                         </div>
                         <div class="col-12 col-md-3">
@@ -1530,6 +1574,7 @@
                         </div>
                         <div class="d-flex gap-2 align-items-center mt-3 mt-md-0">
                             <div class="badge bg-primary fs-6 me-2 shadow-sm">ยอดปัจจุบัน: {{ formatNumber(inventory.find(i => i.id === scProdId)?.qty || 0) }}</div>
+                            <button v-if="canOpStock" @click="openScAdd()" id="btnScAdd" class="btn btn-primary fw-bold shadow-sm"><i class="bi bi-plus-lg"></i> เพิ่มรายการ</button>
                             <button @click="printStockCardData = true" class="btn btn-outline-dark fw-bold shadow-sm"><i class="bi bi-printer"></i> พิมพ์ F-SP-018</button>
                             <button @click="exportStockCardExcel" class="btn btn-success fw-bold shadow-sm"><i class="bi bi-file-excel"></i> Excel</button>
                         </div>
@@ -2023,6 +2068,229 @@
                 </div>
             </div>
 
+            <!-- ================= สนับสนุนยา รพ.ชุมชน (คลังใหญ่) ================= -->
+            <div v-show="page === 'hospSupport' && canMainOps">
+                <h3 class="fw-bold text-primary mb-1"><i class="bi bi-hospital me-2"></i> บริหารการสนับสนุนยา รพ.ชุมชน</h3>
+                <div class="text-muted small mb-3">เฉพาะใบเบิกที่จ่ายจากคลังใหญ่ไปยังโรงพยาบาล · ใช้ติดตามสถานะการเคลียร์เงิน หลักฐาน และการทวงถาม</div>
+                <div class="card card-shadow p-3 mb-3 bg-light">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6 col-md-2"><label class="form-label small fw-bold mb-0">ปีงบประมาณ</label>
+                            <select class="form-select form-select-sm" v-model="hsUI.fy" @change="hsSetFY()"><option value="">กำหนดช่วงเอง</option><option v-for="y in hsFYs" :key="y" :value="y">{{ y }}</option></select></div>
+                        <div class="col-6 col-md-2"><label class="form-label small fw-bold mb-0">ตั้งแต่วันที่</label><input type="date" class="form-control form-control-sm" v-model="hsUI.from" @change="hsUI.fy=''"></div>
+                        <div class="col-6 col-md-2"><label class="form-label small fw-bold mb-0">ถึงวันที่</label><input type="date" class="form-control form-control-sm" v-model="hsUI.to" @change="hsUI.fy=''"></div>
+                        <div class="col-6 col-md-2"><label class="form-label small fw-bold mb-0">โรงพยาบาล</label>
+                            <select class="form-select form-select-sm" v-model="hsUI.hosp"><option value="">ทุกแห่ง</option><option v-for="h in hsHospNames" :key="h" :value="h">{{ hsShort(h) }}</option></select></div>
+                        <div class="col-6 col-md-2"><label class="form-label small fw-bold mb-0">สถานะ</label>
+                            <select class="form-select form-select-sm" v-model="hsUI.status"><option value="">ทั้งหมด</option><option value="Unpaid">ค้างชำระ</option><option value="Partial">ชำระบางส่วน</option><option value="Paid">เคลียร์แล้ว</option><option value="Waived">งดเรียกเก็บ</option></select></div>
+                        <div class="col-6 col-md-2"><label class="form-label small fw-bold mb-0">ค้นหา</label><input class="form-control form-control-sm" v-model="hsUI.search" placeholder="เลขใบเบิก / เลขที่เอกสาร"></div>
+                    </div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6 col-md-3"><div class="card card-shadow p-2 text-center"><div class="small text-muted">จำนวนใบเบิก</div><div class="fs-4 fw-bold">{{ hsTotals.docs }}</div></div></div>
+                    <div class="col-6 col-md-3"><div class="card card-shadow p-2 text-center"><div class="small text-muted">ยอดเบิกรวม (บาท)</div><div class="fs-4 fw-bold text-primary">{{ formatCurrency(hsTotals.value) }}</div></div></div>
+                    <div class="col-6 col-md-3"><div class="card card-shadow p-2 text-center"><div class="small text-muted">เคลียร์แล้ว (บาท)</div><div class="fs-4 fw-bold text-success">{{ formatCurrency(hsTotals.paid) }}</div></div></div>
+                    <div class="col-6 col-md-3"><div class="card card-shadow p-2 text-center"><div class="small text-muted">ค้างชำระ (บาท)</div><div class="fs-4 fw-bold text-danger">{{ formatCurrency(hsTotals.owed) }}</div></div></div>
+                </div>
+                <ul class="nav nav-tabs mb-3">
+                    <li class="nav-item"><a class="nav-link" :class="{active: hsUI.tab==='docs'}" @click="hsUI.tab='docs'" style="cursor:pointer">📄 รายการใบเบิก</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: hsUI.tab==='hosp'}" @click="hsUI.tab='hosp'" style="cursor:pointer">🏥 สรุปรายโรงพยาบาล</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: hsUI.tab==='items'}" @click="hsUI.tab='items'" style="cursor:pointer">💊 สรุปรายการยา (35 รายการ)</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: hsUI.tab==='set'}" @click="hsUI.tab='set'" style="cursor:pointer">⚙️ ตั้งค่า</a></li>
+                </ul>
+
+                <!-- รายการใบเบิก -->
+                <div v-if="hsUI.tab==='docs'" class="card card-shadow p-3">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+                        <h5 class="fw-bold mb-0">สรุปยอดสนับสนุน รพ.ชุมชน{{ hsUI.fy ? ' ปีงบ ' + hsUI.fy : ' (' + formatThaiDate(hsUI.from) + ' - ' + formatThaiDate(hsUI.to) + ')' }}</h5>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-success fw-bold" :disabled="!hsSelIds.length" @click="openHsSettle(hsSelIds)">💰 เคลียร์เงินที่เลือก ({{ hsSelIds.length }})</button>
+                            <button class="btn btn-sm btn-outline-success" @click="exportHsDocs()"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive" style="max-height:65vh">
+                        <table class="table table-sm table-bordered table-hover align-middle mb-0" style="font-size:0.9rem">
+                            <thead class="table-light sticky-top"><tr class="text-center">
+                                <th style="width:34px"><input type="checkbox" :checked="hsAllSel" @change="hsToggleAll($event.target.checked)"></th>
+                                <th>ลำดับ</th><th>เลขที่ใบเบิก</th><th>วันที่ใบเบิก</th><th>เลขที่เอกสารขอรับฯ</th><th>ลงวันที่</th><th>รพ.</th><th>ยอดเบิก</th><th>นอกรายการ</th><th>สถานะ</th><th>เคลียร์โดย</th><th>หลักฐาน</th><th></th>
+                            </tr></thead>
+                            <tbody>
+                                <tr v-for="(d, i) in hsFilteredDocs" :key="d.id">
+                                    <td class="text-center"><input type="checkbox" v-model="hsUI.sel[d.id]"></td>
+                                    <td class="text-center">{{ i + 1 }}</td>
+                                    <td class="fw-bold text-primary" style="cursor:pointer" @click="openHsDetail(d.id)">{{ d.id }}</td>
+                                    <td class="text-center">{{ formatThaiDate(d.date) }}</td>
+                                    <td>{{ d.evNo }}</td>
+                                    <td class="text-center">{{ d.evDate ? formatThaiDate(d.evDate) : '' }}</td>
+                                    <td>{{ hsShort(d.hospital) }}</td>
+                                    <td class="text-end fw-bold">{{ formatCurrency(d.total) }}</td>
+                                    <td class="text-center"><span v-if="d.nonCore" class="badge bg-warning text-dark" title="มียานอกรายการตามข้อตกลง (ผ่อนผัน)">{{ d.nonCore }}</span></td>
+                                    <td class="text-center"><span class="badge" :class="hsStatusClass(d.status)">{{ hsStatusText(d.status) }}</span><div v-if="d.status==='Partial'" class="small text-muted">ค้าง {{ formatCurrency(d.owed) }}</div></td>
+                                    <td class="small">{{ d.settle ? d.settle.paidBy : '' }}<div v-if="d.settle && d.settle.payDate" class="text-muted">{{ formatThaiDate(d.settle.payDate) }}</div></td>
+                                    <td class="text-center small"><span v-if="d.files.length">📎{{ d.files.length }}</span><span v-if="d.settle && d.settle.evNo" class="d-block text-muted">{{ d.settle.evNo }}</span></td>
+                                    <td class="text-center text-nowrap"><button class="btn btn-sm btn-outline-primary py-0" @click="openHsDetail(d.id)">จัดการ</button></td>
+                                </tr>
+                                <tr v-if="!hsFilteredDocs.length"><td colspan="13" class="text-center text-muted py-4">ไม่พบใบเบิกในช่วงที่เลือก</td></tr>
+                            </tbody>
+                            <tfoot v-if="hsFilteredDocs.length"><tr class="table-light fw-bold"><td colspan="7" class="text-end">รวม</td><td class="text-end">{{ formatCurrency(hsTotals.value) }}</td><td colspan="5"></td></tr></tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- สรุปรายโรงพยาบาล -->
+                <div v-if="hsUI.tab==='hosp'" class="card card-shadow p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2"><h5 class="fw-bold mb-0">สถานะการเคลียร์เงินรายโรงพยาบาล (สำหรับรายงานผู้บริหาร)</h5><button class="btn btn-sm btn-outline-success" @click="exportHsHosp()"><i class="bi bi-file-earmark-excel"></i> Excel</button></div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle mb-0" style="font-size:0.9rem">
+                            <thead class="table-light"><tr class="text-center"><th>รพ.</th><th>ใบเบิก</th><th>ยอดเบิก</th><th>เคลียร์แล้ว</th><th>ค้างชำระ</th><th style="min-width:160px">สัดส่วน</th><th>ใบเบิกค้าง</th><th>ติดตามล่าสุด</th><th></th></tr></thead>
+                            <tbody>
+                                <tr v-for="h in hsByHosp" :key="h.name">
+                                    <td class="fw-bold">{{ hsShort(h.name) }}</td>
+                                    <td class="text-center">{{ h.docs }}</td>
+                                    <td class="text-end">{{ formatCurrency(h.value) }}</td>
+                                    <td class="text-end text-success">{{ formatCurrency(h.paid) }}</td>
+                                    <td class="text-end fw-bold" :class="h.owed > 0.005 ? 'text-danger' : 'text-success'">{{ formatCurrency(h.owed) }}</td>
+                                    <td><div class="progress" style="height:14px"><div class="progress-bar bg-success" :style="{width: h.value ? (h.paid / h.value * 100) + '%' : '0%'}"></div><div class="progress-bar bg-danger" :style="{width: h.value ? (h.owed / h.value * 100) + '%' : '0%'}"></div></div></td>
+                                    <td class="text-center">{{ h.unpaidDocs }}</td>
+                                    <td class="small">{{ h.lastFu ? formatThaiDate(h.lastFu.date) + ' · ' + h.lastFu.note.slice(0, 40) : '-' }}</td>
+                                    <td class="text-center text-nowrap"><button class="btn btn-sm btn-outline-primary py-0" @click="hsUI.hosp = h.name; hsUI.tab='docs'">ดูใบเบิก</button> <button class="btn btn-sm btn-outline-warning py-0" @click="openHsFu(h.name, '')">📞 ทวงถาม</button></td>
+                                </tr>
+                                <tr v-if="!hsByHosp.length"><td colspan="9" class="text-center text-muted py-4">ไม่มีข้อมูล</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- สรุปรายการยา -->
+                <div v-if="hsUI.tab==='items'" class="card card-shadow p-3">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2">
+                        <h5 class="fw-bold mb-0">สรุปรายการยาที่สนับสนุน {{ hsCoreSet.size ? '(ตามข้อตกลง ' + hsCoreSet.size + ' รายการ)' : '' }}</h5>
+                        <div class="d-flex gap-2 align-items-center">
+                            <select class="form-select form-select-sm" v-model="hsUI.itemFilter" style="width:auto"><option value="all">ทั้งหมด</option><option value="core">เฉพาะในรายการข้อตกลง</option><option value="non">เฉพาะนอกรายการ (ผ่อนผัน)</option></select>
+                            <button class="btn btn-sm btn-outline-success" @click="exportHsItems()"><i class="bi bi-file-earmark-excel"></i> Excel</button>
+                        </div>
+                    </div>
+                    <div v-if="!hsCoreSet.size" class="alert alert-warning py-2 small">ยังไม่ได้กำหนด “รายการยาตามข้อตกลง (35 รายการ)” — ไปที่แท็บ ⚙️ ตั้งค่า เพื่อเลือกรายการ ระบบจึงจะแยกยานอกรายการให้</div>
+                    <div class="table-responsive" style="max-height:65vh">
+                        <table class="table table-sm table-bordered align-middle mb-0" style="font-size:0.9rem">
+                            <thead class="table-light sticky-top"><tr class="text-center"><th>#</th><th>รายการยา</th><th>ประเภท</th><th>จำนวนที่จ่าย</th><th>มูลค่า</th><th>ใบเบิก</th><th>รพ.ที่เบิก</th></tr></thead>
+                            <tbody>
+                                <tr v-for="(r, i) in hsItemRows" :key="r.pid">
+                                    <td class="text-center">{{ i + 1 }}</td>
+                                    <td>{{ r.name }}</td>
+                                    <td class="text-center"><span v-if="!hsCoreSet.size" class="text-muted">-</span><span v-else-if="r.core" class="badge bg-success">ในรายการ</span><span v-else class="badge bg-warning text-dark">นอกรายการ (ผ่อนผัน)</span></td>
+                                    <td class="text-end">{{ formatNumber(r.qty) }} {{ r.unit }}</td>
+                                    <td class="text-end">{{ formatCurrency(r.value) }}</td>
+                                    <td class="text-center">{{ r.docs }}</td>
+                                    <td class="small">{{ r.hosps.map(hsShort).join(', ') }}</td>
+                                </tr>
+                                <tr v-if="!hsItemRows.length"><td colspan="7" class="text-center text-muted py-4">ไม่มีข้อมูล</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div v-if="hsCoreSet.size" class="small text-muted mt-2">ยาในรายการข้อตกลงที่ยังไม่มีการเบิกในช่วงนี้: {{ hsCoreUnused.length ? hsCoreUnused.join(', ') : '— ไม่มี —' }}</div>
+                </div>
+
+                <!-- ตั้งค่า -->
+                <div v-if="hsUI.tab==='set'" class="row g-3">
+                    <div class="col-lg-6"><div class="card card-shadow p-3">
+                        <h6 class="fw-bold">🏥 รายชื่อโรงพยาบาลที่นับเป็น “รพ.ชุมชน”</h6>
+                        <div class="small text-muted mb-2">ระบบดึงชื่อหน่วยงานที่มีคำว่า “โรงพยาบาล/รพ.” จากการจ่ายของคลังใหญ่ให้อัตโนมัติ ติ๊กออกได้ถ้าไม่ต้องการนับ และตั้งชื่อย่อได้</div>
+                        <div class="table-responsive" style="max-height:50vh"><table class="table table-sm table-bordered align-middle mb-2" style="font-size:0.88rem">
+                            <thead class="table-light"><tr><th style="width:40px">นับ</th><th>ชื่อหน่วยงาน</th><th>ชื่อย่อ</th></tr></thead>
+                            <tbody><tr v-for="c in hsUI.hospEdit" :key="c.name"><td class="text-center"><input type="checkbox" v-model="c.on"></td><td>{{ c.name }}</td><td><input class="form-control form-control-sm" v-model="c.short"></td></tr></tbody>
+                        </table></div>
+                        <button class="btn btn-primary btn-sm" @click="saveHsHospitals()">บันทึกรายชื่อ รพ.</button>
+                    </div></div>
+                    <div class="col-lg-6"><div class="card card-shadow p-3">
+                        <h6 class="fw-bold">💊 รายการยาตามข้อตกลง (นโยบาย 35 รายการ) — เลือกแล้ว {{ hsUI.coreEdit.length }}</h6>
+                        <input class="form-control form-control-sm mb-2" v-model="hsUI.coreSearch" placeholder="ค้นหาชื่อยา...">
+                        <div style="max-height:50vh;overflow:auto" class="border rounded p-2 mb-2">
+                            <label v-for="p in hsCoreChoices" :key="p.id" class="d-block small"><input type="checkbox" :value="p.id" v-model="hsUI.coreEdit" class="me-1">{{ p.name }}</label>
+                        </div>
+                        <button class="btn btn-primary btn-sm" @click="saveHsCore()">บันทึกรายการยาตามข้อตกลง</button>
+                    </div></div>
+                </div>
+            </div>
+
+            <!-- Modal: เคลียร์เงิน -->
+            <div v-if="hsSettle.show" class="modal-overlay-bg" style="z-index: 2600;">
+                <div class="card p-4 shadow-lg" style="width: 95%; max-width: 560px; max-height: 92vh; overflow:auto;">
+                    <div class="d-flex justify-content-between"><h5 class="fw-bold text-success mb-2">💰 บันทึกการเคลียร์เงิน ({{ hsSettle.docs.length }} ใบเบิก · รวม {{ formatCurrency(hsSettle.total) }} บาท)</h5><button class="btn-close" @click="hsSettle.show=false"></button></div>
+                    <div class="small text-muted mb-2" style="max-height:60px;overflow:auto">{{ hsSettle.docs.join(', ') }}</div>
+                    <div class="mb-2"><label class="form-label small fw-bold mb-0">ผลการเคลียร์</label>
+                        <select class="form-select form-select-sm" v-model="hsSettle.mode"><option value="Paid">เคลียร์เต็มจำนวน</option><option value="Partial" :disabled="hsSettle.docs.length!==1">ชำระบางส่วน (เฉพาะทีละ 1 ใบเบิก)</option><option value="Waived">งดเรียกเก็บ / ยกเว้น</option></select></div>
+                    <div v-if="hsSettle.mode==='Partial'" class="mb-2"><label class="form-label small fw-bold mb-0">ยอดที่ชำระแล้ว (บาท)</label><input type="number" min="0" step="0.01" class="form-control form-control-sm" v-model.number="hsSettle.amount"></div>
+                    <div class="mb-2"><label class="form-label small fw-bold mb-0">ใช้งบประมาณ / ผู้ชำระ</label>
+                        <select class="form-select form-select-sm" v-model="hsSettle.paidBy"><option>สสจ.เลย เคลียร์ให้</option><option>รพ. จ่ายเอง</option><option>งบประมาณอื่น (ระบุ)</option></select>
+                        <input v-if="hsSettle.paidBy==='งบประมาณอื่น (ระบุ)'" class="form-control form-control-sm mt-1" v-model="hsSettle.paidOther" placeholder="ระบุแหล่งงบประมาณ"></div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="form-label small fw-bold mb-0">วันที่เคลียร์</label><input type="date" class="form-control form-control-sm" v-model="hsSettle.payDate"></div>
+                        <div class="col-6"><label class="form-label small fw-bold mb-0">วันที่เอกสารหลักฐาน</label><input type="date" class="form-control form-control-sm" v-model="hsSettle.evDate"></div>
+                    </div>
+                    <div class="mb-2"><label class="form-label small fw-bold mb-0">เลขที่เอกสารหลักฐานที่ได้รับ</label><input class="form-control form-control-sm" v-model="hsSettle.evNo" placeholder="เช่น เลขที่หนังสือ / ใบสำคัญรับเงิน"></div>
+                    <div class="mb-2"><label class="form-label small fw-bold mb-0">แนบไฟล์หลักฐาน (PDF/JPG/PNG ไม่เกิน 6 MB — แนบให้ทุกใบเบิกที่เลือก)</label><input type="file" class="form-control form-control-sm" accept=".pdf,.jpg,.jpeg,.png,.webp" @change="hsSettle.file = $event.target.files[0] || null"></div>
+                    <div class="mb-3"><label class="form-label small fw-bold mb-0">หมายเหตุ</label><textarea class="form-control form-control-sm" rows="2" v-model="hsSettle.note"></textarea></div>
+                    <div class="d-flex justify-content-end gap-2"><button class="btn btn-outline-secondary" @click="hsSettle.show=false">ยกเลิก</button><button class="btn btn-success fw-bold" :disabled="hsSettle.busy" @click="doHsSettle()">บันทึก</button></div>
+                </div>
+            </div>
+
+            <!-- Modal: รายละเอียดใบเบิก -->
+            <div v-if="hsDetail.show && hsDetailDoc" class="modal-overlay-bg" style="z-index: 2550;">
+                <div class="card p-4 shadow-lg" style="width: 96%; max-width: 860px; max-height: 94vh; overflow:auto;">
+                    <div class="d-flex justify-content-between"><h5 class="fw-bold text-primary mb-1">ใบเบิก {{ hsDetailDoc.id }} · {{ hsShort(hsDetailDoc.hospital) }}</h5><button class="btn-close" @click="hsDetail.show=false"></button></div>
+                    <div class="small mb-2">วันที่ {{ formatThaiDate(hsDetailDoc.date) }} · ยอดเบิก <b>{{ formatCurrency(hsDetailDoc.total) }}</b> บาท · เอกสารขอรับฯ {{ hsDetailDoc.evNo || '-' }} {{ hsDetailDoc.evDate ? '(' + formatThaiDate(hsDetailDoc.evDate) + ')' : '' }} · สถานะ <span class="badge" :class="hsStatusClass(hsDetailDoc.status)">{{ hsStatusText(hsDetailDoc.status) }}</span></div>
+                    <div class="table-responsive mb-3"><table class="table table-sm table-bordered mb-0" style="font-size:0.88rem">
+                        <thead class="table-light"><tr><th>รายการยา</th><th class="text-end">จำนวน</th><th class="text-end">มูลค่า</th><th class="text-center">ประเภท</th></tr></thead>
+                        <tbody><tr v-for="it in hsDetailDoc.items" :key="it.pid"><td>{{ it.name }}</td><td class="text-end">{{ formatNumber(it.qty) }} {{ it.unit }}</td><td class="text-end">{{ formatCurrency(it.value) }}</td>
+                            <td class="text-center"><span v-if="!hsCoreSet.size" class="text-muted">-</span><span v-else-if="it.core" class="badge bg-success">ในรายการ</span><span v-else class="badge bg-warning text-dark">นอกรายการ</span></td></tr></tbody>
+                    </table></div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="border rounded p-2 h-100">
+                                <div class="fw-bold mb-1">การเคลียร์เงิน</div>
+                                <div v-if="hsDetailDoc.settle" class="small">
+                                    <div>ผู้ชำระ/งบ: <b>{{ hsDetailDoc.settle.paidBy || '-' }}</b></div>
+                                    <div>ยอดชำระ: {{ formatCurrency(hsDetailDoc.settle.amount) }} บาท · วันที่ {{ hsDetailDoc.settle.payDate ? formatThaiDate(hsDetailDoc.settle.payDate) : '-' }}</div>
+                                    <div>หลักฐาน: {{ hsDetailDoc.settle.evNo || '-' }} {{ hsDetailDoc.settle.evDate ? '(' + formatThaiDate(hsDetailDoc.settle.evDate) + ')' : '' }}</div>
+                                    <div v-if="hsDetailDoc.settle.note">หมายเหตุ: {{ hsDetailDoc.settle.note }}</div>
+                                    <div class="text-muted">บันทึกโดย {{ hsDetailDoc.settle.by }} · {{ hsDetailDoc.settle.at }}</div>
+                                </div>
+                                <div v-else class="small text-danger">ยังไม่ได้เคลียร์ (ค้างชำระ)</div>
+                                <div class="mt-2 d-flex gap-2"><button class="btn btn-sm btn-success" @click="openHsSettle([hsDetailDoc.id])">{{ hsDetailDoc.settle ? 'แก้ไขการเคลียร์' : 'บันทึกการเคลียร์เงิน' }}</button><button v-if="hsDetailDoc.settle" class="btn btn-sm btn-outline-danger" @click="cancelHsSettle(hsDetailDoc.id)">ยกเลิกการเคลียร์</button></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border rounded p-2 h-100">
+                                <div class="fw-bold mb-1">ไฟล์หลักฐาน</div>
+                                <div v-for="f in hsDetailDoc.files" :key="f.id" class="small d-flex justify-content-between align-items-center border-bottom py-1">
+                                    <a href="#" @click.prevent="hsOpenFile(f)">📎 {{ f.name }}</a><span><span class="text-muted me-2">{{ Math.round(f.size / 1024) }} KB</span><button class="btn btn-sm btn-outline-danger py-0" @click="hsDelFile(f)">ลบ</button></span>
+                                </div>
+                                <div v-if="!hsDetailDoc.files.length" class="small text-muted">ยังไม่มีไฟล์แนบ</div>
+                                <input type="file" class="form-control form-control-sm mt-2" accept=".pdf,.jpg,.jpeg,.png,.webp" @change="hsUploadOne($event, hsDetailDoc.id)">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="border rounded p-2 mt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-1"><div class="fw-bold">บันทึกการติดตาม / ทวงถาม</div><button class="btn btn-sm btn-outline-warning" @click="openHsFu(hsDetailDoc.hospital, hsDetailDoc.id)">+ เพิ่มบันทึก</button></div>
+                        <div v-for="f in hsDetailDoc.followups" :key="f.id" class="small border-bottom py-1 d-flex justify-content-between"><span>{{ formatThaiDate(f.date) }} · {{ f.method }} · {{ f.note }} <span class="text-muted">({{ f.by }})</span></span><button class="btn btn-sm text-danger py-0" @click="delHsFu(f)">ลบ</button></div>
+                        <div v-if="!hsDetailDoc.followups.length" class="small text-muted">ยังไม่มีบันทึก</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal: บันทึกทวงถาม -->
+            <div v-if="hsFu.show" class="modal-overlay-bg" style="z-index: 2650;">
+                <div class="card p-4 shadow-lg" style="width: 95%; max-width: 480px;">
+                    <div class="d-flex justify-content-between"><h5 class="fw-bold text-warning mb-2">📞 บันทึกการติดตาม — {{ hsShort(hsFu.hospital) }}{{ hsFu.docId ? ' · ' + hsFu.docId : '' }}</h5><button class="btn-close" @click="hsFu.show=false"></button></div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6"><label class="form-label small fw-bold mb-0">วันที่</label><input type="date" class="form-control form-control-sm" v-model="hsFu.date"></div>
+                        <div class="col-6"><label class="form-label small fw-bold mb-0">ช่องทาง</label><select class="form-select form-select-sm" v-model="hsFu.method"><option>โทรศัพท์</option><option>หนังสือ</option><option>LINE/อีเมล</option><option>พบด้วยตนเอง</option><option>อื่น ๆ</option></select></div>
+                    </div>
+                    <div class="mb-3"><label class="form-label small fw-bold mb-0">รายละเอียด</label><textarea class="form-control form-control-sm" rows="3" v-model="hsFu.note" placeholder="เช่น ทวงถามยอดค้าง ผู้ประสานแจ้งว่าจะเคลียร์ภายใน..."></textarea></div>
+                    <div class="d-flex justify-content-end gap-2"><button class="btn btn-outline-secondary" @click="hsFu.show=false">ยกเลิก</button><button class="btn btn-warning fw-bold" @click="doHsFu()">บันทึก</button></div>
+                </div>
+            </div>
+
             <!-- ================= สร้างใบ PO (คลังใหญ่) ================= -->
             <div v-show="page === 'poCreate' && canMainOps">
                 <h3 class="fw-bold text-primary mb-3"><i class="bi bi-receipt me-2"></i> สร้างใบ PO (คลังยาใหญ่)</h3>
@@ -2320,7 +2588,7 @@
                                 <tr v-for="h in timelineData.history" :key="h.transId">
                                     <td class="text-center">{{ formatThaiDate(h.date.split(' ')[0]) }}</td>
                                     <td class="fw-bold text-primary">{{ h.vendorOrDept }}</td>
-                                    <td>{{ h.refDoc || h.billId || '-' }} <small class="text-muted">({{ h.note }})</small></td>
+                                    <td>{{ h.refDoc || h.billId || '-' }} <small class="text-muted">({{ cleanNote(h.note) }})</small></td>
                                     <td class="text-end fw-bold text-danger">{{ formatNumber(h.qty) }}</td>
                                 </tr>
                             </tbody>
@@ -2812,6 +3080,12 @@ const app = createApp({
             isSidebarOpen: false,
             activeMenu: '',
             currentUser: {},
+            hs: { loaded: false, hospitals: [], core: [], settle: [], files: [], followups: [] },
+            hsUI: { tab: 'docs', fy: '', from: '', to: '', hosp: '', status: '', search: '', itemFilter: 'all', sel: {}, hospEdit: [], coreEdit: [], coreSearch: '' },
+            hsSettle: { show: false, docs: [], total: 0, mode: 'Paid', amount: 0, paidBy: 'สสจ.เลย เคลียร์ให้', paidOther: '', payDate: '', evNo: '', evDate: '', note: '', file: null, busy: false },
+            hsDetail: { show: false, docId: '' },
+            hsFu: { show: false, hospital: '', docId: '', date: '', method: 'โทรศัพท์', note: '' },
+            scAdd: { show: false, kind: 'OUT', date: '', docNo: '', entity: '', lotIdx: -1, lot: '', exp: '', qty: 1, unitPrice: 0, total: 0, note: '' },
             scEdit: { show: false, row: {}, date: '', docNo: '', docMode: 'none', entity: '', lot: '', exp: '', qty: 0, unitPrice: 0, total: 0, docCount: 1, isShelf: false, bill: null, docId: '', itemIds: [] },
             stkItems: { show: false, search: '', filter: 'all', changes: {} },
             myAcc: { show: false, newUser: '', newPass: '', newPass2: '', curPass: '' },
@@ -3252,6 +3526,54 @@ const app = createApp({
         },
         isSubShelfStock() { return this.globalStock === 'OPD' || this.globalStock === 'IPD'; },
         shelfMode() { return this.isSubShelfStock && this.formOut.reqType === 'จ่ายขึ้น Shelf'; },
+
+        // ---------- สนับสนุนยา รพ.ชุมชน ----------
+        hsInfoMap() { const m = {}; (this.hs.hospitals || []).forEach(r => { m[r[0]] = { short: r[1] || '', on: String(r[2]) !== '0' }; }); return m; },
+        hsCoreSet() { return new Set((this.hs.core || []).map(String)); },
+        hsAllDocs() {
+            const info = this.hsInfoMap, isH = (n) => { const r = info[n]; if (r) return r.on; return /โรงพยาบาล|รพ\./.test(n) && !/จิตเวชเลย/.test(n); };
+            const ev = this.evidenceMap, core = this.hsCoreSet, pm = {}; this.products.forEach(p => { pm[p.id] = p; });
+            const sm = {}; (this.hs.settle || []).forEach(r => { sm[r[0]] = { status: r[1], paidBy: r[2], amount: parseFloat(r[3]) || 0, payDate: r[4] || '', evNo: r[5] || '', evDate: r[6] || '', note: r[7] || '', by: r[8] || '', at: r[9] || '' }; });
+            const fm = {}; (this.hs.files || []).forEach(r => { (fm[r[1]] = fm[r[1]] || []).push({ id: r[0], name: r[2], mime: r[3], size: parseInt(r[4]) || 0 }); });
+            const um = {}; (this.hs.followups || []).forEach(r => { (um[r[1]] = um[r[1]] || []).push({ id: r[0], date: r[3], method: r[4], note: r[5], by: r[6] }); });
+            const docs = {};
+            this.transactions.forEach(t => {
+                if (t.type !== 'OUT' || t.status !== 'Completed' || t.stockLocation !== 'MAIN' || !isH(t.vendorOrDept) || this.isShelfRow(t)) return;
+                const id = t.billId || t.transId; const d = docs[id] || (docs[id] = { id: id, date: String(t.date || '').slice(0, 10), hospital: t.vendorOrDept, total: 0, itemsMap: {} });
+                d.total += t.totalPrice; const it = d.itemsMap[t.productId] || (d.itemsMap[t.productId] = { pid: t.productId, name: (pm[t.productId] || {}).name || t.productId, unit: (pm[t.productId] || {}).unit || '', qty: 0, value: 0, core: core.has(String(t.productId)) });
+                it.qty += t.qty; it.value += t.totalPrice;
+            });
+            return Object.values(docs).map(d => {
+                const items = Object.values(d.itemsMap), s = sm[d.id] || null, e = ev[d.id] || { no: '', date: '' };
+                const status = s ? s.status : 'Unpaid'; const owed = status === 'Unpaid' ? d.total : (status === 'Partial' ? Math.max(d.total - s.amount, 0) : 0);
+                const paid = status === 'Paid' ? d.total : (status === 'Partial' ? Math.min(s.amount, d.total) : 0);
+                return { id: d.id, date: d.date, hospital: d.hospital, total: d.total, items: items, nonCore: core.size ? items.filter(i => !i.core).length : 0, evNo: e.no, evDate: e.date, settle: s, status: status, owed: owed, paid: paid, files: fm[d.id] || [], followups: um[d.id] || [] };
+            }).sort((a, b) => a.date.localeCompare(b.date) || String(a.id).localeCompare(String(b.id)));
+        },
+        hsFYs() { const set = new Set([this.fiscalYearOf(new Date().toISOString().slice(0, 10))]); this.hsAllDocs.forEach(d => set.add(this.fiscalYearOf(d.date))); return Array.from(set).sort((a, b) => b - a); },
+        hsDatedDocs() {
+            const u = this.hsUI, q = (u.search || '').trim().toLowerCase();
+            return this.hsAllDocs.filter(d => (!u.from || d.date >= u.from) && (!u.to || d.date <= u.to) && (!u.status || d.status === u.status) && (!q || String(d.id).toLowerCase().includes(q) || String(d.evNo).toLowerCase().includes(q)));
+        },
+        hsFilteredDocs() { return this.hsUI.hosp ? this.hsDatedDocs.filter(d => d.hospital === this.hsUI.hosp) : this.hsDatedDocs; },
+        hsHospNames() { return Array.from(new Set(this.hsAllDocs.map(d => d.hospital))).sort((a, b) => a.localeCompare(b, 'th')); },
+        hsTotals() { const a = this.hsFilteredDocs; return { docs: a.length, value: a.reduce((x, d) => x + d.total, 0), paid: a.reduce((x, d) => x + d.paid, 0), owed: a.reduce((x, d) => x + d.owed, 0) }; },
+        hsSelIds() { const ok = new Set(this.hsFilteredDocs.map(d => d.id)); return Object.keys(this.hsUI.sel).filter(k => this.hsUI.sel[k] && ok.has(k)); },
+        hsAllSel() { return this.hsFilteredDocs.length > 0 && this.hsSelIds.length === this.hsFilteredDocs.length; },
+        hsByHosp() {
+            const m = {}; this.hsDatedDocs.forEach(d => { const h = m[d.hospital] || (m[d.hospital] = { name: d.hospital, docs: 0, value: 0, paid: 0, owed: 0, unpaidDocs: 0, lastFu: null }); h.docs++; h.value += d.total; h.paid += d.paid; h.owed += d.owed; if (d.owed > 0.005) h.unpaidDocs++; });
+            (this.hs.followups || []).forEach(r => { const h = m[r[2]]; if (h && (!h.lastFu || String(r[3]) > h.lastFu.date)) h.lastFu = { date: r[3], note: r[5] || '' }; });
+            return Object.values(m).sort((a, b) => b.owed - a.owed);
+        },
+        hsItemRows() {
+            const m = {}; this.hsFilteredDocs.forEach(d => d.items.forEach(i => { const r = m[i.pid] || (m[i.pid] = { pid: i.pid, name: i.name, unit: i.unit, core: i.core, qty: 0, value: 0, docs: 0, hostSet: {} }); r.qty += i.qty; r.value += i.value; r.docs++; r.hostSet[d.hospital] = 1; }));
+            let rows = Object.values(m).map(r => Object.assign(r, { hosps: Object.keys(r.hostSet) }));
+            const f = this.hsUI.itemFilter; if (f === 'core') rows = rows.filter(r => r.core); else if (f === 'non') rows = rows.filter(r => !r.core);
+            return rows.sort((a, b) => b.value - a.value);
+        },
+        hsCoreUnused() { const used = new Set(); this.hsFilteredDocs.forEach(d => d.items.forEach(i => used.add(String(i.pid)))); const pm = {}; this.products.forEach(p => { pm[p.id] = p.name; }); return Array.from(this.hsCoreSet).filter(id => !used.has(id)).map(id => pm[id] || id); },
+        hsCoreChoices() { const q = (this.hsUI.coreSearch || '').trim().toLowerCase(); return this.products.filter(p => !q || String(p.name).toLowerCase().includes(q) || this.hsUI.coreEdit.includes(p.id)).slice(0, 500); },
+        hsDetailDoc() { return this.hsAllDocs.find(d => d.id === this.hsDetail.docId) || null; },
         evidenceMap() { const m = {}; (this.rawData.docEvidence || []).forEach(r => { m[r[0]] = { no: r[1] || '', date: r[2] || '' }; }); return m; },
         // ===== เพิ่มรายการยาเข้าใบเดิม =====
         canAddItem() { const d = this.docView; return !!d && (d.type === 'IN' || d.type === 'OUT') && !/^(RCV-|ISS-|STK-|ADJ-)/.test(String(d.id || '')); },
@@ -3319,6 +3641,9 @@ const app = createApp({
         poTotal() { return this.po.items.reduce((a, i) => a + (parseFloat(i.qty) || 0) * (parseFloat(i.unitPrice) || 0), 0); },
         disabledSet() { const s = new Set(); (this.rawData.disabledItems || []).forEach(r => s.add(String(r[0]) + '|' + r[1])); return s; },
         disabledCountHere() { let n = 0; this.disabledSet.forEach(k => { if (k.endsWith('|' + this.globalStock)) n++; }); return n; },
+        canOpStock() { const g = this.globalStock; if (!g || g === 'ALL' || g === 'Pending') return false; if (this.isEditor) return true; return g === 'MAIN' ? this.canMainOps : this.hasAccess(g); },
+        scAddLots() { return this.allLots.filter(l => l.pid === this.scProdId && l.stockLoc === this.globalStock && l.qty > 0.01).sort((a, b) => String(a.exp || '9999').localeCompare(String(b.exp || '9999'))); },
+        scAddKnownLots() { const m = {}; this.allLots.filter(l => l.pid === this.scProdId && l.lot && l.lot !== 'WAITING' && l.lot !== 'ADJUST').forEach(l => { if (!m[l.lot] || l.stockLoc === this.globalStock) m[l.lot] = l; }); return Object.values(m); },
         reqProdList() { return this.globalStock === 'ALL' ? this.products : this.products.filter(p => !this.disabledSet.has(p.id + '|' + this.globalStock)); },
         stkItemRows() {
             const q = String(this.stkItems.search || '').toLowerCase(), loc = this.globalStock, ch = this.stkItems.changes;
@@ -3430,7 +3755,7 @@ const app = createApp({
                 const lk = t.productId + '|' + t.lotNo, l = st.lots[lk] || (st.lots[lk] = { pid: t.productId, lot: t.lotNo, exp: t.expDate, qty: 0, up: t.unitPrice });
                 l.qty += sgn * t.qty; if (t.unitPrice) l.up = t.unitPrice;
                 const ds = String(t.date || '').slice(0, 10), tm = new Date(ds).getTime();
-                if (!isNaN(tm)) {
+                if (!isNaN(tm) && t.note !== '__EMG__') {   // รายการที่เคยเบิกก่อนตรวจรับ (เคลียร์แล้ว) นับเฉพาะยอดคงเหลือ ไม่โชว์เป็นความเคลื่อนไหว
                     if (tm > st.last) st.last = tm;
                     const sh = this.isShelfRow(t);
                     if (tm >= d7) st.tx7++;
@@ -3557,6 +3882,18 @@ const app = createApp({
             }); 
             return Object.values(lots); 
         },
+        // Lot ที่ยัง "รอตรวจรับ" และยังไม่ถูกเบิกก่อน (หักรายการจ่ายที่ตัดจาก Pending ไปแล้ว)
+        pendingSourceLots() {
+            const m = {};
+            this.transactions.forEach(t => {
+                const isIn = t.type === 'IN' && t.status === 'Pending', isOut = t.type === 'OUT' && t.stockLocation === 'Pending' && t.status === 'Completed';
+                if (!isIn && !isOut) return;
+                const k = t.productId + '|' + t.lotNo;
+                if (!m[k]) { const p = this.products.find(x => x.id == t.productId); m[k] = { pid: t.productId, productName: p ? p.name : t.productId, lot: t.lotNo, exp: t.expDate, unitPrice: t.unitPrice, qty: 0, stockLoc: 'Pending' }; }
+                if (isIn) { m[k].qty += t.qty; if (t.expDate) m[k].exp = t.expDate; if (t.unitPrice) m[k].unitPrice = t.unitPrice; } else m[k].qty -= t.qty;
+            });
+            return Object.values(m).sort((a, b) => new Date(a.exp || '2099-01-01') - new Date(b.exp || '2099-01-01'));
+        },
         allPendingLots() { 
             let lots = {}; 
             this.transactions.filter(t => t.status === 'Pending').forEach(t => { 
@@ -3590,7 +3927,8 @@ const app = createApp({
 
         availableLotsOut() { 
             if (!this.tempOut.productId) return []; 
-            let targetLots = this.tempOut.stockSource === 'Pending' ? this.allPendingLots : this.allLots; 
+            if (this.tempOut.stockSource === 'Pending') return this.pendingSourceLots.filter(l => l.pid === this.tempOut.productId && l.qty > 0.0001);
+            let targetLots = this.allLots; 
             // ตอนจ่ายยา ให้เลือก Lot เฉพาะคลังต้นทางที่กำลังจะตัดเท่านั้น
             return targetLots.filter(l => l.pid === this.tempOut.productId && l.qty > 0 && (l.stockLoc === this.tempOut.stockSource || this.tempOut.stockSource === 'ALL')).sort((a, b) => new Date(a.exp) - new Date(b.exp)); 
         },
@@ -3616,7 +3954,7 @@ const app = createApp({
                 const combined = t.type === 'OUT' && !!mainOut[id];
                 if (this.globalStock !== 'ALL') {
                     if (combined) { if (this.globalStock !== 'MAIN') return; }
-                    else if (loc !== this.globalStock) return;
+                    else if (loc !== this.globalStock && !(this.globalStock === 'MAIN' && loc === 'Pending')) return;
                 }
                 if (!g[id]) {
                     // รับเข้า (IN) จากบริษัท: เลขที่เอกสาร = "หมายเลขเอกสาร (ระบบราชการ)" ที่กรอกตอนตรวจรับ
@@ -4232,6 +4570,7 @@ const app = createApp({
         },
         
         navTo(pageName, stockLoc) {
+            if (pageName === 'hospSupport' && !this.canMainOps) { this.toast('สิทธิ์นี้สำหรับ Admin/God และผู้รับผิดชอบคลังใหญ่'); return; }
             if (pageName === 'poCreate' && !this.canMainOps) { this.toast('สิทธิ์นี้สำหรับ Admin/God และผู้รับผิดชอบคลังใหญ่'); return; }
             if (((pageName === 'inspect' && stockLoc === 'MAIN') || pageName === 'clearEmg') && !this.canMainOps) { this.toast('สิทธิ์นี้สำหรับผู้ดูแล (Admin/God) และผู้รับผิดชอบคลังยาใหญ่เท่านั้น'); return; }
             if (stockLoc !== this.globalStock && (this.cartRec.length || this.cartOpen.length || this.cartReq.length || this.subCart.length || this.cartStockTake.length)) {
@@ -4249,6 +4588,7 @@ const app = createApp({
             }
             if (pageName === 'poCreate' && !this.po.poId && !this.po.vendor) this.po.vendor = this.lastReceiveVendor;
             if (pageName === 'activityLog') this.loadLogs();
+            if (pageName === 'hospSupport') this.loadHosp();
             this.$nextTick(() => { if (pageName === 'dashboard') this.renderCharts(); if (['stockOut', 'stockTake'].includes(pageName)) this.initTomSelects(); });
         },
 
@@ -4328,6 +4668,45 @@ const app = createApp({
                 if (res) { this.toast('ลบรายการแล้ว'); await this.loadData(); }
             } });
         },
+        openScAdd() {
+            const loc = this.globalStock;
+            this.scAdd = { show: true, kind: 'OUT', date: new Date().toISOString().slice(0, 10), docNo: '', entity: '', lotIdx: -1, lot: '', exp: '', qty: 1, unitPrice: 0, total: 0, note: '' };
+        },
+        setScAddKind(k) { const a = this.scAdd; a.kind = k; a.lotIdx = -1; a.lot = ''; a.exp = ''; a.unitPrice = 0; a.total = 0; },
+        pickScAddLot() { const a = this.scAdd, l = this.scAddLots[a.lotIdx]; if (l) { a.lot = l.lot; a.exp = l.exp || ''; a.unitPrice = l.unitPrice || 0; this.recalcScAdd(); } else { a.lot = ''; a.exp = ''; a.unitPrice = 0; a.total = 0; } },
+        pickScAddLotIn() { const a = this.scAdd, l = this.scAddKnownLots.find(x => x.lot === a.lot); if (l) { a.exp = l.exp || a.exp; if (!a.unitPrice) a.unitPrice = l.unitPrice || 0; this.recalcScAdd(); } },
+        recalcScAdd() { const a = this.scAdd; a.total = Math.round((parseFloat(a.qty) || 0) * (parseFloat(a.unitPrice) || 0) * 100) / 100; },
+        askScAdd() {
+            const a = this.scAdd, loc = this.globalStock, q = parseFloat(a.qty), u = parseFloat(a.unitPrice), t = parseFloat(a.total);
+            if (!a.date) return alert('ระบุวันที่');
+            if (!(q > 0)) return alert('จำนวนต้องมากกว่า 0');
+            if (a.kind === 'IN') {
+                if (!String(a.lot || '').trim()) return alert('ต้องระบุ Lot');
+                if (!a.exp) return alert('ต้องระบุวันหมดอายุ');
+                if (a.unitPrice === '' || a.unitPrice === null || isNaN(u) || u < 0) return alert('ต้องระบุราคาทุน/หน่วย (ใส่ 0 ได้ถ้าเป็นของบริจาค)');
+                if (!a.entity) return alert('ระบุแหล่งที่มา');
+            } else {
+                if (a.lotIdx < 0) return alert('ต้องเลือก Lot ที่จะตัดสต็อก');
+                const l = this.scAddLots[a.lotIdx]; if (l && q > l.qty + 0.0001) return alert('จำนวนเกินยอดคงเหลือของ Lot นี้ (' + this.formatNumber(l.qty) + ')');
+                if (a.kind === 'OUT' && (!a.docNo || !a.entity)) return alert('ระบุเลขที่เอกสารและปลายทาง');
+            }
+            const kindTxt = a.kind === 'IN' ? 'รับเข้า' : (a.kind === 'SHELF' ? 'จ่ายขึ้น Shelf' : 'จ่ายออก');
+            this.askConfirm({ title: 'ยืนยันบันทึก' + kindTxt + '?', lines: [this.getProductName(this.scProdId) + ' — คลัง ' + this.locLabel(loc), 'Lot ' + a.lot + ' · Exp ' + (a.exp || '-') + ' · ' + this.formatNumber(q) + ' × ' + this.formatNumber(u) + ' = ' + this.formatCurrency(t), 'ยอดคงเหลือ/Stock Card จะเปลี่ยนตามทันที'], okText: 'ยืนยัน', onOk: () => this.doScAdd() });
+        },
+        async doScAdd() {
+            const a = this.scAdd, loc = this.globalStock, now = new Date(), z = n => String(n).padStart(2, '0');
+            const stamp = now.getFullYear() + z(now.getMonth() + 1) + z(now.getDate()) + '-' + z(now.getHours()) + z(now.getMinutes()) + z(now.getSeconds());
+            const isIn = a.kind === 'IN', shelf = a.kind === 'SHELF';
+            const doc = shelf ? 'SHF-' + stamp : (a.docNo || ('SC-' + stamp));
+            const ent = shelf ? 'Shelf (' + loc + ')' : a.entity;
+            const note = shelf ? ('จ่ายขึ้น Shelf' + (a.note ? ' | ' + a.note : '')) : ((isIn ? 'รับเข้า (บันทึกจาก Stock Card)' : 'เบิกจริง') + (a.note ? ' | ' + a.note : ''));
+            const p = this.products.find(x => x.id === this.scProdId);
+            this.loading = true;
+            const res = await this.apiCall('saveBatchTransaction', { user: this.currentUser.name, type: isIn ? 'IN' : 'OUT', items: [{ date: a.date, refDoc: doc, vendorOrDept: ent, productId: this.scProdId, lotNo: a.lot, expDate: a.exp, qty: parseFloat(a.qty), unitPrice: parseFloat(a.unitPrice) || 0, totalPrice: parseFloat(a.total) || 0, status: 'Completed', note: note, packSize: p ? p.packSize : 1, stockLocation: loc }] });
+            this.loading = false;
+            if (res) { this.scAdd.show = false; this.toast('บันทึกรายการแล้ว'); await this.loadData(); this.$nextTick(() => this.initTomSelects()); }
+        },
+        cleanNote(n) { return String(n == null ? '' : n).replace(/\s*\(เคลียร์ ฉ\.\)/g, '').trim(); },
         isItemDisabled(pid, loc) { return this.disabledSet.has(String(pid) + '|' + loc); },
         openStkItems() { this.stkItems = { show: true, search: '', filter: 'all', changes: {} }; },
         setStkItem(id, v) { this.stkItems.changes = { ...this.stkItems.changes, [id]: !!v }; },
@@ -4925,6 +5304,101 @@ const app = createApp({
         // ================= 🔫 บาร์โค้ด =================
         normCode(c) { c = String(c == null ? '' : c).trim(); return /^\d+$/.test(c) ? c.replace(/^0+/, '') : c; },
         barcodesOf(pid) { return (this.rawData.barcodes || []).filter(r => String(r[1]) === String(pid)).map(r => String(r[0])); },
+
+        // ---------- สนับสนุนยา รพ.ชุมชน: methods ----------
+        hsShort(n) { const r = this.hsInfoMap[n]; if (r && r.short) return r.short; return String(n || '').replace(/^โรงพยาบาล/, 'รพ.'); },
+        hsStatusText(s) { return { Unpaid: 'ค้างชำระ', Partial: 'ชำระบางส่วน', Paid: 'เคลียร์แล้ว', Waived: 'งดเรียกเก็บ' }[s] || s; },
+        hsStatusClass(s) { return { Unpaid: 'bg-danger', Partial: 'bg-warning text-dark', Paid: 'bg-success', Waived: 'bg-secondary' }[s] || 'bg-secondary'; },
+        hsSetFY() { const y = parseInt(this.hsUI.fy); if (!y) return; this.hsUI.from = (y - 544) + '-10-01'; this.hsUI.to = (y - 543) + '-09-30'; },
+        hsToggleAll(on) { const sel = {}; if (on) this.hsFilteredDocs.forEach(d => { sel[d.id] = true; }); this.hsUI.sel = sel; },
+        hsBuildEdit() {
+            const info = this.hsInfoMap, names = new Set(Object.keys(info));
+            this.transactions.forEach(t => { if (t.type === 'OUT' && t.stockLocation === 'MAIN' && /โรงพยาบาล|รพ\./.test(String(t.vendorOrDept || ''))) names.add(t.vendorOrDept); });
+            this.hsUI.hospEdit = Array.from(names).sort((a, b) => a.localeCompare(b, 'th')).map(n => ({ name: n, on: info[n] ? info[n].on : !/จิตเวชเลย/.test(n), short: info[n] ? info[n].short : '' }));
+            this.hsUI.coreEdit = (this.hs.core || []).map(String);
+        },
+        async loadHosp() {
+            const res = await this.apiCall('getHospSupport', { username: this.currentUser.user });
+            if (res) { this.hs = { loaded: true, hospitals: res.hospitals || [], core: res.core || [], settle: res.settle || [], files: res.files || [], followups: res.followups || [] }; this.hsBuildEdit(); }
+            if (!this.hsUI.from && !this.hsUI.to) { this.hsUI.fy = this.fiscalYearOf(new Date().toISOString().slice(0, 10)); this.hsSetFY(); }
+        },
+        async saveHsHospitals() {
+            const items = this.hsUI.hospEdit.map(c => ({ deptName: c.name, short: c.short, isHospital: c.on }));
+            const r = await this.apiCall('saveHospHospitals', { username: this.currentUser.user, items: items }); if (r) { this.toast(r); await this.loadHosp(); }
+        },
+        async saveHsCore() {
+            const r = await this.apiCall('saveHospCore', { username: this.currentUser.user, productIds: this.hsUI.coreEdit }); if (r) { this.toast(r); await this.loadHosp(); }
+        },
+        openHsSettle(ids) {
+            const docs = this.hsAllDocs.filter(d => ids.includes(d.id)); if (!docs.length) return;
+            const one = docs.length === 1 ? docs[0] : null, s = one && one.settle, std = ['สสจ.เลย เคลียร์ให้', 'รพ. จ่ายเอง'];
+            const pb = s ? s.paidBy : 'สสจ.เลย เคลียร์ให้';
+            this.hsSettle = { show: true, docs: docs.map(d => d.id), total: docs.reduce((a, d) => a + d.total, 0), mode: s ? s.status : 'Paid', amount: s ? s.amount : 0, paidBy: std.includes(pb) ? pb : 'งบประมาณอื่น (ระบุ)', paidOther: std.includes(pb) ? '' : pb, payDate: s ? s.payDate : new Date().toISOString().slice(0, 10), evNo: s ? s.evNo : '', evDate: s ? s.evDate : '', note: s ? s.note : '', file: null, busy: false };
+        },
+        readFileB64(file) { return new Promise((resolve, reject) => { const fr = new FileReader(); fr.onload = () => resolve(String(fr.result).split(',')[1] || ''); fr.onerror = () => reject(new Error('อ่านไฟล์ไม่ได้')); fr.readAsDataURL(file); }); },
+        async hsUploadTo(file, docIds) {
+            if (file.size > 6 * 1024 * 1024) { this.toast('ไฟล์ใหญ่เกิน 6 MB', 'err'); return false; }
+            const b64 = await this.readFileB64(file);
+            return !!(await this.apiCall('uploadHospFile', { username: this.currentUser.user, docIds: docIds, fileName: file.name, base64: b64 }));
+        },
+        async doHsSettle() {
+            const f = this.hsSettle; if (f.busy) return;
+            const by = f.paidBy === 'งบประมาณอื่น (ระบุ)' ? (f.paidOther || '').trim() : f.paidBy;
+            if (!by) { this.toast('ระบุแหล่งงบประมาณ/ผู้ชำระ', 'err'); return; }
+            if (f.mode === 'Partial' && !(f.amount > 0 && f.amount < f.total)) { this.toast('ยอดชำระบางส่วนต้องมากกว่า 0 และน้อยกว่ายอดเบิก', 'err'); return; }
+            const docMap = {}; this.hsAllDocs.forEach(d => { docMap[d.id] = d; });
+            const items = f.docs.map(id => ({ docId: id, status: f.mode, amount: f.mode === 'Paid' ? docMap[id].total : (f.mode === 'Partial' ? f.amount : 0) }));
+            f.busy = true;
+            try {
+                const r = await this.apiCall('saveHospSettlement', { username: this.currentUser.user, items: items, paidBy: by, payDate: f.payDate, evidenceNo: f.evNo, evidenceDate: f.evDate, note: f.note });
+                if (!r) return;
+                if (f.file) { const ok = await this.hsUploadTo(f.file, f.docs); if (!ok) this.toast('บันทึกการเคลียร์แล้ว แต่แนบไฟล์ไม่สำเร็จ', 'err'); }
+                this.toast(r); this.hsSettle.show = false; this.hsUI.sel = {}; await this.loadHosp();
+            } finally { f.busy = false; }
+        },
+        cancelHsSettle(id) {
+            this.askConfirm({ title: 'ยกเลิกการเคลียร์เงิน?', lines: ['ใบเบิก ' + id, 'จะกลับเป็น “ค้างชำระ” (ไฟล์แนบและบันทึกติดตามยังอยู่)'], danger: true, okText: 'ยกเลิกการเคลียร์', onOk: async () => { const r = await this.apiCall('deleteHospSettlement', { username: this.currentUser.user, docId: id }); if (r) { this.toast(r); await this.loadHosp(); } } });
+        },
+        openHsDetail(id) { this.hsDetail = { show: true, docId: id }; },
+        async hsUploadOne(ev, docId) {
+            const file = ev.target.files && ev.target.files[0]; if (!file) return;
+            if (await this.hsUploadTo(file, [docId])) { this.toast('แนบไฟล์แล้ว'); await this.loadHosp(); }
+            ev.target.value = '';
+        },
+        async hsOpenFile(f) {
+            const r = await this.apiCall('getHospFile', { username: this.currentUser.user, fileId: f.id }); if (!r) return;
+            const bin = atob(r.base64), arr = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+            const url = URL.createObjectURL(new Blob([arr], { type: r.mime })); const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.download = r.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+        },
+        hsDelFile(f) {
+            this.askConfirm({ title: 'ลบไฟล์แนบ?', lines: [f.name], danger: true, okText: 'ลบ', onOk: async () => { const r = await this.apiCall('deleteHospFile', { username: this.currentUser.user, fileId: f.id }); if (r) { this.toast(r); await this.loadHosp(); } } });
+        },
+        openHsFu(hospital, docId) { this.hsFu = { show: true, hospital: hospital, docId: docId || '', date: new Date().toISOString().slice(0, 10), method: 'โทรศัพท์', note: '' }; },
+        async doHsFu() {
+            const f = this.hsFu; if (!f.note.trim()) { this.toast('ระบุรายละเอียดการติดตาม', 'err'); return; }
+            const r = await this.apiCall('saveHospFollowup', { username: this.currentUser.user, hospital: f.hospital, docId: f.docId, date: f.date, method: f.method, note: f.note });
+            if (r) { this.toast(r); this.hsFu.show = false; await this.loadHosp(); }
+        },
+        delHsFu(f) {
+            this.askConfirm({ title: 'ลบบันทึกการติดตาม?', lines: [f.note], danger: true, okText: 'ลบ', onOk: async () => { const r = await this.apiCall('deleteHospFollowup', { username: this.currentUser.user, id: f.id }); if (r) { this.toast(r); await this.loadHosp(); } } });
+        },
+        hsSaveXlsx(aoa, sheet, name) { const ws = XLSX.utils.aoa_to_sheet(aoa); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, sheet); XLSX.writeFile(wb, name + '.xlsx'); },
+        exportHsDocs() {
+            const aoa = [['ลำดับ', 'เลขที่ใบเบิก', 'วันที่ใบเบิก', 'เลขที่เอกสารขอรับฯ', 'ลงวันที่', 'รพ.', 'ยอดเบิก', 'รายการนอกข้อตกลง', 'สถานะ', 'ยอดชำระ', 'ค้างชำระ', 'เคลียร์โดย', 'วันที่เคลียร์', 'เลขที่หลักฐาน']];
+            this.hsFilteredDocs.forEach((d, i) => aoa.push([i + 1, d.id, d.date, d.evNo, d.evDate, this.hsShort(d.hospital), d.total, d.nonCore, this.hsStatusText(d.status), d.paid, d.owed, d.settle ? d.settle.paidBy : '', d.settle ? d.settle.payDate : '', d.settle ? d.settle.evNo : '']));
+            aoa.push(['', '', '', '', '', 'รวม', this.hsTotals.value, '', '', this.hsTotals.paid, this.hsTotals.owed]);
+            this.hsSaveXlsx(aoa, 'ใบเบิก', 'สนับสนุน_รพ_ใบเบิก_' + (this.hsUI.fy || 'ช่วงเลือก'));
+        },
+        exportHsHosp() {
+            const aoa = [['รพ.', 'จำนวนใบเบิก', 'ยอดเบิก', 'เคลียร์แล้ว', 'ค้างชำระ', 'ใบเบิกค้าง', 'ติดตามล่าสุด']];
+            this.hsByHosp.forEach(h => aoa.push([this.hsShort(h.name), h.docs, h.value, h.paid, h.owed, h.unpaidDocs, h.lastFu ? h.lastFu.date + ' ' + h.lastFu.note : '']));
+            this.hsSaveXlsx(aoa, 'รายโรงพยาบาล', 'สนับสนุน_รพ_สรุปรายแห่ง_' + (this.hsUI.fy || 'ช่วงเลือก'));
+        },
+        exportHsItems() {
+            const aoa = [['รายการยา', 'ประเภท', 'จำนวน', 'หน่วย', 'มูลค่า', 'จำนวนใบเบิก', 'รพ.ที่เบิก']];
+            this.hsItemRows.forEach(r => aoa.push([r.name, this.hsCoreSet.size ? (r.core ? 'ในรายการ' : 'นอกรายการ (ผ่อนผัน)') : '', r.qty, r.unit, r.value, r.docs, r.hosps.map(this.hsShort).join(', ')]));
+            this.hsSaveXlsx(aoa, 'รายการยา', 'สนับสนุน_รพ_รายการยา_' + (this.hsUI.fy || 'ช่วงเลือก'));
+        },
         toast(msg, type) {
             this.scanToast = { msg: msg, type: type || 'ok' };
             clearTimeout(this.scanToastTimer);
