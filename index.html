@@ -18,6 +18,11 @@
 
     <style>
         body { font-family: 'Prompt', sans-serif; background-color: #f4f6f9; font-size: 0.95rem; overflow-x: hidden; }
+        .po-edit { border: 0; background: transparent; width: 100%; text-align: center; font: inherit; padding: 0; -moz-appearance: textfield; }
+        .po-edit::-webkit-outer-spin-button, .po-edit::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .po-edit:hover, .po-edit:focus { outline: 1px dashed #0d6efd; background: #eef5ff; }
+        .po-show { display: none; }
+        @media print { .po-edit { display: none; } .po-show { display: inline; } }
         .guest-wrap { min-height: 100vh; width: 100%; background: #f1f4f9; }
         .guest-card:hover { box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important; }
         .login-bg { background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); }
@@ -221,7 +226,7 @@
             </div>
             
             <div class="px-3 py-3 border-bottom border-secondary bg-dark bg-opacity-25 text-center">
-                <div class="small text-info mb-1"><i class="bi bi-person-circle"></i> {{ currentUser.name }}</div>
+                <div class="small text-info mb-1" id="btnMyAccount" style="cursor:pointer; text-decoration:underline dotted;" @click="openMyAccount" title="คลิกเพื่อเปลี่ยน Username / Password ของตนเอง"><i class="bi bi-person-circle"></i> {{ currentUser.name }} <i class="bi bi-pencil-square ms-1"></i></div>
                 <div class="badge bg-secondary mb-2">{{ currentUser.role }}</div>
                 
                 <div class="mt-2 text-start">
@@ -979,6 +984,83 @@
                 </div>
             </div>
 
+            <!-- แก้ไขรายการใน Stock Card -->
+            <div v-if="scEdit.show" class="modal-overlay-bg" style="z-index: 2600;">
+                <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 560px; max-height: 94vh; overflow-y: auto; border-radius: 12px;">
+                    <div class="d-flex justify-content-between"><h5 class="fw-bold text-primary mb-1"><i class="bi bi-pencil-square me-2"></i>แก้ไขรายการ ({{ scEdit.row.type === 'IN' ? 'รับเข้า' : (scEdit.isShelf ? 'จ่ายขึ้น Shelf' : 'จ่ายออก') }})</h5><button class="btn-close" @click="scEdit.show = false"></button></div>
+                    <div class="small text-muted mb-3">{{ getProductName(scEdit.row.productId) }} · คลัง {{ locLabel(scEdit.row.stockLocation) }}</div>
+                    <div class="row g-2">
+                        <div class="col-6"><label class="small fw-bold text-muted">วันที่</label><input type="date" v-model="scEdit.date" class="form-control form-control-sm" id="scEdDate"></div>
+                        <div class="col-6" v-if="scEdit.docMode !== 'none'"><label class="small fw-bold text-muted">{{ scEdit.docMode === 'bill' ? 'เลขเอกสาร (ระบบราชการ)' : 'เลขที่เอกสาร' }}</label><input v-model.trim="scEdit.docNo" class="form-control form-control-sm"></div>
+                        <div class="col-12"><label class="small fw-bold text-muted">{{ scEdit.row.type === 'IN' ? 'สั่งซื้อจาก (แหล่งที่มา)' : 'จ่ายให้ (ปลายทาง)' }}</label><input list="listDocEntity" v-model="scEdit.entity" class="form-control form-control-sm"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">Lot</label><input v-model="scEdit.lot" class="form-control form-control-sm"></div>
+                        <div class="col-6"><label class="small fw-bold text-muted">วันหมดอายุ</label><exp-picker v-model="scEdit.exp"></exp-picker></div>
+                        <div class="col-4"><label class="small fw-bold text-muted">{{ scEdit.row.type === 'IN' ? 'จำนวนรับเข้า' : 'จำนวนจ่ายออก' }}</label><input type="number" step="any" min="0" v-model.number="scEdit.qty" @input="recalcScTotal" class="form-control form-control-sm text-end"></div>
+                        <div class="col-4"><label class="small fw-bold text-muted">ราคา/หน่วย</label><input type="number" step="any" min="0" v-model.number="scEdit.unitPrice" @input="recalcScTotal" class="form-control form-control-sm text-end"></div>
+                        <div class="col-4"><label class="small fw-bold text-muted">มูลค่ารวม</label><input type="number" step="any" min="0" v-model.number="scEdit.total" class="form-control form-control-sm text-end fw-bold"></div>
+                    </div>
+                    <div v-if="scEdit.docCount > 1" class="alert alert-warning py-1 px-2 mt-3 mb-0 small">วันที่ / เลขเอกสาร / ปลายทาง เป็นข้อมูลระดับใบ — การแก้ไขจะมีผลกับทุกรายการในใบเดียวกัน ({{ scEdit.docCount }} รายการ)</div>
+                    <div class="d-flex gap-2 mt-3">
+                        <button @click="askScSave" class="btn btn-primary fw-bold flex-grow-1"><i class="bi bi-check2"></i> บันทึก</button>
+                        <button @click="scEdit.show = false" class="btn btn-outline-secondary">ยกเลิก</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- เปิด/ปิดใช้งานรายการสินค้าเฉพาะคลัง -->
+            <div v-if="stkItems.show" class="modal-overlay-bg" style="z-index: 2600;">
+                <div class="card p-3 shadow-lg mx-2" style="width: 100%; max-width: 760px; max-height: 92vh; border-radius: 12px;">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div><h5 class="fw-bold text-primary mb-0"><i class="bi bi-toggles me-2"></i>เปิด/ปิดใช้งานรายการ: {{ locLabel(globalStock) }}</h5>
+                        <div class="small text-muted mb-2">ติ๊กออก = ปิดใช้งานในคลังนี้ (ไม่ถูกดึงใน Auto ขอเบิก / แจ้งเตือนถึงจุดสั่งซื้อ) · คลังอื่นไม่กระทบ</div></div>
+                        <button class="btn-close" @click="stkItems.show = false"></button>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <input v-model="stkItems.search" class="form-control form-control-sm" style="max-width:260px" placeholder="ค้นหาชื่อ/รหัสยา..." id="stkSearch">
+                        <select v-model="stkItems.filter" class="form-select form-select-sm" style="width:auto"><option value="all">ทั้งหมด</option><option value="on">เฉพาะที่ใช้งาน</option><option value="off">เฉพาะที่ปิด</option></select>
+                        <button class="btn btn-sm btn-outline-success" @click="setStkVisible(true)">เปิดทั้งหมดที่แสดง</button>
+                        <button class="btn btn-sm btn-outline-danger" @click="setStkVisible(false)">ปิดทั้งหมดที่แสดง</button>
+                        <span class="small text-muted align-self-center ms-auto">{{ stkItemRows.length }} รายการ</span>
+                    </div>
+                    <div class="table-responsive border rounded" style="overflow-y:auto; max-height:56vh;">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light sticky-top"><tr><th style="width:70px" class="text-center">ใช้งาน</th><th>รหัส</th><th>รายการ</th><th>ประเภท</th></tr></thead>
+                            <tbody>
+                                <tr v-for="r in stkItemRows" :key="r.id" :class="{'text-muted': !r.enabled}">
+                                    <td class="text-center"><input type="checkbox" class="form-check-input" :checked="r.enabled" @change="setStkItem(r.id, $event.target.checked)"></td>
+                                    <td>{{ r.id }}</td><td>{{ r.name }}</td><td>{{ r.objType }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex gap-2 mt-3">
+                        <button class="btn btn-primary fw-bold flex-grow-1" @click="saveStkItems"><i class="bi bi-check2"></i> บันทึก</button>
+                        <button class="btn btn-outline-secondary" @click="stkItems.show = false">ยกเลิก</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- เปลี่ยน username / password ของตนเอง -->
+            <div v-if="myAcc.show" class="modal-overlay-bg" style="z-index: 2600;">
+                <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 440px; border-radius: 12px;">
+                    <h5 class="fw-bold text-primary mb-1"><i class="bi bi-person-gear me-2"></i>บัญชีของฉัน</h5>
+                    <div class="small text-muted mb-3">{{ currentUser.name }} · ปล่อยช่อง "รหัสผ่านใหม่" ว่างไว้ถ้าไม่ต้องการเปลี่ยนรหัสผ่าน</div>
+                    <label class="small fw-bold text-muted">ชื่อผู้ใช้ (Username)</label>
+                    <input v-model.trim="myAcc.newUser" class="form-control mb-2" autocomplete="off">
+                    <label class="small fw-bold text-muted">รหัสผ่านใหม่</label>
+                    <input v-model="myAcc.newPass" type="password" class="form-control mb-2" autocomplete="new-password" placeholder="(ไม่เปลี่ยน)">
+                    <label class="small fw-bold text-muted">ยืนยันรหัสผ่านใหม่</label>
+                    <input v-model="myAcc.newPass2" type="password" class="form-control mb-2" autocomplete="new-password">
+                    <hr class="my-2">
+                    <label class="small fw-bold text-danger">รหัสผ่านปัจจุบัน (จำเป็นเพื่อยืนยัน)</label>
+                    <input v-model="myAcc.curPass" type="password" class="form-control mb-3" autocomplete="current-password" @keyup.enter="saveMyAccount">
+                    <div class="d-flex gap-2">
+                        <button @click="saveMyAccount" class="btn btn-primary fw-bold flex-grow-1"><i class="bi bi-check2"></i> บันทึก</button>
+                        <button @click="myAcc.show = false" class="btn btn-outline-secondary">ยกเลิก</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- หลักฐานที่ใช้เบิก / ส่งคืน (F-SP-011) -->
             <div v-if="evForm.show" class="modal-overlay-bg" style="z-index: 2550;">
                 <div class="card p-4 shadow-lg mx-2" style="width: 100%; max-width: 480px; border-radius: 12px;">
@@ -1464,6 +1546,7 @@
                                     <th class="text-success">รับเข้า (IN)</th>
                                     <th class="text-danger">จ่ายออก (OUT)</th>
                                     <th class="text-primary">ยอดคงเหลือ</th>
+                                    <th v-if="isEditor" class="no-print" style="width:86px">จัดการ</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1476,8 +1559,12 @@
                                     <td class="text-center text-success fw-bold">{{ row.type==='IN' ? formatNumber(row.qty) : '-' }}</td>
                                     <td class="text-center text-danger fw-bold">{{ row.type==='OUT' ? formatNumber(row.qty) : '-' }}</td>
                                     <td class="text-center text-primary fw-bold fs-6">{{ formatNumber(row.runBal) }}</td>
+                                    <td v-if="isEditor" class="text-center text-nowrap no-print">
+                                        <button @click="openScEdit(row)" class="btn btn-sm btn-outline-primary py-0 px-1 sc-edit-btn" title="แก้ไขรายการนี้"><i class="bi bi-pencil"></i></button>
+                                        <button @click="askScDelete(row)" class="btn btn-sm btn-outline-danger py-0 px-1 ms-1" title="ลบรายการนี้"><i class="bi bi-trash"></i></button>
+                                    </td>
                                 </tr>
-                                <tr v-if="stockCardHistory.length===0"><td colspan="8" class="text-center text-muted py-4">ไม่มีประวัติการเคลื่อนไหวในคลังนี้</td></tr>
+                                <tr v-if="stockCardHistory.length===0"><td :colspan="isEditor ? 9 : 8" class="text-center text-muted py-4">ไม่มีประวัติการเคลื่อนไหวในคลังนี้</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1534,7 +1621,7 @@
                         <input v-model="poSign.t1" @change="savePoSign" class="form-control form-control-sm" style="width:110px" placeholder="ตำแหน่ง">
                         <input v-model="poSign.n2" @change="savePoSign" class="form-control form-control-sm" style="width:190px" placeholder="ชื่อผู้เห็นชอบ">
                         <input v-model="poSign.t2" @change="savePoSign" class="form-control form-control-sm" style="width:130px" placeholder="ตำแหน่ง">
-                        <label class="form-check mb-0 small"><input type="checkbox" class="form-check-input" v-model="printPoPack"> แสดงเป็นหน่วยแพ็ค</label>
+                        <span class="small text-muted"><i class="bi bi-pencil"></i> คลิกตัวเลขในตารางเพื่อแก้ไขก่อนพิมพ์ได้</span>
                         <span class="ms-auto">
                             <button class="btn btn-primary btn-sm fw-bold me-2" onclick="window.print()"><i class="bi bi-printer"></i> พิมพ์เอกสาร</button>
                             <button class="btn btn-secondary btn-sm fw-bold" @click="closePrintPO">ปิดหน้าต่าง</button>
@@ -1566,13 +1653,13 @@
                                     <td style="border:1px solid #000; padding:2px 4px;">{{ r.name }}</td>
                                     <td style="border:1px solid #000; text-align:center;">{{ r.vendor }}</td>
                                     <td style="border:1px solid #000; text-align:center;">{{ r.unitLabel }}</td>
-                                    <td style="border:1px solid #000; text-align:right; padding-right:4px;">{{ poFmt(r.price, 2, 2) }}</td>
-                                    <td style="border:1px solid #000; text-align:center;">{{ poFmt(r.usage, 0, 1) }}</td>
-                                    <td style="border:1px solid #000; text-align:center;">{{ poFmt(r.rate, 0, 0) }}</td>
-                                    <td style="border:1px solid #000; text-align:center;">{{ poFmt(r.min, 0, 1) }}</td>
-                                    <td style="border:1px solid #000; text-align:center;">{{ poFmt(r.max, 0, 1) }}</td>
-                                    <td style="border:1px solid #000; text-align:center;">{{ poFmt(r.onHand, 0, 1) }}</td>
-                                    <td style="border:1px solid #000; text-align:center; font-weight:bold;">{{ poFmt(r.qty, 0, 1) }}</td>
+                                    <td style="border:1px solid #000; text-align:right; padding-right:4px;"><input type="number" step="0.01" class="po-edit" style="text-align:right" :value="r.price" @change="setPoOv(r.pid, 'price', $event.target.value)"><span class="po-show">{{ poFmt(r.price, 2, 2) }}</span></td>
+                                    <td style="border:1px solid #000; text-align:center;"><input type="number" class="po-edit" :value="r.usage" @change="setPoOv(r.pid, 'usage', $event.target.value)"><span class="po-show">{{ poFmt(r.usage, 0, 0) }}</span></td>
+                                    <td style="border:1px solid #000; text-align:center;"><input type="number" class="po-edit" :value="r.rate" @change="setPoOv(r.pid, 'rate', $event.target.value)"><span class="po-show">{{ poFmt(r.rate, 0, 0) }}</span></td>
+                                    <td style="border:1px solid #000; text-align:center;"><input type="number" class="po-edit" :value="r.min" @change="setPoOv(r.pid, 'min', $event.target.value)"><span class="po-show">{{ poFmt(r.min, 0, 0) }}</span></td>
+                                    <td style="border:1px solid #000; text-align:center;"><input type="number" class="po-edit" :value="r.max" @change="setPoOv(r.pid, 'max', $event.target.value)"><span class="po-show">{{ poFmt(r.max, 0, 0) }}</span></td>
+                                    <td style="border:1px solid #000; text-align:center;"><input type="number" class="po-edit" :value="r.onHand" @change="setPoOv(r.pid, 'onHand', $event.target.value)"><span class="po-show">{{ poFmt(r.onHand, 0, 0) }}</span></td>
+                                    <td style="border:1px solid #000; text-align:center; font-weight:bold;"><input type="number" class="po-edit" style="font-weight:bold" :value="r.qty" @change="setPoOv(r.pid, 'qty', $event.target.value)"><span class="po-show">{{ poFmt(r.qty, 0, 0) }}</span></td>
                                     <td style="border:1px solid #000; text-align:right; padding-right:4px; font-weight:bold;">{{ poFmt(r.val, 2, 2) }}</td>
                                 </tr>
                                 <tr>
@@ -1826,7 +1913,7 @@
                             </thead>
                             <tbody>
                                 <!-- สำหรับพิมพ์ เราจะกลับอาเรย์ให้เรียงจาก เก่า -> ใหม่ ตามหลักการบัญชี F-SP-018 -->
-                                <tr v-for="row in [...stockCardHistory].reverse()" style="height: 28px;">
+                                <tr v-for="row in stockCardHistory" style="height: 28px;">
                                     <td style="border: 1px solid #000; text-align: center;">{{ formatThaiDate(row.date.split(' ')[0]) }}</td>
                                     <td style="border: 1px solid #000; text-align: center;">{{ scDocOf(row) }} <span v-if="row.stockLocation === 'Pending' || (row.note && row.note.includes('เคลียร์ ฉ.'))" style="color: red; font-weight: bold;">(ฉ.)</span></td>
                                     <td style="border: 1px solid #000; padding-left: 6px;">{{ row.vendorOrDept || '-' }}</td>
@@ -1864,13 +1951,14 @@
                         <button v-if="reqMode==='auto'" type="button" class="btn btn-sm btn-outline-secondary" @click="reqAutoFill()">↻ คำนวณใหม่</button>
                         <span v-if="editingReqId" class="badge bg-warning text-dark">กำลังแก้ไขใบ {{ editingReqId }}</span>
                         <span class="small text-muted">เลือกแบบใดแบบหนึ่งแล้วยังแก้จำนวน/เพิ่ม/ลบรายการได้เสมอ</span>
+                        <button v-if="isEditor && globalStock !== 'ALL'" type="button" class="btn btn-sm btn-outline-dark ms-auto" id="btnStkItems" @click="openStkItems"><i class="bi bi-toggles"></i> เปิด/ปิดใช้งานรายการในคลังนี้ <span v-if="disabledCountHere" class="badge bg-secondary">ปิดอยู่ {{ disabledCountHere }}</span></button>
                     </div>
                     <div class="row g-2 align-items-end">
                         <div class="col-12 col-md-6">
                             <div class="d-flex justify-content-between"><label class="small text-muted fw-bold">ค้นหารายการยา (ชื่อ / บาร์โค้ด)</label>
                             <a href="#" @click.prevent="openBarcodeQuick(tempReq.productName)" class="small text-decoration-none text-success"><i class="bi bi-upc-scan"></i> ผูกบาร์โค้ด</a></div>
                             <input list="listReqProds" v-model="tempReq.productName" @change="onTempReqProdSelect" @keydown.enter.prevent="onTempReqProdSelect" class="form-control border-primary" placeholder="พิมพ์ชื่อยา หรือยิงบาร์โค้ด...">
-                            <datalist id="listReqProds"><option v-for="p in products" :value="p.name">{{ p.barcodeText }}</option></datalist>
+                            <datalist id="listReqProds"><option v-for="p in reqProdList" :value="p.name">{{ p.barcodeText }}</option></datalist>
                             <div v-if="tempReq.productId" class="small text-muted mt-1">คงเหลือในคลังนี้: <b>{{ formatNumber(invQty(tempReq.productId)) }}</b> {{ tempReq.unit }}</div>
                         </div>
                         <div class="col-12 col-md-3">
@@ -1976,9 +2064,9 @@
                                     <td>{{ idx + 1 }}</td>
                                     <td class="text-start fw-bold">{{ item.productName }}</td>
                                     <td><input list="listPoVendors" v-model="item.vendor" class="form-control form-control-sm" :placeholder="po.vendor || 'บริษัท'"></td>
-                                    <td :class="invQty(item.productId) < getLocMinMax(item.productId, 'MAIN').min ? 'text-danger fw-bold' : ''">{{ formatNumber(invQty(item.productId)) }}</td>
-                                    <td>{{ formatNumber(getLocMinMax(item.productId, 'MAIN').min) }}</td>
-                                    <td>{{ formatNumber(getLocMinMax(item.productId, 'MAIN').max) }}</td>
+                                    <td :class="invQty(item.productId) < getLocMinMax(item.productId, 'MAIN').min ? 'text-danger fw-bold' : ''">{{ Math.round(invQty(item.productId)) }}</td>
+                                    <td style="width:90px"><input type="number" min="0" step="1" class="form-control form-control-sm text-center" :value="Math.round(getLocMinMax(item.productId, 'MAIN').min)" @change="setMainMinMax(item.productId, 'min', $event.target.value)" title="แก้ไข Min ของคลังใหญ่ได้ที่นี่"></td>
+                                    <td style="width:90px"><input type="number" min="0" step="1" class="form-control form-control-sm text-center" :value="Math.round(getLocMinMax(item.productId, 'MAIN').max)" @change="setMainMinMax(item.productId, 'max', $event.target.value)" title="แก้ไข Max ของคลังใหญ่ได้ที่นี่"></td>
                                     <td><div class="input-group input-group-sm"><input type="number" min="0" class="form-control text-center fw-bold text-primary" v-model.number="item.qty"><span class="input-group-text">{{ item.unit }}</span></div></td>
                                     <td><input type="number" min="0" step="0.01" class="form-control form-control-sm text-end" v-model.number="item.unitPrice"></td>
                                     <td class="text-end fw-bold">{{ formatNumber((parseFloat(item.qty) || 0) * (parseFloat(item.unitPrice) || 0)) }}</td>
@@ -2724,6 +2812,9 @@ const app = createApp({
             isSidebarOpen: false,
             activeMenu: '',
             currentUser: {},
+            scEdit: { show: false, row: {}, date: '', docNo: '', docMode: 'none', entity: '', lot: '', exp: '', qty: 0, unitPrice: 0, total: 0, docCount: 1, isShelf: false, bill: null, docId: '', itemIds: [] },
+            stkItems: { show: false, search: '', filter: 'all', changes: {} },
+            myAcc: { show: false, newUser: '', newPass: '', newPass2: '', curPass: '' },
             isGuest: false, guestSel: '', guestTab: 'top',
             loginForm: { user: '', pass: '' },
             page: 'dashboard',
@@ -2786,7 +2877,7 @@ const app = createApp({
             
             tempReq: { productName: '', productId: '', qty: 1, unit: '' }, cartReq: [], reqDept: '', reqMode: 'manual', editingReqId: '',
             po: { poId: '', poNo: '', date: new Date().toISOString().slice(0, 10), vendor: '', note: '', status: 'Draft', mode: 'manual', items: [] },
-            tempPo: { productName: '', productId: '', qty: 1, unit: '', unitPrice: 0 }, poSearch: '', printPoDoc: null, printPoPack: true,
+            tempPo: { productName: '', productId: '', qty: 1, unit: '', unitPrice: 0 }, poSearch: '', printPoDoc: null, printPoOv: {},
             poSign: (() => { const d = { n1: 'นางสาวณัฐหทัย ใจทิพย์', t1: 'เจ้าหน้าที่', n2: 'นางสาวประภารัตน์ ลาวัณย์ศิริ', t2: 'หัวหน้าเจ้าหน้าที่' }; try { return Object.assign(d, JSON.parse(localStorage.getItem('jvlPoSign') || '{}')); } catch (e) { return d; } })(),
 
             // --- บันทึกรับเข้าคลังย่อย ---
@@ -3194,24 +3285,29 @@ const app = createApp({
         },
         poPrintData() {
             const d = this.printPoDoc; if (!d) return null;
-            const fy = this.fiscalYearOf(d.date), from = (fy - 544) + '-10-01', to = (fy - 543) + '-09-30';
+            const fy = this.fiscalYearOf(d.date);
+            // อัตราการใช้: ยอดจ่ายออกจากคลังใหญ่ย้อนหลัง 12 เดือนนับถึงวันที่ของใบ PO (หน่วยเดียวกับจำนวนในระบบ)
+            const to = String(d.date).slice(0, 10), dTo = new Date(to), dFrom = new Date(dTo); dFrom.setFullYear(dFrom.getFullYear() - 1);
+            const from = isNaN(dFrom) ? '0000-00-00' : dFrom.toISOString().slice(0, 10);
             const usage = {};
             this.transactions.forEach(t => {
-                if (t.type !== 'OUT' || t.status !== 'Completed' || (t.stockLocation || 'MAIN') !== 'MAIN') return;
+                if (t.type !== 'OUT' || t.status !== 'Completed' || (t.stockLocation || 'MAIN') !== 'MAIN' || this.isShelfRow(t)) return;
                 const dt = String(t.date).slice(0, 10);
-                if (dt >= from && dt <= to) usage[t.productId] = (usage[t.productId] || 0) + t.qty;
+                if (dt > from && dt <= to) usage[t.productId] = (usage[t.productId] || 0) + t.qty;
             });
+            const ov = this.printPoOv || {};
             let sum = 0;
             const rows = d.items.map((it, i) => {
-                const p = this.products.find(x => x.id === it.productId);
-                const ps = this.printPoPack && p && p.packSize > 1 ? p.packSize : 1;
-                const mm = this.getLocMinMax(it.productId, 'MAIN');
-                const u = (usage[it.productId] || 0) / ps;
-                const qty = (parseFloat(it.qty) || 0) / ps, price = (parseFloat(it.unitPrice) || 0) * ps, val = qty * price;
-                sum += val;
-                return { no: i + 1, name: it.productName, vendor: it.vendor || d.vendor || '', unitLabel: ps > 1 ? this.formatNumber(ps) + '/แพ็ค' : (it.unit || ''), price: price,
-                    usage: u, rate: Math.round(u / 12), min: (it.min != null ? it.min : mm.min) / ps, max: (it.max != null ? it.max : mm.max) / ps,
-                    onHand: (it.onHand != null ? it.onHand : this.invQty(it.productId)) / ps, qty: qty, val: val };
+                const mm = this.getLocMinMax(it.productId, 'MAIN'), p = this.products.find(x => x.id === it.productId), o = ov[it.productId] || {};
+                const pick = (k, v) => (o[k] !== undefined && o[k] !== '' && !isNaN(parseFloat(o[k]))) ? parseFloat(o[k]) : v;
+                const price = pick('price', parseFloat(it.unitPrice) || 0);
+                const use = pick('usage', Math.round(usage[it.productId] || 0));
+                const qty = pick('qty', Math.ceil(parseFloat(it.qty) || 0));
+                const val = qty * price; sum += val;
+                const ps = p && p.packSize > 1 ? p.packSize : 1;
+                return { no: i + 1, pid: it.productId, name: it.productName, vendor: this.cleanVendor(it.vendor || d.vendor || ''), unitLabel: ps > 1 ? this.formatNumber(ps) + '/' + (it.unit || '') : (it.unit || ''), price: price,
+                    usage: use, rate: pick('rate', Math.round(use / 12)), min: pick('min', Math.round(parseFloat(mm.min) || 0)), max: pick('max', Math.round(parseFloat(mm.max) || 0)),
+                    onHand: pick('onHand', Math.round(parseFloat(it.onHand != null ? it.onHand : this.invQty(it.productId)) || 0)), qty: qty, val: val };
             });
             const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d.date)) || [];
             const mNames = ['', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
@@ -3221,10 +3317,24 @@ const app = createApp({
             return { rows: rows, sum: sum, fy: fy, monthLabel: monthLabel, stockDate: 'ณ ' + stockDate };
         },
         poTotal() { return this.po.items.reduce((a, i) => a + (parseFloat(i.qty) || 0) * (parseFloat(i.unitPrice) || 0), 0); },
+        disabledSet() { const s = new Set(); (this.rawData.disabledItems || []).forEach(r => s.add(String(r[0]) + '|' + r[1])); return s; },
+        disabledCountHere() { let n = 0; this.disabledSet.forEach(k => { if (k.endsWith('|' + this.globalStock)) n++; }); return n; },
+        reqProdList() { return this.globalStock === 'ALL' ? this.products : this.products.filter(p => !this.disabledSet.has(p.id + '|' + this.globalStock)); },
+        stkItemRows() {
+            const q = String(this.stkItems.search || '').toLowerCase(), loc = this.globalStock, ch = this.stkItems.changes;
+            return this.products.filter(p => p.isActive).map(p => ({ id: p.id, name: p.name, unit: p.unit, objType: p.objType, enabled: (p.id in ch) ? ch[p.id] : !this.disabledSet.has(p.id + '|' + loc) }))
+                .filter(r => (!q || String(r.name).toLowerCase().includes(q) || String(r.id).toLowerCase().includes(q)) && (this.stkItems.filter === 'all' || (this.stkItems.filter === 'on') === r.enabled))
+                .sort((a, b) => String(a.name).localeCompare(String(b.name), 'th'));
+        },
+        lastReceiveVendor() {
+            let best = null;
+            this.transactions.forEach(t => { if (t.type === 'IN' && (t.stockLocation || 'MAIN') === 'MAIN' && this.cleanVendor(t.vendorOrDept) && (!best || String(t.date) >= best.d)) best = { d: String(t.date), v: t.vendorOrDept }; });
+            return best ? best.v : '';
+        },
         lastBuyVendorMap() {
             const m = {};
             this.transactions.forEach(t => {
-                if (t.type !== 'IN' || !t.vendorOrDept || (t.stockLocation || 'MAIN') !== 'MAIN') return;
+                if (t.type !== 'IN' || !this.cleanVendor(t.vendorOrDept) || (t.stockLocation || 'MAIN') !== 'MAIN') return;
                 const cur = m[t.productId];
                 if (!cur || String(t.date) >= cur.d) m[t.productId] = { d: String(t.date), v: t.vendorOrDept };
             });
@@ -3404,7 +3514,7 @@ const app = createApp({
                 let sl = this.stockLevels.find(s => s.productId === i.id && s.stockLocation === this.globalStock);
                 let locMin = sl ? sl.min : (parseFloat(i.min) || 0); // ถ้ายังไม่เคยตั้งค่า ให้ดึงค่ากลางมาใช้ก่อน
                 return { ...i, locMin: locMin, diffMin: locMin - i.qty };
-            }).filter(i => i.isActive && i.qty <= i.locMin); 
+            }).filter(i => i.isActive && !this.isItemDisabled(i.id, this.globalStock) && i.qty <= i.locMin); 
         },
         sortedDashReorderItems() { return this.applySort(this.dashReorderItems); },
         paginatedDashReorderItems() {
@@ -3629,8 +3739,8 @@ const app = createApp({
                 else balance -= q;
                 t.runBal = balance;
             });
-            // กลับด้านให้รายการใหม่สุดอยู่ด้านบน
-            return history.reverse();
+            // เรียงเก่า -> ใหม่ (เหมือนสมุด Stock Card จริง) ยอดคงเหลือล่าสุดอยู่บรรทัดล่างสุด
+            return history;
         },
     },
     watch: {
@@ -3760,7 +3870,7 @@ const app = createApp({
             let csv = ['ว.ด.ป.,เลขเอกสาร,สั่งซื้อจาก/จ่ายให้,ราคา/หน่วย,วันหมดอายุ,รับเข้า (IN),จ่ายออก (OUT),ยอดคงเหลือ'];
             
             // เรียงลำดับเก่าไปใหม่สำหรับไฟล์ Excel
-            let exportData = [...this.stockCardHistory].reverse();
+            let exportData = [...this.stockCardHistory];
             
             exportData.forEach(t => {
                 let doc = this.scDocOf(t);
@@ -3857,7 +3967,7 @@ const app = createApp({
             XLSX.writeFile(wb, 'SJRONG1051_' + this.sjMonth + '.xlsx');
         },
         isShelfRow(t) { const n = String(t.note || ''), d = String(t.refDoc || t.billId || ''); return t.type === 'OUT' && (n.startsWith('จ่ายขึ้น Shelf') || n.startsWith('จ่ายขึ้นชั้นยา') || d.startsWith('SHF-')); },
-        scDocOf(t) { return this.isShelfRow(t) ? 'จ่ายขึ้น Shelf' : (t.refDoc || t.billId || '-'); },
+        scDocOf(t) { if (this.isShelfRow(t)) return 'จ่ายขึ้น Shelf'; if (t.type === 'IN') { const b = this.bills.find(x => x.id === t.billId); if (b && (b.docNo || b.refBillNo)) return b.docNo || b.refBillNo; } return t.refDoc || t.billId || '-'; },
         saveShowShelf() { try { localStorage.setItem('jvlShowShelf', this.showShelfHist ? '1' : '0'); } catch (e) {} },
         shelfRange(k) {
             const n = new Date(), y = n.getFullYear(), m = n.getMonth(), iso = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -4137,6 +4247,7 @@ const app = createApp({
                 if (stockLoc === 'OPD' || stockLoc === 'IPD') { if (!this.cartOut.length) this.formOut.reqType = 'จ่ายขึ้น Shelf'; }
                 else if (this.formOut.reqType === 'จ่ายขึ้น Shelf') this.formOut.reqType = 'เบิกจริง';
             }
+            if (pageName === 'poCreate' && !this.po.poId && !this.po.vendor) this.po.vendor = this.lastReceiveVendor;
             if (pageName === 'activityLog') this.loadLogs();
             this.$nextTick(() => { if (pageName === 'dashboard') this.renderCharts(); if (['stockOut', 'stockTake'].includes(pageName)) this.initTomSelects(); });
         },
@@ -4153,6 +4264,101 @@ const app = createApp({
                 this.page = 'dashboard';
             } else alert('ชื่อผู้ใช้งาน หรือ รหัสผ่าน ไม่ถูกต้อง'); 
             this.loading = false;
+        },
+        // ===== แก้ไข/ลบรายการใน Stock Card (Admin/God) =====
+        scDocKey(t) { const id = String(t.transId || ''); return (id.startsWith('RCV-') || id.startsWith('ISS-') || id.startsWith('STK-') || id.startsWith('ADJ-')) ? id : t.billId; },
+        openScEdit(row) {
+            const key = this.scDocKey(row), sib = this.transactions.filter(t => this.scDocKey(t) === key && t.type === row.type);
+            const bill = row.type === 'IN' ? (this.bills.find(b => b.id === row.billId) || null) : null;
+            const fixedId = /^(RCV-|ISS-|STK-|ADJ-)/.test(String(row.transId));
+            this.scEdit = { show: true, row: row, date: String(row.date || '').split(' ')[0], entity: row.vendorOrDept || '', lot: row.lotNo || '', exp: row.expDate || '', qty: row.qty, unitPrice: row.unitPrice, total: row.totalPrice,
+                docMode: bill ? 'bill' : (fixedId ? 'none' : 'id'), docNo: bill ? (bill.docNo || '') : String(key || ''), docCount: sib.length, isShelf: this.isShelfRow(row), bill: bill, docId: key, itemIds: sib.map(t => t.transId) };
+        },
+        recalcScTotal() { const e = this.scEdit; e.total = Math.round((parseFloat(e.qty) || 0) * (parseFloat(e.unitPrice) || 0) * 100) / 100; },
+        askScSave() {
+            const e = this.scEdit, r = e.row, ch = [];
+            const q = parseFloat(e.qty), u = parseFloat(e.unitPrice), t = parseFloat(e.total);
+            if (isNaN(q) || isNaN(u) || isNaN(t) || q < 0 || u < 0 || t < 0) return alert('จำนวน/ราคา/มูลค่า ต้องเป็นตัวเลขที่ไม่ติดลบ');
+            if (!e.date || !e.entity) return alert('กรุณาระบุวันที่และ' + (r.type === 'IN' ? 'แหล่งที่มา' : 'ปลายทาง'));
+            if (e.docMode === 'id' && !e.docNo) return alert('กรุณาระบุเลขที่เอกสาร');
+            const headCh = e.date !== String(r.date || '').split(' ')[0] || e.entity !== (r.vendorOrDept || '') || (e.docMode === 'bill' && e.docNo !== (e.bill.docNo || '')) || (e.docMode === 'id' && e.docNo !== String(e.docId));
+            const itemCh = String(e.lot || '') !== String(r.lotNo || '') || String(e.exp || '') !== String(r.expDate || '') || q !== r.qty || u !== r.unitPrice || t !== r.totalPrice;
+            if (String(e.date) !== String(r.date || '').split(' ')[0]) ch.push('วันที่: ' + String(r.date || '').split(' ')[0] + ' → ' + e.date);
+            if (e.docMode !== 'none' && e.docNo !== (e.docMode === 'bill' ? (e.bill.docNo || '') : String(e.docId))) ch.push('เลขเอกสาร: ' + (e.docMode === 'bill' ? (e.bill.docNo || '-') : e.docId) + ' → ' + e.docNo);
+            if (e.entity !== (r.vendorOrDept || '')) ch.push((r.type === 'IN' ? 'แหล่งที่มา: ' : 'ปลายทาง: ') + (r.vendorOrDept || '-') + ' → ' + e.entity);
+            if (String(e.lot || '') !== String(r.lotNo || '')) ch.push('Lot: ' + (r.lotNo || '-') + ' → ' + (e.lot || '-'));
+            if (String(e.exp || '') !== String(r.expDate || '')) ch.push('วันหมดอายุ: ' + (r.expDate || '-') + ' → ' + (e.exp || '-'));
+            if (q !== r.qty) ch.push('จำนวน: ' + this.formatNumber(r.qty) + ' → ' + this.formatNumber(q));
+            if (u !== r.unitPrice) ch.push('ราคา/หน่วย: ' + this.formatNumber(r.unitPrice) + ' → ' + this.formatNumber(u));
+            if (t !== r.totalPrice) ch.push('มูลค่า: ' + this.formatCurrency(r.totalPrice) + ' → ' + this.formatCurrency(t));
+            if (!headCh && !itemCh) { e.show = false; return this.toast('ไม่มีการเปลี่ยนแปลง'); }
+            const lines = [this.getProductName(r.productId), ...ch];
+            if (headCh && e.docCount > 1) lines.push('หัวเอกสารมีผลกับทุกรายการในใบ (' + e.docCount + ' รายการ)');
+            lines.push('ยอดคงเหลือ/Stock Card จะเปลี่ยนตามทันที');
+            this.askConfirm({ title: 'ยืนยันการแก้ไขรายการ?', lines, okText: 'ยืนยันแก้ไข', onOk: () => this.doScSave(headCh, itemCh, q, u, t) });
+        },
+        async doScSave(headCh, itemCh, q, u, t) {
+            const e = this.scEdit, r = e.row, label = this.scDocOf(r), name = this.getProductName(r.productId);
+            this.loading = true; let ok = true;
+            if (itemCh) {
+                const res = await this.apiCall('updateTransactionItem', { username: this.currentUser.user, transId: r.transId, lotNo: e.lot, expDate: e.exp, qty: q, unitPrice: u, totalPrice: t, docLabel: label, productName: name });
+                ok = !!res;
+            }
+            if (ok && headCh) {
+                const payload = { username: this.currentUser.user, transIds: e.itemIds, date: e.date, vendorOrDept: e.entity, docLabel: label, oldDocId: e.docId };
+                if (e.docMode === 'bill') Object.assign(payload, { billId: e.bill.id, refBillNo: e.bill.refBillNo, docNo: e.docNo, inspectDate: e.bill.inspectDate || '' });
+                else if (e.docMode === 'id') payload.newDocId = e.docNo;
+                const res = await this.apiCall('updateDocHeader', payload);
+                ok = !!res;
+            }
+            this.loading = false;
+            if (ok) { this.scEdit.show = false; this.toast('แก้ไขรายการแล้ว'); await this.loadData(); }
+        },
+        askScDelete(row) {
+            const key = this.scDocKey(row), sib = this.transactions.filter(t => this.scDocKey(t) === key && t.type === row.type), only = sib.length === 1;
+            const line = this.getProductName(row.productId) + ' | Lot ' + (row.lotNo || '-') + ' | ' + this.formatNumber(row.qty) + ' | ' + this.formatCurrency(row.totalPrice);
+            const lines = [this.scDocOf(row) + ' (' + (row.type === 'IN' ? 'รับเข้า' : (this.isShelfRow(row) ? 'จ่ายขึ้น Shelf' : 'จ่ายออก')) + ') ' + this.formatThaiDate(String(row.date).split(' ')[0]), line];
+            const bill = row.type === 'IN' ? (this.bills.find(b => b.id === row.billId) || null) : null;
+            if (only) lines.push('นี่คือรายการสุดท้ายของใบ — ลบแล้วทั้งใบจะหายไป' + (bill ? ' (รวมบิลบริษัทด้วย)' : ''));
+            lines.push('ยอดคงเหลือ/Stock Card จะเปลี่ยนตามทันที และกู้คืนไม่ได้ (God กู้คืนจากหน้า Log ได้)');
+            this.askConfirm({ title: 'ยืนยันการลบรายการนี้?', lines, danger: true, okText: 'ยืนยันลบรายการ', onOk: async () => {
+                this.loading = true;
+                const res = await this.apiCall('deleteTransactionItems', { username: this.currentUser.user, transIds: [row.transId], scope: only ? 'doc' : 'item', billId: bill ? bill.id : '', docLabel: this.scDocOf(row), itemNames: [line] });
+                this.loading = false;
+                if (res) { this.toast('ลบรายการแล้ว'); await this.loadData(); }
+            } });
+        },
+        isItemDisabled(pid, loc) { return this.disabledSet.has(String(pid) + '|' + loc); },
+        openStkItems() { this.stkItems = { show: true, search: '', filter: 'all', changes: {} }; },
+        setStkItem(id, v) { this.stkItems.changes = { ...this.stkItems.changes, [id]: !!v }; },
+        setStkVisible(v) { const c = { ...this.stkItems.changes }; this.stkItemRows.forEach(r => { c[r.id] = !!v; }); this.stkItems.changes = c; },
+        async saveStkItems() {
+            const loc = this.globalStock, items = [];
+            Object.keys(this.stkItems.changes).forEach(id => { const want = this.stkItems.changes[id], was = !this.disabledSet.has(id + '|' + loc); if (want !== was) items.push({ productId: id, disabled: !want }); });
+            if (!items.length) { this.stkItems.show = false; return this.toast('ไม่มีการเปลี่ยนแปลง'); }
+            this.askConfirm({ title: 'บันทึกการเปิด/ปิดใช้งานรายการ?', lines: ['คลัง ' + this.locLabel(loc), 'ปิดใช้งาน ' + items.filter(i => i.disabled).length + ' รายการ · เปิดใช้งาน ' + items.filter(i => !i.disabled).length + ' รายการ', 'รายการที่ปิดจะไม่ถูกดึงใน Auto ขอเบิก/แจ้งเตือนถึงจุดสั่งซื้อ และไม่แสดงในช่องเลือกขอเบิกของคลังนี้ (ข้อมูลสต็อกเดิมไม่หาย)'], okText: 'บันทึก', onOk: async () => {
+                this.loading = true;
+                const res = await this.apiCall('setStockItemsDisabled', { username: this.currentUser.user, stockLocation: loc, items: items });
+                this.loading = false;
+                if (res) { this.stkItems.show = false; this.toast(res); await this.loadData(); }
+            } });
+        },
+        openMyAccount() { this.myAcc = { show: true, newUser: this.currentUser.user, newPass: '', newPass2: '', curPass: '' }; },
+        async saveMyAccount() {
+            const a = this.myAcc;
+            if (!a.curPass) return alert('กรอกรหัสผ่านปัจจุบันเพื่อยืนยัน');
+            if (!a.newUser) return alert('ชื่อผู้ใช้ห้ามว่าง');
+            if (a.newPass !== a.newPass2) return alert('รหัสผ่านใหม่และช่องยืนยันไม่ตรงกัน');
+            if (a.newUser === this.currentUser.user && !a.newPass) return alert('ยังไม่ได้เปลี่ยนแปลงอะไร');
+            this.loading = true;
+            const res = await this.apiCall('changeCredentials', { username: this.currentUser.user, currentPassword: a.curPass, newUsername: a.newUser, newPassword: a.newPass });
+            this.loading = false;
+            if (res) {
+                this.currentUser = { ...this.currentUser, user: res.username };
+                try { localStorage.setItem('jvlUser', JSON.stringify(this.currentUser)); } catch (e) {}
+                this.myAcc.show = false; this.toast('เปลี่ยนข้อมูลเข้าสู่ระบบแล้ว');
+                await this.loadData();
+            }
         },
         doLogout() {
             if(!confirm('ต้องการออกจากระบบใช่หรือไม่?')) return;
@@ -4967,7 +5173,7 @@ const app = createApp({
         autoNeedList(loc) {
             const out = [];
             this.inventory.forEach(i => {
-                if (!i.isActive) return;
+                if (!i.isActive || this.isItemDisabled(i.id, loc)) return;
                 const mm = this.getLocMinMax(i.id, loc);
                 const min = parseFloat(mm.min) || 0, max = parseFloat(mm.max) || 0;
                 if (min <= 0 || i.qty >= min) return;
@@ -5074,7 +5280,7 @@ const app = createApp({
             else this.po.items.push({ productId: t.productId, productName: t.productName, unit: t.unit, qty: q, unitPrice: parseFloat(t.unitPrice) || 0, vendor: this.lastBuyVendorMap[t.productId] || '' });
             this.tempPo = { productName: '', productId: '', qty: 1, unit: '', unitPrice: 0 };
         },
-        resetPO() { this.po = { poId: '', poNo: '', date: new Date().toISOString().slice(0, 10), vendor: '', note: '', status: 'Draft', mode: 'manual', items: [] }; },
+        resetPO() { this.po = { poId: '', poNo: '', date: new Date().toISOString().slice(0, 10), vendor: this.lastReceiveVendor, note: '', status: 'Draft', mode: 'manual', items: [] }; },
         savePO() {
             if (!this.po.items.length) return alert('ยังไม่มีรายการในใบ PO');
             const bad = this.po.items.find(i => !(parseFloat(i.qty) > 0));
@@ -5116,11 +5322,26 @@ const app = createApp({
         },
         // TODO: เมื่อได้แบบฟอร์มราชการแล้ว ให้ปรับ template "Print Overlay: ใบ PO" (v-if="printPoDoc") ให้ตรงแบบฟอร์ม
         printPO(r) {
+            this.printPoOv = {};
             this.printPoDoc = { ...r, items: JSON.parse(JSON.stringify(r.items)) };
             if (!document.getElementById('poPageStyle')) { const st = document.createElement('style'); st.id = 'poPageStyle'; st.textContent = '@page { size: A4 landscape; margin: 8mm; }'; document.head.appendChild(st); }
         },
         closePrintPO() { this.printPoDoc = null; const st = document.getElementById('poPageStyle'); if (st) st.remove(); },
         savePoSign() { try { localStorage.setItem('jvlPoSign', JSON.stringify(this.poSign)); } catch (e) {} },
+        cleanVendor(v) { v = String(v == null ? '' : v).trim(); return v.includes('ยอดยกมา') ? '' : v; },
+        setPoOv(pid, k, v) { const o = this.printPoOv[pid] || (this.printPoOv[pid] = {}); o[k] = v; this.printPoOv = { ...this.printPoOv }; },
+        async setMainMinMax(pid, which, val) {
+            const mm = this.getLocMinMax(pid, 'MAIN'), v = Math.max(0, Math.round(parseFloat(val) || 0));
+            const min = which === 'min' ? v : Math.round(parseFloat(mm.min) || 0), max = which === 'max' ? v : Math.round(parseFloat(mm.max) || 0);
+            if (min === mm.min && max === mm.max) return;
+            const res = await this.apiCall('saveStockLevels', { stockLocation: 'MAIN', items: [{ productId: pid, min: min, max: max }], username: this.currentUser.user });
+            if (res) {
+                if (!this.rawData.stockLevels) this.rawData.stockLevels = [];
+                const r = this.rawData.stockLevels.find(x => x[0] === pid && x[1] === 'MAIN');
+                if (r) { r[2] = min; r[3] = max; } else this.rawData.stockLevels.push([pid, 'MAIN', min, max]);
+                this.toast('บันทึก Min/Max แล้ว');
+            }
+        },
         poFmt(n, minD, maxD) { return (parseFloat(n) || 0).toLocaleString('en-US', { minimumFractionDigits: minD, maximumFractionDigits: maxD }); },
         async cancelRequest(req) {
             if (!confirm(`ยกเลิกใบขอเบิก ${req.id} ?`)) return;
