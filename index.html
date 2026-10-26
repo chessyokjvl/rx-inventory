@@ -38,6 +38,9 @@
         .sidebar-accordion .accordion-body { padding: 8px 0; background-color: rgba(0,0,0,0.15); }
         
         .nav-link { color: rgba(255,255,255,0.7); cursor: pointer; padding: 10px 20px 10px 40px; font-size: 0.9rem; transition: all 0.2s ease-in-out; border-left: 3px solid transparent; }
+        .hs-tabs .nav-link { color: #334155 !important; padding: 8px 16px; border-left: 0; background: transparent; }
+        .hs-tabs .nav-link:hover { background: #e2e8f0; }
+        .hs-tabs .nav-link.active { color: #0d6efd !important; background: #fff !important; border-left-color: transparent !important; font-weight: 700; }
         .nav-link:hover { color: #ffffff; background: rgba(255,255,255,0.05); }
         .nav-link.active { color: #ffffff !important; background: rgba(51, 65, 85, 0.6) !important; border-left-color: #60a5fa !important; font-weight: 600; }
 
@@ -2091,10 +2094,11 @@
                     <div class="col-6 col-md-3"><div class="card card-shadow p-2 text-center"><div class="small text-muted">เคลียร์แล้ว (บาท)</div><div class="fs-4 fw-bold text-success">{{ formatCurrency(hsTotals.paid) }}</div></div></div>
                     <div class="col-6 col-md-3"><div class="card card-shadow p-2 text-center"><div class="small text-muted">ค้างชำระ (บาท)</div><div class="fs-4 fw-bold text-danger">{{ formatCurrency(hsTotals.owed) }}</div></div></div>
                 </div>
-                <ul class="nav nav-tabs mb-3">
+                <ul class="nav nav-tabs hs-tabs mb-3">
                     <li class="nav-item"><a class="nav-link" :class="{active: hsUI.tab==='docs'}" @click="hsUI.tab='docs'" style="cursor:pointer">📄 รายการใบเบิก</a></li>
                     <li class="nav-item"><a class="nav-link" :class="{active: hsUI.tab==='hosp'}" @click="hsUI.tab='hosp'" style="cursor:pointer">🏥 สรุปรายโรงพยาบาล</a></li>
                     <li class="nav-item"><a class="nav-link" :class="{active: hsUI.tab==='items'}" @click="hsUI.tab='items'" style="cursor:pointer">💊 สรุปรายการยา (35 รายการ)</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: hsUI.tab==='trend'}" @click="hsUI.tab='trend'; $nextTick(() => renderHsTrend())" style="cursor:pointer">📈 แนวโน้ม / นำเข้าย้อนหลัง</a></li>
                     <li class="nav-item"><a class="nav-link" :class="{active: hsUI.tab==='set'}" @click="hsUI.tab='set'" style="cursor:pointer">⚙️ ตั้งค่า</a></li>
                 </ul>
 
@@ -2188,6 +2192,47 @@
                         </table>
                     </div>
                     <div v-if="hsCoreSet.size" class="small text-muted mt-2">ยาในรายการข้อตกลงที่ยังไม่มีการเบิกในช่วงนี้: {{ hsCoreUnused.length ? hsCoreUnused.join(', ') : '— ไม่มี —' }}</div>
+                </div>
+
+                <!-- แนวโน้ม & นำเข้าย้อนหลัง -->
+                <div v-if="hsUI.tab==='trend'">
+                    <div class="card card-shadow p-3 mb-3">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-2 gap-2"><h5 class="fw-bold mb-0">แนวโน้มมูลค่าการสนับสนุนยา รพ.ชุมชน รายปีงบประมาณ</h5><button class="btn btn-sm btn-outline-success" @click="exportHsTrend()"><i class="bi bi-file-earmark-excel"></i> Excel</button></div>
+                        <div class="small text-muted mb-2">ปีงบ 2569 และก่อนหน้า ใช้ยอดที่นำเข้าย้อนหลัง · ปีงบ 2570 เป็นต้นไป ใช้ใบเบิกจริงในระบบ (ถ้าปีเก่าไม่มียอดนำเข้า จะใช้ใบเบิกในระบบแทน)</div>
+                        <div style="height:260px" class="mb-3"><canvas id="hsTrendChart"></canvas></div>
+                        <div class="table-responsive"><table class="table table-sm table-bordered align-middle mb-0" style="font-size:0.88rem">
+                            <thead class="table-light"><tr class="text-center"><th>รพ.</th><th v-for="y in hsTrend.years" :key="y">{{ y }}</th><th>รวม</th></tr></thead>
+                            <tbody>
+                                <tr v-for="r in hsTrend.rows" :key="r.name"><td class="fw-bold">{{ hsShort(r.name) }}</td><td v-for="y in hsTrend.years" :key="y" class="text-end">{{ r.vals[y] ? formatNumber(Math.round(r.vals[y])) : '-' }}</td><td class="text-end fw-bold">{{ formatNumber(Math.round(r.total)) }}</td></tr>
+                                <tr v-if="!hsTrend.rows.length"><td :colspan="hsTrend.years.length + 2" class="text-center text-muted py-3">ยังไม่มีข้อมูล</td></tr>
+                            </tbody>
+                            <tfoot v-if="hsTrend.rows.length"><tr class="table-light fw-bold"><td>รวมทุก รพ.</td><td v-for="y in hsTrend.years" :key="y" class="text-end">{{ formatNumber(Math.round(hsTrend.totals[y] || 0)) }}</td><td class="text-end">{{ formatNumber(Math.round(hsTrend.grand)) }}</td></tr></tfoot>
+                        </table></div>
+                    </div>
+                    <div class="card card-shadow p-3 mb-3">
+                        <h6 class="fw-bold">📥 นำเข้ายอดเบิกย้อนหลัง (ปีงบ 2569 และก่อนหน้า — เก็บเฉพาะมูลค่า)</h6>
+                        <div class="small text-muted mb-2">1) ดาวน์โหลดแม่แบบ → 2) กรอก ปีงบประมาณ / โรงพยาบาล / มูลค่าเบิก (หนึ่งแถวต่อ รพ. ต่อปี หรือหลายแถวก็ได้ ระบบรวมให้) → 3) เลือกไฟล์เพื่อดูตัวอย่างก่อนนำเข้า · ถ้านำเข้าซ้ำ ปี/รพ. เดิม ระบบจะแทนที่ยอดเดิม</div>
+                        <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                            <button class="btn btn-sm btn-outline-primary" @click="downloadHsTemplate()"><i class="bi bi-download"></i> ดาวน์โหลดแม่แบบ (Excel)</button>
+                            <input type="file" class="form-control form-control-sm" style="max-width:320px" accept=".xlsx,.xls,.csv" @change="onHsImportFile">
+                        </div>
+                        <div v-if="hsImp.rows.length">
+                            <div class="small mb-1">ไฟล์ <b>{{ hsImp.fileName }}</b> · {{ hsImp.rows.length }} แถว · ผิดพลาด <b :class="hsImpErrors ? 'text-danger' : 'text-success'">{{ hsImpErrors }}</b> · ยอดรวม {{ formatCurrency(hsImpTotal) }}</div>
+                            <div class="table-responsive mb-2" style="max-height:40vh"><table class="table table-sm table-bordered mb-0" style="font-size:0.85rem">
+                                <thead class="table-light sticky-top"><tr><th>แถว</th><th>ปีงบ</th><th>โรงพยาบาล</th><th class="text-end">มูลค่า</th><th>จำนวนใบเบิก</th><th>หมายเหตุ</th><th>ตรวจสอบ</th></tr></thead>
+                                <tbody><tr v-for="r in hsImp.rows" :key="r.line" :class="{'table-danger': r.error}"><td>{{ r.line }}</td><td>{{ r.fy }}</td><td>{{ r.hospital }}</td><td class="text-end">{{ formatNumber(r.amount) }}</td><td>{{ r.docCount }}</td><td>{{ r.note }}</td><td class="small"><span v-if="r.error" class="text-danger">{{ r.error }}</span><span v-else-if="!r.matched" class="text-warning">ชื่อใหม่ (ไม่ตรงรายชื่อ รพ.)</span><span v-else class="text-success">OK</span></td></tr></tbody>
+                            </table></div>
+                            <button class="btn btn-success fw-bold" :disabled="hsImpErrors > 0 || hsImp.busy" @click="doHsImport()">นำเข้า {{ hsImp.rows.length }} แถว</button>
+                            <button class="btn btn-outline-secondary ms-2" @click="hsImp.rows = []">ล้าง</button>
+                        </div>
+                    </div>
+                    <div class="card card-shadow p-3" v-if="hs.history && hs.history.length">
+                        <h6 class="fw-bold">ข้อมูลย้อนหลังที่นำเข้าแล้ว</h6>
+                        <div class="table-responsive" style="max-height:40vh"><table class="table table-sm table-bordered mb-0" style="font-size:0.85rem">
+                            <thead class="table-light sticky-top"><tr><th>ปีงบ</th><th>รพ.</th><th class="text-end">มูลค่า</th><th>ใบเบิก</th><th>หมายเหตุ</th><th>นำเข้าโดย</th><th></th></tr></thead>
+                            <tbody><tr v-for="r in hs.history" :key="r[0]"><td>{{ r[2] }}</td><td>{{ hsShort(r[1]) }}</td><td class="text-end">{{ formatNumber(parseFloat(r[3])) }}</td><td>{{ r[4] }}</td><td>{{ r[5] }}</td><td>{{ r[6] }}</td><td class="text-center"><button class="btn btn-sm text-danger py-0" @click="delHsHistory(r[2], r[1])">ลบ</button></td></tr></tbody>
+                        </table></div>
+                    </div>
                 </div>
 
                 <!-- ตั้งค่า -->
@@ -3080,10 +3125,11 @@ const app = createApp({
             isSidebarOpen: false,
             activeMenu: '',
             currentUser: {},
-            hs: { loaded: false, hospitals: [], core: [], settle: [], files: [], followups: [] },
+            hs: { loaded: false, hospitals: [], core: [], settle: [], files: [], followups: [], history: [] },
             hsUI: { tab: 'docs', fy: '', from: '', to: '', hosp: '', status: '', search: '', itemFilter: 'all', sel: {}, hospEdit: [], coreEdit: [], coreSearch: '' },
             hsSettle: { show: false, docs: [], total: 0, mode: 'Paid', amount: 0, paidBy: 'สสจ.เลย เคลียร์ให้', paidOther: '', payDate: '', evNo: '', evDate: '', note: '', file: null, busy: false },
             hsDetail: { show: false, docId: '' },
+            hsImp: { rows: [], fileName: '', busy: false },
             hsFu: { show: false, hospital: '', docId: '', date: '', method: 'โทรศัพท์', note: '' },
             scAdd: { show: false, kind: 'OUT', date: '', docNo: '', entity: '', lotIdx: -1, lot: '', exp: '', qty: 1, unitPrice: 0, total: 0, note: '' },
             scEdit: { show: false, row: {}, date: '', docNo: '', docMode: 'none', entity: '', lot: '', exp: '', qty: 0, unitPrice: 0, total: 0, docCount: 1, isShelf: false, bill: null, docId: '', itemIds: [] },
@@ -3573,6 +3619,19 @@ const app = createApp({
         },
         hsCoreUnused() { const used = new Set(); this.hsFilteredDocs.forEach(d => d.items.forEach(i => used.add(String(i.pid)))); const pm = {}; this.products.forEach(p => { pm[p.id] = p.name; }); return Array.from(this.hsCoreSet).filter(id => !used.has(id)).map(id => pm[id] || id); },
         hsCoreChoices() { const q = (this.hsUI.coreSearch || '').trim().toLowerCase(); return this.products.filter(p => !q || String(p.name).toLowerCase().includes(q) || this.hsUI.coreEdit.includes(p.id)).slice(0, 500); },
+
+        hsTrend() {
+            const hist = this.hs.history || [], hm = {}; hist.forEach(r => { hm[r[2] + '|' + r[1]] = (hm[r[2] + '|' + r[1]] || 0) + (parseFloat(r[3]) || 0); });
+            const cell = {}, years = new Set(), names = new Set();
+            Object.keys(hm).forEach(k => { const i = k.indexOf('|'), y = parseInt(k.slice(0, i)), h = k.slice(i + 1); years.add(y); names.add(h); (cell[h] = cell[h] || {})[y] = hm[k]; });
+            const real = {}; this.hsAllDocs.forEach(d => { const y = this.fiscalYearOf(d.date), k = y + '|' + d.hospital; real[k] = (real[k] || 0) + d.total; });
+            Object.keys(real).forEach(k => { const i = k.indexOf('|'), y = parseInt(k.slice(0, i)), h = k.slice(i + 1); if (y <= 2569 && hm[k] !== undefined) return; years.add(y); names.add(h); (cell[h] = cell[h] || {})[y] = real[k]; });
+            const ys = Array.from(years).sort((a, b) => a - b), totals = {}; let grand = 0;
+            const rows = Array.from(names).map(n => { const v = cell[n] || {}; let t = 0; ys.forEach(y => { if (v[y]) { t += v[y]; totals[y] = (totals[y] || 0) + v[y]; } }); grand += t; return { name: n, vals: v, total: t }; }).sort((a, b) => b.total - a.total);
+            return { years: ys, rows: rows, totals: totals, grand: grand };
+        },
+        hsImpErrors() { return this.hsImp.rows.filter(r => r.error).length; },
+        hsImpTotal() { return this.hsImp.rows.reduce((a, r) => a + (r.error ? 0 : r.amount), 0); },
         hsDetailDoc() { return this.hsAllDocs.find(d => d.id === this.hsDetail.docId) || null; },
         evidenceMap() { const m = {}; (this.rawData.docEvidence || []).forEach(r => { m[r[0]] = { no: r[1] || '', date: r[2] || '' }; }); return m; },
         // ===== เพิ่มรายการยาเข้าใบเดิม =====
@@ -5306,6 +5365,65 @@ const app = createApp({
         barcodesOf(pid) { return (this.rawData.barcodes || []).filter(r => String(r[1]) === String(pid)).map(r => String(r[0])); },
 
         // ---------- สนับสนุนยา รพ.ชุมชน: methods ----------
+
+        renderHsTrend() {
+            const c = document.getElementById('hsTrendChart'); if (this._hsChart) { try { this._hsChart.destroy(); } catch (e) {} this._hsChart = null; }
+            if (!c || typeof Chart === 'undefined' || this.hsUI.tab !== 'trend') return;
+            const t = this.hsTrend;
+            this._hsChart = new Chart(c, { type: 'bar', data: { labels: t.years.map(String), datasets: [{ label: 'มูลค่าการสนับสนุนรวม (บาท)', data: t.years.map(y => Math.round(t.totals[y] || 0)), backgroundColor: '#3b82f6' }] }, options: { animation: false, maintainAspectRatio: false, plugins: { legend: { display: true } } } });
+        },
+        exportHsTrend() {
+            const t = this.hsTrend, aoa = [['รพ.'].concat(t.years.map(String)).concat(['รวม'])];
+            t.rows.forEach(r => aoa.push([this.hsShort(r.name)].concat(t.years.map(y => Math.round(r.vals[y] || 0))).concat([Math.round(r.total)])));
+            aoa.push(['รวมทุก รพ.'].concat(t.years.map(y => Math.round(t.totals[y] || 0))).concat([Math.round(t.grand)]));
+            this.hsSaveXlsx(aoa, 'แนวโน้ม', 'สนับสนุน_รพ_แนวโน้มรายปีงบ');
+        },
+        downloadHsTemplate() {
+            const names = this.hsUI.hospEdit.filter(c => c.on).map(c => [this.hsShort(c.name)]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['ปีงบประมาณ (พ.ศ.)', 'โรงพยาบาล', 'มูลค่าเบิก (บาท)', 'จำนวนใบเบิก (ไม่บังคับ)', 'หมายเหตุ (ไม่บังคับ)'], [2569, names.length ? names[0][0] : 'รพ.เมืองเลย', 125000.5, 12, 'ตัวอย่าง — ลบแถวนี้ก่อนนำเข้า'], [2568, names.length ? names[0][0] : 'รพ.เมืองเลย', 98000, '', '']]), 'นำเข้า');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['วิธีกรอก'], ['1) ปีงบประมาณ: ใส่ปี พ.ศ. เช่น 2569 (ใช้ได้ตั้งแต่ 2500-2569 — ปี 2570 เป็นต้นไปให้ใช้ใบเบิกจริงในระบบ)'], ['2) โรงพยาบาล: พิมพ์ให้ตรงกับชื่อในแผ่น "รายชื่อ รพ." (ชื่อเต็มหรือชื่อย่อก็ได้)'], ['3) มูลค่าเบิก: ตัวเลขเป็นบาท (ไม่ต้องใส่ ฿ ใส่ , ได้)'], ['4) หนึ่ง รพ. หลายแถวในปีเดียวกัน ระบบจะรวมยอดให้ · นำเข้าซ้ำปี/รพ. เดิมจะแทนที่ยอดเดิม']]), 'คำอธิบาย');
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['รายชื่อ รพ.']].concat(names)), 'รายชื่อ รพ.');
+            XLSX.writeFile(wb, 'แม่แบบนำเข้ายอดเบิกย้อนหลัง_รพชุมชน.xlsx');
+        },
+        async onHsImportFile(ev) {
+            const file = ev.target.files && ev.target.files[0]; if (!file) return;
+            try {
+                const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+                this.parseHsImport(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: true }), file.name);
+            } catch (e) { alert('อ่านไฟล์ไม่สำเร็จ: ' + e.message); }
+            ev.target.value = '';
+        },
+        parseHsImport(aoa, fileName) {
+            const nm = {}; this.hsUI.hospEdit.forEach(c => { nm[c.name] = c.name; if (c.short) nm[c.short] = c.name; nm[this.hsShort(c.name)] = c.name; });
+            (this.hs.history || []).forEach(r => { nm[r[1]] = nm[r[1]] || r[1]; });
+            let hi = aoa.findIndex(r => r.some(c => String(c).includes('ปีงบ'))); const start = hi >= 0 ? hi + 1 : 0, hdr = hi >= 0 ? aoa[hi].map(String) : [];
+            const col = (kw, def) => { const i = hdr.findIndex(h => h.includes(kw)); return i >= 0 ? i : def; };
+            const cF = col('ปีงบ', 0), cH = col('โรงพยาบาล', 1), cA = col('มูลค่า', 2), cC = col('จำนวน', 3), cN = col('หมายเหตุ', 4);
+            const rows = [];
+            for (let i = start; i < aoa.length; i++) {
+                const r = aoa[i]; if (!r || r.every(c => String(c).trim() === '')) continue;
+                let fy = parseInt(String(r[cF]).trim()); if (fy > 1900 && fy < 2200) fy += 543; else if (fy > 0 && fy < 100) fy += 2500;
+                const hn = String(r[cH]).trim(), amt = parseFloat(String(r[cA]).replace(/[,฿\s]/g, ''));
+                const o = { line: i + 1, fy: isNaN(fy) ? '' : fy, hospital: nm[hn] || hn, matched: !!nm[hn], amount: isNaN(amt) ? 0 : amt, docCount: String(r[cC]).trim() === '' ? '' : parseInt(r[cC]), note: String(r[cN] || '').trim(), error: '' };
+                if (!o.fy || o.fy < 2500 || o.fy > 2569) o.error = 'ปีงบต้องเป็น 2500-2569 (ปี 2570+ ใช้ใบเบิกจริง)';
+                else if (!hn) o.error = 'ไม่ได้ระบุ รพ.';
+                else if (isNaN(amt) || amt < 0) o.error = 'มูลค่าไม่ถูกต้อง';
+                rows.push(o);
+            }
+            if (!rows.length) { alert('ไม่พบข้อมูลในไฟล์ (ตรวจหัวตารางตามแม่แบบ)'); return; }
+            this.hsImp = { rows: rows, fileName: fileName, busy: false };
+        },
+        async doHsImport() {
+            if (this.hsImpErrors || this.hsImp.busy) return; this.hsImp.busy = true;
+            try {
+                const r = await this.apiCall('saveHospHistory', { username: this.currentUser.user, items: this.hsImp.rows.map(x => ({ fy: x.fy, hospital: x.hospital, amount: x.amount, docCount: x.docCount, note: x.note })) });
+                if (r) { this.toast(r); this.hsImp.rows = []; await this.loadHosp(); }
+            } finally { this.hsImp.busy = false; }
+        },
+        delHsHistory(fy, h) {
+            this.askConfirm({ title: 'ลบข้อมูลย้อนหลัง?', lines: ['ปีงบ ' + fy + ' · ' + this.hsShort(h)], danger: true, okText: 'ลบ', onOk: async () => { const r = await this.apiCall('deleteHospHistory', { username: this.currentUser.user, fy: fy, hospital: h }); if (r) { this.toast(r); await this.loadHosp(); } } });
+        },
         hsShort(n) { const r = this.hsInfoMap[n]; if (r && r.short) return r.short; return String(n || '').replace(/^โรงพยาบาล/, 'รพ.'); },
         hsStatusText(s) { return { Unpaid: 'ค้างชำระ', Partial: 'ชำระบางส่วน', Paid: 'เคลียร์แล้ว', Waived: 'งดเรียกเก็บ' }[s] || s; },
         hsStatusClass(s) { return { Unpaid: 'bg-danger', Partial: 'bg-warning text-dark', Paid: 'bg-success', Waived: 'bg-secondary' }[s] || 'bg-secondary'; },
@@ -5319,7 +5437,7 @@ const app = createApp({
         },
         async loadHosp() {
             const res = await this.apiCall('getHospSupport', { username: this.currentUser.user });
-            if (res) { this.hs = { loaded: true, hospitals: res.hospitals || [], core: res.core || [], settle: res.settle || [], files: res.files || [], followups: res.followups || [] }; this.hsBuildEdit(); }
+            if (res) { this.hs = { loaded: true, hospitals: res.hospitals || [], core: res.core || [], settle: res.settle || [], files: res.files || [], followups: res.followups || [], history: res.history || [] }; this.hsBuildEdit(); this.$nextTick(() => this.renderHsTrend()); }
             if (!this.hsUI.from && !this.hsUI.to) { this.hsUI.fy = this.fiscalYearOf(new Date().toISOString().slice(0, 10)); this.hsSetFY(); }
         },
         async saveHsHospitals() {
