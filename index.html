@@ -788,7 +788,7 @@
                             <tbody>
                                 <tr v-for="bill in sortedBills" :key="bill.id">
                                     <td>{{ bill.receivedDate }}</td>
-                                    <td class="fw-bold"><a href="#" @click.prevent="viewBillDetails(bill)" class="text-decoration-none">{{ bill.refBillNo }}</a></td>
+                                    <td class="fw-bold"><a href="#" @click.prevent="viewBillDetails(bill)" class="text-decoration-none">{{ bill.refBillNo }}</a><span v-if="billEmgMap[bill.id]" class="badge ms-1" style="background:#fd7e14" title="มียาในบิลนี้ที่เบิก ฉ. ไปแล้ว">เบิก ฉ. {{ billEmgMap[bill.id] }} รายการ</span></td>
                                     <td>{{ bill.vendor }}</td>
                                     <td class="text-end fw-bold text-primary">{{ formatCurrency(bill.totalVal) }}</td>
                                     <td class="text-center"><span v-if="bill.status==='Pending'" class="badge bg-warning text-dark">รอตรวจรับ</span><span v-else class="badge bg-success">ตรวจรับแล้ว</span></td>
@@ -820,11 +820,12 @@
                             <table class="table table-sm table-hover mb-0" style="font-size: 0.85em;">
                                 <thead class="table-light"><tr><th>รายการยา</th><th class="text-end">จน.</th><th class="text-end">มูลค่า</th></tr></thead>
                                 <tbody>
-                                    <tr v-for="it in formInspect.items"><td class="text-truncate" style="max-width: 200px;">{{ getProductName(it.productId) }}</td><td class="text-end">{{ formatNumber(it.qty) }}</td><td class="text-end text-primary fw-bold">{{ formatCurrency(it.totalPrice) }}</td></tr>
+                                    <tr v-for="it in formInspect.items"><td class="text-truncate" style="max-width: 200px;">{{ getProductName(it.productId) }}<div v-if="it.emgQty" class="small fw-bold" style="color:#fd7e14;white-space:normal">เบิก ฉ. ไปแล้ว {{ formatNumber(it.emgQty) }} ({{ it.emgDocs.map(d => d.doc).join(', ') }}) → เหลือจริง {{ formatNumber(it.remain) }}</div></td><td class="text-end">{{ formatNumber(it.qty) }}</td><td class="text-end text-primary fw-bold">{{ formatCurrency(it.totalPrice) }}</td></tr>
                                 </tbody>
                             </table>
                         </div>
                     </div>
+                    <div v-if="formInspect.items && formInspect.items.some(i => i.emgQty)" class="alert py-2 small" style="background:#fff3e6;border-color:#fd7e14">เมื่อยืนยันตรวจรับ ระบบจะ <b>ตัดยอดรายการเบิก ฉ. ออกจาก Lot ที่รับเข้าอัตโนมัติ</b> (คงเหลือจริง = รับเข้า − เบิก ฉ.) และรายการยังอยู่ในหน้า "เคลียร์ ฉ." เพื่อระบุเลขใบเบิกจริงต่อไป</div>
                     <div class="mb-3"><label class="form-label small fw-bold">หมายเลขเอกสาร (ระบบราชการ)</label><input type="text" v-model="formInspect.docNo" class="form-control border-success fw-bold text-success"></div>
                     <div class="mb-3"><label class="form-label small fw-bold">วันที่ทำการตรวจรับ</label><input type="date" v-model="formInspect.inspectDate" class="form-control border-success"></div>
                     <div class="mb-4">
@@ -865,16 +866,18 @@
                     <h6 class="fw-bold text-secondary mb-2">📦 รายการสินค้า ({{ currentViewBill.items ? currentViewBill.items.length : 0 }} รายการ)</h6>
                     <div class="table-responsive border rounded mb-3">
                         <table class="table table-sm table-hover mb-0" style="font-size: 0.85em;">
-                            <thead class="table-light"><tr><th>รายการยา</th><th>Lot</th><th class="text-end">จำนวน</th><th class="text-end">ราคา/หน่วย</th><th class="text-end">รวม</th></tr></thead>
+                            <thead class="table-light"><tr><th>รายการยา</th><th>Lot</th><th class="text-end">จำนวน</th><th class="text-end" style="color:#fd7e14">เบิก ฉ.</th><th class="text-end">คงเหลือจริง</th><th class="text-end">ราคา/หน่วย</th><th class="text-end">รวม</th></tr></thead>
                             <tbody>
                                 <tr v-for="it in currentViewBill.items">
                                     <td class="text-truncate" style="max-width: 180px;" :title="getProductName(it.productId)">{{ getProductName(it.productId) }}</td>
                                     <td>{{ it.lotNo }}</td>
                                     <td class="text-end">{{ formatNumber(it.qty) }}</td>
+                                    <td class="text-end"><span v-if="it.emgQty" class="fw-bold" style="color:#fd7e14">{{ formatNumber(it.emgQty) }}</span><div v-for="d in it.emgDocs" class="small text-muted text-nowrap">{{ d.doc }} · {{ formatNumber(d.qty) }} · {{ d.state }}</div></td>
+                                    <td class="text-end fw-bold" :class="it.emgQty ? 'text-danger' : ''">{{ it.emgQty ? formatNumber(it.remain) : '-' }}</td>
                                     <td class="text-end">{{ formatNumber(it.unitPrice) }}</td>
                                     <td class="text-end text-primary fw-bold">{{ formatCurrency(it.totalPrice) }}</td>
                                 </tr>
-                                <tr v-if="!currentViewBill.items || currentViewBill.items.length===0"><td colspan="5" class="text-center text-muted py-3">ไม่มีรายการสินค้า</td></tr>
+                                <tr v-if="!currentViewBill.items || currentViewBill.items.length===0"><td colspan="7" class="text-center text-muted py-3">ไม่มีรายการสินค้า</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1355,7 +1358,7 @@
                                 <tr v-for="t in unclearedEmgList" :key="t.transId">
                                     <td class="text-center"><input type="checkbox" class="form-check-input" v-model="t.selected"></td>
                                     <td>{{ formatThaiDate(t.date.split(' ')[0]) }}</td>
-                                    <td class="fw-bold text-primary">{{ getProductName(t.productId) }}</td>
+                                    <td class="fw-bold text-primary">{{ getProductName(t.productId) }} <span v-if="t.inspected" class="badge bg-success">ตรวจรับแล้ว – รอเลขใบเบิกจริง</span><span v-else class="badge bg-warning text-dark">ยังไม่ตรวจรับ</span><div class="small text-muted fw-normal">Lot {{ t.lotNo }} · เอกสาร ฉ. {{ t.billId }}</div></td>
                                     <td>{{ t.vendorOrDept }}</td>
                                     <td class="text-end text-danger fw-bold">{{ formatNumber(t.qty) }}</td>
                                 </tr>
@@ -1459,9 +1462,17 @@
                                         <div v-for="l in r.lots" :key="l.lot" class="d-flex justify-content-between gap-3"><span>Lot {{ l.lot || '-' }}<span v-if="l.exp" class="text-muted"> · Exp {{ l.exp }}</span></span><b>{{ formatNumber(l.qty) }}</b></div>
                                         <div v-if="!r.lots.length" class="text-danger">ไม่มีสต็อก</div>
                                         <div v-else class="border-top mt-1 pt-1 d-flex justify-content-between"><span>รวม</span><b :class="r.stockTotal < r.want ? 'text-danger' : 'text-success'">{{ formatNumber(r.stockTotal) }}</b></div>
+                                        <div v-if="r.showPend" class="mt-2 p-2 rounded" style="background:#fff0e0;border:1px solid #fd7e14">
+                                            <div class="fw-bold" style="color:#c2570c">⚠ รอตรวจรับ (เบิกฉุกเฉิน “ฉ.”)</div>
+                                            <div v-for="l in r.pend" :key="l.lot" class="d-flex justify-content-between align-items-center gap-2 mt-1">
+                                                <span>Lot {{ l.lot || '-' }}<span v-if="l.exp" class="text-muted"> · Exp {{ l.exp }}</span> <b>({{ formatNumber(l.avail) }})</b></span>
+                                                <input type="number" min="0" :max="l.avail" step="any" class="form-control form-control-sm text-end" style="width:85px;border-color:#fd7e14" :value="l.take" @change="pickSetPend(r.key, l.lot, $event.target.value)" title="จำนวนที่จะจ่ายจากรอตรวจรับ">
+                                            </div>
+                                        </div>
                                     </td>
                                     <td><input type="number" min="0" :max="r.stockTotal" step="any" class="form-control form-control-sm text-end fw-bold" :class="r.qty > r.want ? 'border-warning' : ''" :value="r.qty" @change="pickSetQty(r.key, $event.target.value)">
-                                        <div v-if="r.qty < r.want" class="small text-danger text-end">ขาด {{ formatNumber(r.want - r.qty) }}</div></td>
+                                        <div v-if="r.pendTake > 0" class="small text-end fw-bold" style="color:#c2570c">+ ฉ. {{ formatNumber(r.pendTake) }} = {{ formatNumber(r.issued) }}</div>
+                                        <div v-if="r.issued < r.want - 0.0001" class="small text-danger text-end">ขาด {{ formatNumber(r.want - r.issued) }}</div><div v-else-if="r.issued > r.want + 0.0001" class="small text-end" style="color:#c2570c">เกินที่ขอ {{ formatNumber(r.issued - r.want) }}</div></td>
                                     <td class="text-end">{{ formatCurrency(r.value) }}</td>
                                     <td class="text-center"><button class="btn btn-sm" :class="r.approved ? 'btn-success' : 'btn-outline-secondary'" @click="pickToggle(r.key)">{{ r.approved ? '✔ Approve แล้ว' : 'Approve' }}</button></td>
                                 </tr>
@@ -1657,7 +1668,7 @@
                             <tbody>
                                 <tr v-for="row in stockCardHistory" :key="row.transId">
                                     <td class="text-center">{{ formatThaiDate(row.date.split(' ')[0]) }}</td>
-                                    <td>{{ scDocOf(row) }} <span v-if="row.stockLocation === 'Pending' || (row.note && row.note.includes('เคลียร์ ฉ.'))" class="text-danger fw-bold fs-6">(ฉ.)</span><br><small class="text-muted" v-if="!isShelfRow(row)">{{ row.note }}</small></td>
+                                    <td>{{ scDocOf(row) }} <span v-if="row.stockLocation === 'Pending' || (row.note && (row.note.includes('เคลียร์ ฉ.') || row.note.includes('ฉ.ตรวจรับแล้ว')))" class="text-danger fw-bold fs-6">(ฉ.)</span><br><small class="text-muted" v-if="!isShelfRow(row)">{{ row.note }}</small></td>
                                     <td>{{ row.vendorOrDept || '-' }}</td>
                                     <td class="text-end">{{ formatNumber(row.unitPrice) }}</td>
                                     <td class="text-center">{{ formatThaiDate(row.expDate) || '-' }}</td>
@@ -1885,7 +1896,7 @@
                                 <tr v-for="(item, i) in pg.items" :key="pg.start + i" style="height: 26px;">
                                     <td style="border: 1px solid #000; text-align: center;">{{ pg.start + i + 1 }}</td>
                                     <!-- แสดงตัว "น" เฉพาะเมื่อเบิกจากคลัง OPD ตามต้นฉบับ แสดงตัว "ฉ" เมื่อเบิกจากคลัง Pending หรือมีหมายเหตุ "ฉ." -->
-                                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">{{ printDoc.stockLoc === 'Pending' || (printDoc.note && printDoc.note.includes('ฉ.')) ? 'ฉ.' : ((printDoc.combined ? item.stockLoc : printDoc.stockLoc) === 'OPD' ? 'น' : '') }}</td>
+                                    <td style="border: 1px solid #000; text-align: center; font-weight: bold;">{{ printDoc.stockLoc === 'Pending' || item.emg || (printDoc.note && printDoc.note.includes('ฉ.')) ? 'ฉ.' : ((printDoc.combined ? item.stockLoc : printDoc.stockLoc) === 'OPD' ? 'น' : '') }}</td>
                                     <td style="border: 1px solid #000; padding-left: 6px; font-size: 13px;">{{ item.name }}</td>
                                     <td style="border: 1px solid #000; text-align: center;"></td>
                                     <!-- แสดงหน่วยนับพร้อม Pack Size (ถ้ามี) -->
@@ -2020,7 +2031,7 @@
                                 <!-- สำหรับพิมพ์ เราจะกลับอาเรย์ให้เรียงจาก เก่า -> ใหม่ ตามหลักการบัญชี F-SP-018 -->
                                 <tr v-for="row in stockCardHistory" style="height: 28px;">
                                     <td style="border: 1px solid #000; text-align: center;">{{ formatThaiDate(row.date.split(' ')[0]) }}</td>
-                                    <td style="border: 1px solid #000; text-align: center;">{{ scDocOf(row) }} <span v-if="row.stockLocation === 'Pending' || (row.note && row.note.includes('เคลียร์ ฉ.'))" style="color: red; font-weight: bold;">(ฉ.)</span></td>
+                                    <td style="border: 1px solid #000; text-align: center;">{{ scDocOf(row) }} <span v-if="row.stockLocation === 'Pending' || (row.note && (row.note.includes('เคลียร์ ฉ.') || row.note.includes('ฉ.ตรวจรับแล้ว')))" style="color: red; font-weight: bold;">(ฉ.)</span></td>
                                     <td style="border: 1px solid #000; padding-left: 6px;">{{ row.vendorOrDept || '-' }}</td>
                                     <td style="border: 1px solid #000; text-align: right; padding-right: 6px;">{{ formatNumber(row.unitPrice) }}</td>
                                     <td style="border: 1px solid #000; text-align: center;">{{ formatThaiDate(row.expDate) || '-' }}</td>
@@ -3339,9 +3350,15 @@ const app = createApp({
             }).reverse(); 
         },
 
+
+        billEmgMap() {
+            const out = {}, keys = {}; this.transactions.forEach(t => { if (t.type === 'OUT' && (t.stockLocation === 'Pending' || /ฉ\.ตรวจรับแล้ว|เคลียร์ ฉ\./.test(String(t.note || ''))) && t.status === 'Completed') keys[t.productId + '|' + t.lotNo] = (keys[t.productId + '|' + t.lotNo] || 0) + t.qty; });
+            this.transactions.forEach(t => { if (t.type === 'IN' && keys[t.productId + '|' + t.lotNo]) out[t.billId] = (out[t.billId] || 0) + 1; });
+            return out;
+        },
         unclearedEmgList() {
             // ดึงรายการที่เบิกจาก Pending และยังไม่มีคำว่า "เคลียร์" ใน Note
-            return this.transactions.filter(t => t.type === 'OUT' && t.stockLocation === 'Pending' && (!t.note || !t.note.includes('เคลียร์ ฉ.'))).map(t => ({...t, selected: false}));
+            return this.transactions.filter(t => t.type === 'OUT' && (t.stockLocation === 'Pending' || (t.note && t.note.includes('ฉ.ตรวจรับแล้ว'))) && (!t.note || !t.note.includes('เคลียร์ ฉ.'))).map(t => ({...t, selected: false, inspected: t.stockLocation !== 'Pending'}));
         },
 
         transactions() { 
@@ -4062,7 +4079,9 @@ const app = createApp({
                 const stockTotal = lots.reduce((a, l) => a + l.qty, 0);
                 let need = Math.min(r.qty, stockTotal), value = 0; const alloc = [];
                 lots.forEach(l => { if (need <= 0.0001) return; const take = Math.min(l.qty, need); const up = l.unitPrice || 0; alloc.push({ lot: l.lot, exp: l.exp || '', qty: take, unitPrice: up, total: parseFloat((take * up).toFixed(2)) }); value += take * up; need -= take; });
-                return Object.assign({}, r, { no: i + 1, lots: lots, stockTotal: stockTotal, alloc: alloc, value: parseFloat(value.toFixed(2)) });
+                const pend = this.pendingSourceLots.filter(l => l.pid === r.pid && l.qty > 0.0001).map(l => { const take = Math.min(parseFloat((r.pq || {})[l.lot]) || 0, l.qty); return { lot: l.lot, exp: l.exp || '', avail: l.qty, unitPrice: l.unitPrice || 0, take: take, total: parseFloat((take * (l.unitPrice || 0)).toFixed(2)) }; });
+                const pendTake = pend.reduce((a, l) => a + l.take, 0), pendValue = pend.reduce((a, l) => a + l.total, 0);
+                return Object.assign({}, r, { no: i + 1, lots: lots, stockTotal: stockTotal, alloc: alloc, pend: pend, pendTake: pendTake, issued: Math.min(r.qty, stockTotal) + pendTake, showPend: pend.length > 0 && (stockTotal < r.want - 0.0001 || pendTake > 0), value: parseFloat((value + pendValue).toFixed(2)) });
             });
         },
         pickProgress() { const t = this.pick.rows.length, d = this.pick.rows.filter(r => r.approved).length; return { total: t, done: d, pct: t ? Math.floor(d / t * 100 + (d === t ? 0 : 0)) : 0 }; },
@@ -4095,7 +4114,7 @@ const app = createApp({
                 }
                 if (combined && loc !== 'MAIN') g[id].combined = true;
                 let p = this.products.find(x => x.id == t.productId); 
-                g[id].items.push({ transId: t.transId, name: p ? p.name : t.productId, productId: t.productId, lot: t.lotNo, exp: t.expDate, qty: t.qty, unit: p ? p.unit : '', price: t.unitPrice, total: t.totalPrice, stockLoc: loc }); 
+                g[id].items.push({ transId: t.transId, name: p ? p.name : t.productId, productId: t.productId, lot: t.lotNo, exp: t.expDate, qty: t.qty, unit: p ? p.unit : '', price: t.unitPrice, total: t.totalPrice, stockLoc: loc, emg: loc === 'Pending' || /ฉ\.ตรวจรับแล้ว|เคลียร์ ฉ\./.test(String(t.note || '')) }); 
                 g[id].total += (parseFloat(t.totalPrice) || 0); 
             }); 
             const sm = this.reqSnapMap;
@@ -4570,8 +4589,13 @@ const app = createApp({
         },
 
         getProductName(id) { let p = this.products.find(x => x.id === id); return p ? p.name : id; },
+
+        billItemsEmg(billId) {
+            const emg = {}; this.transactions.forEach(t => { if (t.type === 'OUT' && (t.stockLocation === 'Pending' || /ฉ\.ตรวจรับแล้ว|เคลียร์ ฉ\./.test(String(t.note || ''))) && t.status === 'Completed') { const k = t.productId + '|' + t.lotNo; (emg[k] = emg[k] || []).push({ doc: t.billId, qty: t.qty, state: String(t.note || '').includes('เคลียร์ ฉ.') ? 'เคลียร์แล้ว' : (t.stockLocation === 'Pending' ? 'รอตรวจรับ' : 'รอเลขใบเบิกจริง'), date: String(t.date || '').slice(0, 10) }); } });
+            return this.transactions.filter(t => t.billId === billId).map(t => { const ds = t.type === 'IN' ? (emg[t.productId + '|' + t.lotNo] || []) : []; const q = ds.reduce((a, d) => a + d.qty, 0); return Object.assign({}, t, { emgDocs: ds, emgQty: q, remain: t.qty - q }); });
+        },
         viewBillDetails(bill) {
-            let items = this.transactions.filter(t => t.billId === bill.id);
+            let items = this.billItemsEmg(bill.id);
             this.currentViewBill = { ...bill, items: items };
             this.showBillDetailsModal = true;
         },
@@ -4848,7 +4872,7 @@ const app = createApp({
             this.loading = false;
             if (res) { this.scAdd.show = false; this.toast('บันทึกรายการแล้ว'); await this.loadData(); this.$nextTick(() => this.initTomSelects()); }
         },
-        cleanNote(n) { return String(n == null ? '' : n).replace(/\s*\(เคลียร์ ฉ\.\)/g, '').trim(); },
+        cleanNote(n) { return String(n == null ? '' : n).replace(/\s*\(เคลียร์ ฉ\.\)/g, '').replace(/\s*\[ฉ\.ตรวจรับแล้ว\]/g, '').trim(); },
         isItemDisabled(pid, loc) { return this.disabledSet.has(String(pid) + '|' + loc); },
         openStkItems() { this.stkItems = { show: true, search: '', filter: 'all', changes: {} }; },
         setStkItem(id, v) { this.stkItems.changes = { ...this.stkItems.changes, [id]: !!v }; },
@@ -5066,7 +5090,7 @@ const app = createApp({
         async submitPendingBill() { if (this.cartRec.length === 0 || !confirm(`สร้างบิลรอตรวจรับเข้า ${this.locLabel(this.globalStock)}?`)) return; this.loading = true; const res = await this.apiCall("savePendingBill", { stockLocation: this.globalStock, user: this.currentUser.name, refBillNo: this.formRec.refBillNo, vendor: this.formRec.vendor, receivedDate: this.formRec.receivedDate, items: this.cartRec, poNo: this.formRec.poNo, cntNo: this.formRec.cntNo, buyMethod: this.formRec.buyMethod, coPurchase: this.formRec.coPurchase, rcvFlag: this.formRec.rcvFlag }); if (res) { alert(res); this.cartRec = []; this.formRec.refBillNo = ''; this.formRec.poNo = ''; this.formRec.cntNo = ''; if (this.tsVendor) this.tsVendor.clear(); await this.loadData(); } this.loading = false; },
         
         openInspectModal(bill) { 
-            let items = this.transactions.filter(t => t.billId === bill.id);
+            let items = this.billItemsEmg(bill.id);
             let totalVal = items.reduce((sum, t) => sum + (parseFloat(t.totalPrice) || 0), 0);
             this.formInspect = { billId: bill.id, refBillNo: bill.refBillNo, vendor: bill.vendor, docNo: '', inspectDate: new Date().toISOString().slice(0, 10), budgetSource: 'เงินบำรุง', budgetBumrung: totalVal, budgetNgob: 0, budgetNarcotic: 0, totalBillVal: totalVal, items: items }; 
             this.showInspectModal = true; 
@@ -6043,7 +6067,7 @@ const app = createApp({
             (req.items || []).forEach(it => {
                 const pid = String(it.productId), p = this.products.find(x => x.id === pid), want = parseFloat(it.qty) || 0;
                 const stock = this.allLots.filter(l => l.pid === pid && l.stockLoc === 'MAIN' && l.qty > 0.01).reduce((a, l) => a + l.qty, 0);
-                rows.push({ key: 'r' + (k++), pid: pid, name: p ? p.name : (it.productName || pid), unit: p ? p.unit : (it.unit || ''), want: want, qty: Math.min(want, stock), approved: false });
+                rows.push({ key: 'r' + (k++), pid: pid, name: p ? p.name : (it.productName || pid), unit: p ? p.unit : (it.unit || ''), want: want, qty: Math.min(want, stock), pq: {}, approved: false });
             });
             if (!rows.length) { alert('ใบขอเบิกนี้ไม่มีรายการ'); return; }
             this.cartOut = [];
@@ -6058,7 +6082,7 @@ const app = createApp({
                     (d.rows || []).forEach(sr => {
                         const r = this.pick.rows.find(x => x.pid === String(sr.pid) && !x._m); if (!r) return; r._m = true;
                         const stock = this.allLots.filter(l => l.pid === r.pid && l.stockLoc === 'MAIN' && l.qty > 0.01).reduce((a, l) => a + l.qty, 0);
-                        r.qty = Math.min(parseFloat(sr.qty) || 0, stock); r.approved = !!sr.approved && r.qty >= (parseFloat(sr.qty) || 0) - 0.0001;
+                        r.qty = Math.min(parseFloat(sr.qty) || 0, stock); r.pq = {}; Object.keys(sr.pq || {}).forEach(lk => { const av = (this.pendingSourceLots.find(l => l.pid === r.pid && l.lot === lk) || { qty: 0 }).qty; const v = Math.min(parseFloat(sr.pq[lk]) || 0, av); if (v > 0) r.pq[lk] = v; }); r.approved = !!sr.approved && r.qty >= (parseFloat(sr.qty) || 0) - 0.0001;
                     });
                     this.pick.rows.forEach(r => { delete r._m; });
                     if (d.docNo) this.formOut.docNo = d.docNo; if (d.evNo) this.formOut.evNo = d.evNo; if (d.evDate) this.formOut.evDate = d.evDate;
@@ -6076,9 +6100,15 @@ const app = createApp({
             const st = this.pickStockOf(r.pid); if (q > st) { q = st; this.toast('จ่ายได้ไม่เกินคงคลัง (' + this.formatNumber(st) + ')', 'err'); }
             r.qty = q; r.approved = false;
         },
+        pickSetPend(key, lot, v) {
+            const r = this.pickRow(key); if (!r) return; let q = parseFloat(v); if (isNaN(q) || q < 0) q = 0;
+            const av = (this.pendingSourceLots.find(l => l.pid === r.pid && l.lot === lot) || { qty: 0 }).qty;
+            if (q > av) { q = av; this.toast('จ่ายจากรอตรวจรับได้ไม่เกิน ' + this.formatNumber(av), 'err'); }
+            const o = Object.assign({}, r.pq); if (q > 0) o[lot] = q; else delete o[lot]; r.pq = o; r.approved = false;
+        },
         pickToggle(key) { const r = this.pickRow(key); if (r) r.approved = !r.approved; },
         pickApprovePage() { this.pickPageRows.forEach(x => { const r = this.pickRow(x.key); if (r) r.approved = true; }); },
-        pickDraftJson() { return JSON.stringify({ rows: this.pick.rows.map(r => ({ pid: r.pid, want: r.want, qty: r.qty, approved: r.approved })), docNo: this.formOut.docNo, evNo: this.formOut.evNo, evDate: this.formOut.evDate }); },
+        pickDraftJson() { return JSON.stringify({ rows: this.pick.rows.map(r => ({ pid: r.pid, want: r.want, qty: r.qty, pq: r.pq, approved: r.approved })), docNo: this.formOut.docNo, evNo: this.formOut.evNo, evDate: this.formOut.evDate }); },
         async savePickDraft(silent) {
             const r = await this.apiCall('saveIssueDraft', { username: this.currentUser.user, reqId: this.pick.reqId, data: this.pickDraftJson() });
             if (r) { const n = new Date(); this.pick.savedAt = n.toLocaleString('th-TH'); if (!silent) this.toast('บันทึกฉบับร่างแล้ว'); }
@@ -6091,14 +6121,18 @@ const app = createApp({
         async submitPick() {
             if (this.pickProgress.pct < 100) return alert('ต้อง Approve ให้ครบทุกรายการก่อน');
             if (!this.formOut.docNo || !this.formOut.dept) return alert('กรุณาระบุเลขที่เอกสารและหน่วยงานปลายทาง');
-            const rows = this.pickRowsFull, cart = [];
+            const rows = this.pickRowsFull, cart = []; let bad = false;
             for (const r of rows) {
                 if (r.qty > r.stockTotal + 0.0001) { alert('คงคลังของ ' + r.name + ' ไม่พอแล้ว กรุณาปรับจำนวน'); return; }
                 r.alloc.forEach(a => cart.push({ productId: r.pid, productName: r.name, qty: a.qty, selectedLotIdx: -1, stockSource: 'MAIN', lotNo: a.lot, expDate: a.exp, unitPrice: a.unitPrice, totalPrice: a.total, status: 'Completed' }));
+                r.pend.forEach(l => { if (l.take > 0.0001) { if (l.take > l.avail + 0.0001) { alert('Lot รอตรวจรับของ ' + r.name + ' ไม่พอแล้ว'); bad = true; return; } cart.push({ productId: r.pid, productName: r.name, qty: l.take, selectedLotIdx: -1, stockSource: 'Pending', lotNo: l.lot, expDate: l.exp, unitPrice: l.unitPrice, totalPrice: l.total, status: 'Completed' }); } });
             }
+            if (bad) return;
             if (!cart.length) return alert('ไม่มีรายการที่จ่ายจริง (จำนวนที่จ่ายเป็น 0 ทุกรายการ)');
             const snap = { reqId: this.pick.reqId, docNo: this.formOut.docNo, date: this.formOut.date, dept: this.formOut.dept, evNo: this.formOut.evNo, evDate: this.formOut.evDate, total: rows.reduce((a, r) => a + r.value, 0),
-                rows: rows.map(r => ({ pid: r.pid, name: r.name, unit: r.unit, want: r.want, qty: r.qty, value: r.value, alloc: r.alloc })) };
+                rows: rows.map(r => ({ pid: r.pid, name: r.name, unit: r.unit, want: r.want, qty: r.issued, value: r.value, alloc: r.alloc.concat(r.pend.filter(l => l.take > 0.0001).map(l => ({ lot: l.lot, exp: l.exp, qty: l.take, unitPrice: l.unitPrice, total: l.total, emg: true }))) })) };
+            const emgN = cart.filter(c => c.stockSource === 'Pending').length;
+            if (emgN && !confirm('มี ' + emgN + ' รายการจ่ายจาก "รอตรวจรับ" (เบิกฉุกเฉิน ฉ.)\nเอกสารจะพิมพ์เป็น "ฉ." และอยู่ในรายการรอเคลียร์ ฉ. จนกว่าจะตรวจรับและระบุเลขใบเบิกจริง\nยืนยัน?')) return;
             const manual = this.cartOut.slice(); this.cartOut = cart.concat(manual);
             const ok = await this.submitBatchOut();
             if (!ok) { this.cartOut = manual; return; }
@@ -6115,7 +6149,7 @@ const app = createApp({
         exportPickDone() {
             const d = this.pick.doneDoc; if (!d) return;
             const aoa = [['ใบจ่ายยา ตามใบขอเบิก ' + d.reqId], ['เลขที่เอกสาร', d.docNo, 'วันที่', d.date, 'หน่วยงาน', d.dept], [], ['ลำดับ', 'รายการยา', 'หน่วย', 'จำนวนขอเบิก', 'จำนวนที่จ่าย', 'Lot ที่ตัด', 'มูลค่า (บาท)']];
-            d.rows.forEach((r, i) => aoa.push([i + 1, r.name, r.unit, r.want, r.qty, r.alloc.map(a => a.lot + '×' + a.qty).join('; '), r.value]));
+            d.rows.forEach((r, i) => aoa.push([i + 1, r.name, r.unit, r.want, r.qty, r.alloc.map(a => (a.emg ? 'ฉ.' : '') + a.lot + '×' + a.qty).join('; '), r.value]));
             aoa.push(['', '', '', '', '', 'รวมมูลค่า', d.total]);
             const ws = XLSX.utils.aoa_to_sheet(aoa); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'ใบจ่าย'); XLSX.writeFile(wb, 'ใบจ่าย_' + d.docNo + '.xlsx');
         },
