@@ -1426,6 +1426,63 @@
                     </div>
                 </div>
 
+                <!-- ===== ใบจ่ายตามใบขอเบิก: ตรวจ/ปรับจำนวน + Approve ทีละรายการ ===== -->
+                <div v-if="pick.reqId" class="card card-shadow p-3 mb-3" style="border-top: 4px solid #dc3545;">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <h5 class="fw-bold mb-0 text-danger"><i class="bi bi-clipboard-check me-2"></i>จัดจ่ายตามใบขอเบิก {{ pick.reqId }} <small class="text-muted">({{ formOut.dept }})</small></h5>
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <span v-if="pick.savedAt" class="small text-muted">ร่างล่าสุด {{ pick.savedAt }}</span>
+                            <button class="btn btn-sm btn-outline-secondary" @click="savePickDraft(false)"><i class="bi bi-save"></i> บันทึกฉบับร่าง</button>
+                            <button class="btn btn-sm btn-outline-danger" @click="closePick()">ปิดใบนี้ (ไม่ลบร่าง)</button>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between small fw-bold"><span>Approve แล้ว {{ pickProgress.done }} / {{ pickProgress.total }} รายการ</span><span>{{ pickProgress.pct }}%</span></div>
+                        <div class="progress" style="height:18px"><div class="progress-bar" :class="pickProgress.pct === 100 ? 'bg-success' : 'bg-warning text-dark'" :style="{width: pickProgress.pct + '%'}">{{ pickProgress.pct }}%</div></div>
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <div class="d-flex align-items-center gap-2 small">แสดงหน้าละ
+                            <select class="form-select form-select-sm" style="width:auto" v-model="pick.size" @change="pick.page = 1"><option :value="10">10</option><option :value="20">20</option><option :value="50">50</option><option :value="100">100</option><option :value="0">ทั้งหมด</option></select>
+                            <span class="text-muted">รายการ</span>
+                        </div>
+                        <button class="btn btn-sm btn-outline-success" @click="pickApprovePage()"><i class="bi bi-check2-all"></i> Approve ทั้งหน้านี้</button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle" style="font-size:0.92rem">
+                            <thead class="table-light text-center"><tr><th>#</th><th>สินค้า</th><th class="text-end">ขอเบิก</th><th>คงคลัง (ทุก Lot)</th><th style="width:130px">จำนวนที่จ่าย</th><th class="text-end">มูลค่า</th><th>Approve</th></tr></thead>
+                            <tbody>
+                                <tr v-for="r in pickPageRows" :key="r.key" :class="r.approved ? 'table-success' : ''">
+                                    <td class="text-center">{{ r.no }}</td>
+                                    <td class="fw-bold">{{ r.name }} <small class="text-muted fw-normal">{{ r.unit }}</small></td>
+                                    <td class="text-end fw-bold">{{ formatNumber(r.want) }}</td>
+                                    <td class="small">
+                                        <div v-for="l in r.lots" :key="l.lot" class="d-flex justify-content-between gap-3"><span>Lot {{ l.lot || '-' }}<span v-if="l.exp" class="text-muted"> · Exp {{ l.exp }}</span></span><b>{{ formatNumber(l.qty) }}</b></div>
+                                        <div v-if="!r.lots.length" class="text-danger">ไม่มีสต็อก</div>
+                                        <div v-else class="border-top mt-1 pt-1 d-flex justify-content-between"><span>รวม</span><b :class="r.stockTotal < r.want ? 'text-danger' : 'text-success'">{{ formatNumber(r.stockTotal) }}</b></div>
+                                    </td>
+                                    <td><input type="number" min="0" :max="r.stockTotal" step="any" class="form-control form-control-sm text-end fw-bold" :class="r.qty > r.want ? 'border-warning' : ''" :value="r.qty" @change="pickSetQty(r.key, $event.target.value)">
+                                        <div v-if="r.qty < r.want" class="small text-danger text-end">ขาด {{ formatNumber(r.want - r.qty) }}</div></td>
+                                    <td class="text-end">{{ formatCurrency(r.value) }}</td>
+                                    <td class="text-center"><button class="btn btn-sm" :class="r.approved ? 'btn-success' : 'btn-outline-secondary'" @click="pickToggle(r.key)">{{ r.approved ? '✔ Approve แล้ว' : 'Approve' }}</button></td>
+                                </tr>
+                            </tbody>
+                            <tfoot class="table-light"><tr><td colspan="5" class="text-end fw-bold">รวมมูลค่าที่จ่าย (ทุกรายการ)</td><td class="text-end fw-bold text-danger fs-5">{{ formatCurrency(pickTotalValue) }}</td><td></td></tr></tfoot>
+                        </table>
+                    </div>
+                    <div v-if="pickPages > 1" class="d-flex justify-content-center align-items-center gap-1 mb-2">
+                        <button class="btn btn-sm btn-outline-secondary" :disabled="pick.page <= 1" @click="pick.page--">‹</button>
+                        <button v-for="n in pickPages" :key="n" class="btn btn-sm" :class="n === pick.page ? 'btn-primary' : 'btn-outline-secondary'" @click="pick.page = n">{{ n }}</button>
+                        <button class="btn btn-sm btn-outline-secondary" :disabled="pick.page >= pickPages" @click="pick.page++">›</button>
+                    </div>
+                    <button @click="submitPick" class="btn btn-warning btn-lg w-100 fw-bold shadow text-dark" :disabled="pickProgress.pct < 100"><i class="bi bi-save"></i> {{ pickProgress.pct < 100 ? 'ต้อง Approve ให้ครบทุกรายการก่อนบันทึกตัดจ่าย (' + pickProgress.done + '/' + pickProgress.total + ')' : 'บันทึกการจ่ายสินค้าและตัดสต็อก' }}</button>
+                </div>
+
+                <!-- ===== จ่ายเสร็จแล้ว: Print / Excel ===== -->
+                <div v-if="pick.doneDoc" class="alert alert-success d-flex flex-wrap justify-content-between align-items-center gap-2 shadow-sm">
+                    <div><b>บันทึกการจ่ายเรียบร้อย</b> · เลขที่เอกสาร {{ pick.doneDoc.docNo }} · {{ pick.doneDoc.dept }} · ขอ {{ pick.doneDoc.rows.length }} รายการ · มูลค่า {{ formatCurrency(pick.doneDoc.total) }}</div>
+                    <div class="d-flex gap-2"><button class="btn btn-primary btn-sm fw-bold" @click="printPickDone()"><i class="bi bi-printer"></i> Print (ขอเบิก/จ่าย)</button><button class="btn btn-success btn-sm fw-bold" @click="exportPickDone()"><i class="bi bi-file-earmark-excel"></i> Excel</button><button class="btn btn-outline-secondary btn-sm" @click="pick.doneDoc = null">ปิด</button></div>
+                </div>
+
                 <div v-if="cartOut.length > 0" class="card card-shadow p-3">
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered align-middle text-nowrap">
@@ -1833,7 +1890,7 @@
                                     <td style="border: 1px solid #000; text-align: center;"></td>
                                     <!-- แสดงหน่วยนับพร้อม Pack Size (ถ้ามี) -->
                                     <td style="border: 1px solid #000; text-align: center; font-size: 12px;">{{ getPrintUnitStr(item) }}</td>
-                                    <td style="border: 1px solid #000; text-align: center;">{{ item.qty }}</td>
+                                    <td style="border: 1px solid #000; text-align: center;">{{ item.reqQty !== undefined ? item.reqQty : item.qty }}</td>
                                     <td style="border: 1px solid #000; text-align: center;">{{ printDoc.isRequest ? '' : item.qty }}</td>
                                     <td style="border: 1px solid #000; text-align: right; padding-right: 6px;">{{ printDoc.isRequest ? '' : formatNumber(item.price) }}</td>
                                     <td style="border: 1px solid #000; text-align: right; padding-right: 6px;">{{ printDoc.isRequest ? '' : formatNumber(item.total) }}</td>
@@ -3129,6 +3186,7 @@ const app = createApp({
             hsUI: { tab: 'docs', fy: '', from: '', to: '', hosp: '', status: '', search: '', itemFilter: 'all', sel: {}, hospEdit: [], coreEdit: [], coreSearch: '' },
             hsSettle: { show: false, docs: [], total: 0, mode: 'Paid', amount: 0, paidBy: 'สสจ.เลย เคลียร์ให้', paidOther: '', payDate: '', evNo: '', evDate: '', note: '', file: null, busy: false },
             hsDetail: { show: false, docId: '' },
+            pick: { reqId: '', rows: [], page: 1, size: 10, savedAt: '', doneDoc: null },
             hsImp: { rows: [], fileName: '', busy: false },
             hsFu: { show: false, hospital: '', docId: '', date: '', method: 'โทรศัพท์', note: '' },
             scAdd: { show: false, kind: 'OUT', date: '', docNo: '', entity: '', lotIdx: -1, lot: '', exp: '', qty: 1, unitPrice: 0, total: 0, note: '' },
@@ -3645,7 +3703,7 @@ const app = createApp({
         // แบ่งหน้า F-SP-011: หน้าละไม่เกิน 15 รายการ (รายการที่ 16, 31, 46 ... ขึ้นหน้าใหม่)
         printPages() {
             const d = this.printDoc; if (!d) return [];
-            const items = d.items || [], per = 15, n = Math.max(1, Math.ceil(items.length / per)), out = [];
+            const items = (d.items || []).concat(d.zeroRows || []), per = 15, n = Math.max(1, Math.ceil(items.length / per)), out = [];
             for (let p = 0; p < n; p++) {
                 const part = items.slice(p * per, (p + 1) * per);
                 out.push({ n: p + 1, start: p * per, items: part, last: p === n - 1, total: part.reduce((a, x) => a + (parseFloat(x.total) || 0), 0) });
@@ -3997,6 +4055,20 @@ const app = createApp({
             // ให้ Dashboard ใกล้หมดอายุ กรองตามคลังที่กำลังเลือกอยู่
             return this.allLots.filter(l => l.qty > 0.01 && pIds.includes(l.pid) && l.exp && new Date(l.exp) <= sixM && (this.globalStock === 'ALL' || l.stockLoc === this.globalStock)).sort((a, b) => new Date(a.exp) - new Date(b.exp)); 
         },
+
+        pickRowsFull() {
+            return this.pick.rows.map((r, i) => {
+                const lots = this.allLots.filter(l => l.pid === r.pid && l.stockLoc === 'MAIN' && l.qty > 0.01).sort((a, b) => new Date(a.exp || '2099-01-01') - new Date(b.exp || '2099-01-01'));
+                const stockTotal = lots.reduce((a, l) => a + l.qty, 0);
+                let need = Math.min(r.qty, stockTotal), value = 0; const alloc = [];
+                lots.forEach(l => { if (need <= 0.0001) return; const take = Math.min(l.qty, need); const up = l.unitPrice || 0; alloc.push({ lot: l.lot, exp: l.exp || '', qty: take, unitPrice: up, total: parseFloat((take * up).toFixed(2)) }); value += take * up; need -= take; });
+                return Object.assign({}, r, { no: i + 1, lots: lots, stockTotal: stockTotal, alloc: alloc, value: parseFloat(value.toFixed(2)) });
+            });
+        },
+        pickProgress() { const t = this.pick.rows.length, d = this.pick.rows.filter(r => r.approved).length; return { total: t, done: d, pct: t ? Math.floor(d / t * 100 + (d === t ? 0 : 0)) : 0 }; },
+        pickPages() { return this.pick.size > 0 ? Math.max(1, Math.ceil(this.pick.rows.length / this.pick.size)) : 1; },
+        pickPageRows() { const a = this.pickRowsFull; if (!(this.pick.size > 0)) return a; const p = Math.min(this.pick.page, this.pickPages); return a.slice((p - 1) * this.pick.size, p * this.pick.size); },
+        pickTotalValue() { return this.pickRowsFull.reduce((a, r) => a + r.value, 0); },
         cartOutTotal() { return this.cartOut.reduce((sum, i) => sum + i.totalPrice, 0); },
         cartRecTotal() { return this.cartRec.reduce((sum, i) => sum + parseFloat(i.totalPrice), 0); },
 
@@ -4026,7 +4098,18 @@ const app = createApp({
                 g[id].items.push({ transId: t.transId, name: p ? p.name : t.productId, productId: t.productId, lot: t.lotNo, exp: t.expDate, qty: t.qty, unit: p ? p.unit : '', price: t.unitPrice, total: t.totalPrice, stockLoc: loc }); 
                 g[id].total += (parseFloat(t.totalPrice) || 0); 
             }); 
+            const sm = this.reqSnapMap;
+            Object.values(g).forEach(d => {
+                const sn = sm[d.id]; if (!sn) return;
+                const seen = {};
+                d.items.forEach(it => { if (!seen[it.productId]) { seen[it.productId] = 1; it.reqQty = sn[it.productId] !== undefined ? sn[it.productId] : ''; } else it.reqQty = ''; });
+                d.zeroRows = Object.keys(sn).filter(pid => !seen[pid]).map(pid => { const p = this.products.find(x => x.id == pid); return { name: p ? p.name : pid, productId: pid, unit: p ? p.unit : '', qty: 0, price: 0, total: 0, reqQty: sn[pid], stockLoc: 'MAIN', lot: '' }; });
+            });
             return Object.values(g).sort((a, b) => new Date(b.date) - new Date(a.date)); 
+        },
+        reqSnapMap() {
+            const m = {}; (this.rawData.reqSnaps || []).forEach(r => { try { const d = JSON.parse(r[2]); const o = {}; (d.rows || []).forEach(x => { o[String(x.pid)] = (o[String(x.pid)] || 0) + (parseFloat(x.want) || 0); }); m[r[0]] = o; } catch (e) {} });
+            return m;
         },
         filteredHistory() { 
             let l = this.historyGroups; 
@@ -5015,8 +5098,8 @@ const app = createApp({
             let outItems = this.cartOut.map(i => ({ ...i, date: this.formOut.date, vendorOrDept: this.formOut.dept, refDoc: this.formOut.docNo, note: this.formOut.reqType + (this.formOut.reqId ? ' | ' + this.formOut.reqId : ''), stockLocation: i.stockSource })); 
             const res = await this.apiCall("saveBatchTransaction", { user: this.currentUser.name, type: 'OUT', reqId: this.formOut.reqId, items: outItems }); 
             if (res && (this.formOut.evNo || this.formOut.evDate)) { await this.apiCall('saveDocEvidence', { username: this.currentUser.user, docId: this.formOut.docNo, evidenceNo: this.formOut.evNo, evidenceDate: this.formOut.evDate }); }
-            if (res) { alert('สำเร็จ'); this.cartOut = []; this.formOut.docNo = ''; this.formOut.evNo = ''; this.formOut.evDate = ''; this.formOut.reqId = ''; this.formOut.dept = ''; if (this.tsStockOutDept) this.tsStockOutDept.clear(); await this.loadData(); } 
-            this.loading = false; 
+            if (res) { alert('สำเร็จ'); this.cartOut = []; this.formOut.docNo = ''; this.formOut.evNo = ''; this.formOut.evDate = ''; this.formOut.reqId = ''; this.formOut.dept = ''; if (this.tsStockOutDept) this.tsStockOutDept.clear(); await this.loadData(); this.loading = false; return true; } 
+            this.loading = false; return false; 
         },
 
         addToStockTakeCart() { if (!this.tempStockTake.productId) return alert('ระบุสินค้า'); let diff = this.tempStockTake.actualQty - this.tempStockTake.currentQty; if (diff === 0) return alert('ยอดนับจริงเท่ากับยอดในระบบ ไม่ต้องปรับปรุงครับ'); this.cartStockTake.push({ ...this.tempStockTake, diff: diff }); this.tempStockTake = { productId: '', productName: '', currentQty: 0, actualQty: 0, unitPrice: 0, packSize: 1 }; if (this.tsStockTakeProd) this.tsStockTakeProd.clear(); },
@@ -5954,38 +6037,87 @@ const app = createApp({
             for (const n of names) { const h = this.depts.find(d => String(d.name).trim() === n); if (h) return h.name; }
             return names[0] || this.locLabel(req.dept);
         },
-        loadRequestToStockOut(req) {
-            if (this.cartOut.length > 0 && !confirm('ในตะกร้าจ่ายมีรายการอยู่แล้ว ต้องการแทนที่ด้วยรายการจากใบขอเบิกนี้หรือไม่?')) return;
-            const cart = [], shortage = [];
+        async loadRequestToStockOut(req) {
+            if ((this.cartOut.length > 0 || this.pick.reqId) && !confirm('มีรายการค้างอยู่ในหน้าจ่าย ต้องการแทนที่ด้วยใบขอเบิกนี้หรือไม่? (ฉบับร่างที่บันทึกไว้ยังอยู่)')) return;
+            const rows = []; let k = 0;
             (req.items || []).forEach(it => {
-                const pid = String(it.productId);
-                const p = this.products.find(x => x.id === pid);
-                const name = p ? p.name : (it.productName || pid);
-                const want = parseFloat(it.qty) || 0;
-                let need = want;
-                const lots = this.allLots.filter(l => l.pid === pid && l.stockLoc === 'MAIN' && l.qty > 0.01)
-                    .sort((a, b) => new Date(a.exp || '2099-01-01') - new Date(b.exp || '2099-01-01'));
-                lots.forEach(l => {
-                    if (need <= 0.0001) return;
-                    const take = Math.min(l.qty, need);
-                    const up = l.unitPrice || 0;
-                    cart.push({ productId: pid, productName: name, qty: take, selectedLotIdx: -1, stockSource: 'MAIN', lotNo: l.lot, expDate: l.exp || '', unitPrice: up, totalPrice: parseFloat((take * up).toFixed(2)), status: 'Completed' });
-                    need -= take;
-                });
-                if (need > 0.0001) shortage.push(`${name}: ขอ ${this.formatNumber(want)} จัดได้ ${this.formatNumber(want - need)}`);
+                const pid = String(it.productId), p = this.products.find(x => x.id === pid), want = parseFloat(it.qty) || 0;
+                const stock = this.allLots.filter(l => l.pid === pid && l.stockLoc === 'MAIN' && l.qty > 0.01).reduce((a, l) => a + l.qty, 0);
+                rows.push({ key: 'r' + (k++), pid: pid, name: p ? p.name : (it.productName || pid), unit: p ? p.unit : (it.unit || ''), want: want, qty: Math.min(want, stock), approved: false });
             });
-            this.cartOut = cart;
-            this.formOut.reqId = req.id;
-            this.formOut.reqType = 'เบิกจริง';
-            this.formOut.date = new Date().toISOString().slice(0, 10);
-            const dest = this.reqDestName(req);
-            this.formOut.dept = dest;
-            if (this.tsStockOutDept) {
-                if (!this.tsStockOutDept.options[dest]) this.tsStockOutDept.addOption({ id: dest, name: dest });
-                this.tsStockOutDept.setValue(dest);
+            if (!rows.length) { alert('ใบขอเบิกนี้ไม่มีรายการ'); return; }
+            this.cartOut = [];
+            this.pick = { reqId: req.id, rows: rows, page: 1, size: 10, savedAt: '', doneDoc: null };
+            this.formOut.reqId = req.id; this.formOut.reqType = 'เบิกจริง'; this.formOut.date = new Date().toISOString().slice(0, 10);
+            const dest = this.reqDestName(req); this.formOut.dept = dest;
+            if (this.tsStockOutDept) { if (!this.tsStockOutDept.options[dest]) this.tsStockOutDept.addOption({ id: dest, name: dest }); this.tsStockOutDept.setValue(dest); }
+            const dr = await this.apiCall('getIssueDraft', { username: this.currentUser.user, reqId: req.id });
+            if (dr && dr.data) {
+                try {
+                    const d = JSON.parse(dr.data);
+                    (d.rows || []).forEach(sr => {
+                        const r = this.pick.rows.find(x => x.pid === String(sr.pid) && !x._m); if (!r) return; r._m = true;
+                        const stock = this.allLots.filter(l => l.pid === r.pid && l.stockLoc === 'MAIN' && l.qty > 0.01).reduce((a, l) => a + l.qty, 0);
+                        r.qty = Math.min(parseFloat(sr.qty) || 0, stock); r.approved = !!sr.approved && r.qty >= (parseFloat(sr.qty) || 0) - 0.0001;
+                    });
+                    this.pick.rows.forEach(r => { delete r._m; });
+                    if (d.docNo) this.formOut.docNo = d.docNo; if (d.evNo) this.formOut.evNo = d.evNo; if (d.evDate) this.formOut.evDate = d.evDate;
+                    this.pick.savedAt = dr.at || '';
+                    this.toast('โหลดฉบับร่างที่บันทึกไว้ (' + (dr.by || '') + ' · ' + (dr.at || '') + ')');
+                } catch (e) { }
             }
-            if (shortage.length > 0) alert('คลังใหญ่มียอดไม่พอสำหรับบางรายการ (จัดตามที่มี):\n\n' + shortage.join('\n'));
-            else if (cart.length === 0) alert('ใบขอเบิกนี้ไม่มีรายการที่จัดได้');
+            const short = this.pick.rows.filter(r => r.qty < r.want - 0.0001);
+            if (short.length) this.toast('คลังใหญ่มียอดไม่พอ ' + short.length + ' รายการ (ตั้งจำนวนจ่ายตามที่มี)', 'err');
+        },
+        pickRow(key) { return this.pick.rows.find(r => r.key === key); },
+        pickStockOf(pid) { return this.allLots.filter(l => l.pid === pid && l.stockLoc === 'MAIN' && l.qty > 0.01).reduce((a, l) => a + l.qty, 0); },
+        pickSetQty(key, v) {
+            const r = this.pickRow(key); if (!r) return; let q = parseFloat(v); if (isNaN(q) || q < 0) q = 0;
+            const st = this.pickStockOf(r.pid); if (q > st) { q = st; this.toast('จ่ายได้ไม่เกินคงคลัง (' + this.formatNumber(st) + ')', 'err'); }
+            r.qty = q; r.approved = false;
+        },
+        pickToggle(key) { const r = this.pickRow(key); if (r) r.approved = !r.approved; },
+        pickApprovePage() { this.pickPageRows.forEach(x => { const r = this.pickRow(x.key); if (r) r.approved = true; }); },
+        pickDraftJson() { return JSON.stringify({ rows: this.pick.rows.map(r => ({ pid: r.pid, want: r.want, qty: r.qty, approved: r.approved })), docNo: this.formOut.docNo, evNo: this.formOut.evNo, evDate: this.formOut.evDate }); },
+        async savePickDraft(silent) {
+            const r = await this.apiCall('saveIssueDraft', { username: this.currentUser.user, reqId: this.pick.reqId, data: this.pickDraftJson() });
+            if (r) { const n = new Date(); this.pick.savedAt = n.toLocaleString('th-TH'); if (!silent) this.toast('บันทึกฉบับร่างแล้ว'); }
+            return !!r;
+        },
+        closePick() {
+            const go = () => { this.pick.reqId = ''; this.pick.rows = []; this.formOut.reqId = ''; this.formOut.dept = ''; if (this.tsStockOutDept) this.tsStockOutDept.clear(); };
+            this.askConfirm({ title: 'ปิดใบจ่ายนี้?', lines: ['ฉบับร่างที่บันทึกไว้ยังอยู่ ดึงใบเบิกมาทำต่อได้', 'ถ้ายังไม่ได้บันทึกร่าง การเปลี่ยนแปลงล่าสุดจะหายไป'], okText: 'ปิดใบนี้', onOk: go });
+        },
+        async submitPick() {
+            if (this.pickProgress.pct < 100) return alert('ต้อง Approve ให้ครบทุกรายการก่อน');
+            if (!this.formOut.docNo || !this.formOut.dept) return alert('กรุณาระบุเลขที่เอกสารและหน่วยงานปลายทาง');
+            const rows = this.pickRowsFull, cart = [];
+            for (const r of rows) {
+                if (r.qty > r.stockTotal + 0.0001) { alert('คงคลังของ ' + r.name + ' ไม่พอแล้ว กรุณาปรับจำนวน'); return; }
+                r.alloc.forEach(a => cart.push({ productId: r.pid, productName: r.name, qty: a.qty, selectedLotIdx: -1, stockSource: 'MAIN', lotNo: a.lot, expDate: a.exp, unitPrice: a.unitPrice, totalPrice: a.total, status: 'Completed' }));
+            }
+            if (!cart.length) return alert('ไม่มีรายการที่จ่ายจริง (จำนวนที่จ่ายเป็น 0 ทุกรายการ)');
+            const snap = { reqId: this.pick.reqId, docNo: this.formOut.docNo, date: this.formOut.date, dept: this.formOut.dept, evNo: this.formOut.evNo, evDate: this.formOut.evDate, total: rows.reduce((a, r) => a + r.value, 0),
+                rows: rows.map(r => ({ pid: r.pid, name: r.name, unit: r.unit, want: r.want, qty: r.qty, value: r.value, alloc: r.alloc })) };
+            const manual = this.cartOut.slice(); this.cartOut = cart.concat(manual);
+            const ok = await this.submitBatchOut();
+            if (!ok) { this.cartOut = manual; return; }
+            await this.apiCall('saveIssueSnapshot', { username: this.currentUser.user, docId: snap.docNo, reqId: snap.reqId, data: JSON.stringify({ rows: snap.rows.map(x => ({ pid: x.pid, want: x.want, qty: x.qty })) }) });
+            if (!this.rawData.reqSnaps) this.rawData.reqSnaps = [];
+            this.rawData.reqSnaps = this.rawData.reqSnaps.filter(x => x[0] !== snap.docNo).concat([[snap.docNo, snap.reqId, JSON.stringify({ rows: snap.rows.map(x => ({ pid: x.pid, want: x.want, qty: x.qty })) })]]);
+            this.pick = { reqId: '', rows: [], page: 1, size: this.pick.size, savedAt: '', doneDoc: snap };
+        },
+        printPickDone() {
+            const d = this.pick.doneDoc; if (!d) return;
+            const g = this.historyGroups.find(x => x.id === d.docNo); if (!g) return alert('ไม่พบเอกสารในประวัติ (ลองเปิดจากหน้าประวัติรับจ่าย)');
+            this.openPrintFSP011(g);
+        },
+        exportPickDone() {
+            const d = this.pick.doneDoc; if (!d) return;
+            const aoa = [['ใบจ่ายยา ตามใบขอเบิก ' + d.reqId], ['เลขที่เอกสาร', d.docNo, 'วันที่', d.date, 'หน่วยงาน', d.dept], [], ['ลำดับ', 'รายการยา', 'หน่วย', 'จำนวนขอเบิก', 'จำนวนที่จ่าย', 'Lot ที่ตัด', 'มูลค่า (บาท)']];
+            d.rows.forEach((r, i) => aoa.push([i + 1, r.name, r.unit, r.want, r.qty, r.alloc.map(a => a.lot + '×' + a.qty).join('; '), r.value]));
+            aoa.push(['', '', '', '', '', 'รวมมูลค่า', d.total]);
+            const ws = XLSX.utils.aoa_to_sheet(aoa); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'ใบจ่าย'); XLSX.writeFile(wb, 'ใบจ่าย_' + d.docNo + '.xlsx');
         },
 
         // ================= บันทึกรับเข้าคลังย่อย =================
