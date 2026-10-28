@@ -276,6 +276,7 @@
                             <a @click="navTo('reports', 'MAIN')" class="nav-link" :class="{active: page==='reports' && globalStock==='MAIN'}">📈 สรุปรายงาน</a>
                             <a @click="navTo('dispenseReport', 'MAIN')" class="nav-link" :class="{active: page==='dispenseReport' && globalStock==='MAIN'}">📊 สรุปยอดเบิกรายตัว</a>
                             <a v-if="canMainOps" @click="navTo('poCreate', 'MAIN')" class="nav-link text-warning fw-bold" :class="{active: page==='poCreate'}">🧾 สร้างใบ PO</a>
+                            <a v-if="canMainOps" @click="navTo('subCheck', 'MAIN')" class="nav-link fw-bold" style="color:#fd7e14" :class="{active: page==='subCheck'}">🔁 รับคืน / ครอสเช็คคลังย่อย<span v-if="subReturnsPending.length" class="badge bg-danger ms-1">{{ subReturnsPending.length }}</span></a>
                             <a v-if="canMainOps" @click="navTo('hospSupport', 'MAIN')" class="nav-link fw-bold" style="color:#20c997" :class="{active: page==='hospSupport'}">🏥 สนับสนุนยา รพ.ชุมชน</a>
                             <a @click="navTo('purchasePlan', 'MAIN')" class="nav-link text-info fw-bold" :class="{active: page==='purchasePlan'}">🗂️ แผนจัดซื้อประจำปี</a>
                             <a @click="navTo('history', 'MAIN')" class="nav-link" :class="{active: page==='history' && globalStock==='MAIN'}">📜 ประวัติรับจ่าย</a>
@@ -2415,6 +2416,45 @@
                 </div>
             </div>
 
+            <!-- ================= รับคืน / ครอสเช็คจากคลังย่อย (คลังใหญ่) ================= -->
+            <div v-if="page === 'subCheck' && canMainOps">
+                <h3 class="fw-bold mb-1" style="color:#c2570c"><i class="bi bi-arrow-left-right me-2"></i>รับคืน / ครอสเช็คการรับจากคลังย่อย</h3>
+                <div class="text-muted small mb-3">ข้อมูลที่คลังย่อย (OPD/IPD/เวชภัณฑ์มิใช่ยา) ยืนยันตอนรับของ — เทียบกับที่คลังใหญ่จ่าย เพื่อช่วยกันตรวจสอบจำนวนและราคาทุน</div>
+                <ul class="nav nav-tabs hs-tabs mb-3">
+                    <li class="nav-item"><a class="nav-link" :class="{active: scUI.tab==='ret'}" @click="scUI.tab='ret'" style="cursor:pointer">🔁 รอรับคืน ({{ subReturnsPending.length }})</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: scUI.tab==='audit'}" @click="scUI.tab='audit'" style="cursor:pointer">🔎 ครอสเช็คการรับ ({{ subAuditFlagged.length }})</a></li>
+                    <li class="nav-item"><a class="nav-link" :class="{active: scUI.tab==='hist'}" @click="scUI.tab='hist'" style="cursor:pointer">📜 ประวัติรับคืน</a></li>
+                </ul>
+                <div v-if="scUI.tab==='ret'" class="card card-shadow p-3">
+                    <div class="row g-2 align-items-end mb-2">
+                        <div class="col-md-4"><label class="form-label small fw-bold mb-0">เลขที่เอกสารรับคืน (ว่าง = ระบบรันให้)</label><input class="form-control form-control-sm" v-model="scUI.docNo"></div>
+                        <div class="col-md-3"><button class="btn btn-warning fw-bold btn-sm w-100" :disabled="!scSelIds.length" @click="acceptSubReturns()">รับคืนเข้าคลังใหญ่ที่เลือก ({{ scSelIds.length }})</button></div>
+                    </div>
+                    <div class="table-responsive"><table class="table table-sm table-bordered align-middle mb-0" style="font-size:0.9rem">
+                        <thead class="table-light"><tr class="text-center"><th style="width:34px"><input type="checkbox" :checked="scAllSel" @change="scToggleAll($event.target.checked)"></th><th>วันที่</th><th>จากคลัง</th><th>ใบรับ</th><th>รายการยา</th><th>Lot / Exp</th><th>จำนวน</th><th>ทุน/หน่วย</th><th>เหตุผล</th><th>ผู้ส่งคืน</th></tr></thead>
+                        <tbody>
+                            <tr v-for="r in subReturnsPending" :key="r.id"><td class="text-center"><input type="checkbox" v-model="scUI.sel[r.id]"></td><td>{{ formatThaiDate(String(r.createdAt).slice(0,10)) }}</td><td>{{ locLabel(r.loc) }}</td><td>{{ r.docId }}</td><td class="fw-bold">{{ getProductName(r.productId) }}</td><td>{{ r.lotNo }}<br><small class="text-muted">{{ r.expDate }}</small></td><td class="text-end fw-bold">{{ formatNumber(r.qty) }}</td><td class="text-end">{{ formatNumber(r.unitPrice) }}</td><td class="small">{{ r.reason }}<div v-if="r.note" class="text-muted">{{ r.note }}</div></td><td>{{ r.by }}</td></tr>
+                            <tr v-if="!subReturnsPending.length"><td colspan="10" class="text-center text-muted py-4">ไม่มีรายการรอรับคืน</td></tr>
+                        </tbody></table></div>
+                </div>
+                <div v-if="scUI.tab==='audit'" class="card card-shadow p-3">
+                    <div class="d-flex flex-wrap gap-2 align-items-center mb-2"><label class="small"><input type="checkbox" v-model="scUI.onlyFlag" class="me-1">เฉพาะรายการที่มีข้อสังเกต</label><span class="small text-muted">ตั้งแต่</span><input type="date" class="form-control form-control-sm" style="width:auto" v-model="scUI.from"><button class="btn btn-sm btn-outline-success ms-auto" @click="exportSubAudit()"><i class="bi bi-file-earmark-excel"></i> Excel</button></div>
+                    <div class="table-responsive" style="max-height:65vh"><table class="table table-sm table-bordered align-middle mb-0" style="font-size:0.88rem">
+                        <thead class="table-light sticky-top"><tr class="text-center"><th>วันที่</th><th>คลังที่รับ</th><th>ใบจ่าย</th><th>รายการยา</th><th>Lot</th><th>จ่าย</th><th>รับจริง</th><th>ส่งคืน</th><th>ราคาต้นทาง</th><th>ราคาที่คลังย่อยลง</th><th>ข้อสังเกต</th></tr></thead>
+                        <tbody>
+                            <tr v-for="(r, i) in subAuditShown" :key="i" :class="r.flag ? 'table-warning' : ''"><td>{{ formatThaiDate(String(r.at).slice(0,10)) }}</td><td>{{ locLabel(r.loc) }}</td><td>{{ r.docId }}</td><td class="fw-bold">{{ getProductName(r.productId) }}</td><td>{{ r.lotNo }}</td><td class="text-end">{{ r.issuedQty === null ? '-' : formatNumber(r.issuedQty) }}</td><td class="text-end fw-bold">{{ formatNumber(r.receivedQty) }}</td><td class="text-end">{{ r.returnedQty ? formatNumber(r.returnedQty) : '' }}</td><td class="text-end" :class="r.issuedPrice === 0 ? 'text-danger fw-bold' : ''">{{ r.issuedPrice === null ? '-' : formatNumber(r.issuedPrice) }}</td><td class="text-end" :class="Math.abs((r.issuedPrice || 0) - r.receivedPrice) > 0.00005 ? 'fw-bold text-primary' : ''">{{ formatNumber(r.receivedPrice) }}</td><td class="small">{{ r.flag }}</td></tr>
+                            <tr v-if="!subAuditShown.length"><td colspan="11" class="text-center text-muted py-4">ไม่มีข้อมูล</td></tr>
+                        </tbody></table></div>
+                    <div class="small text-muted mt-2">ถ้าพบ “ราคาต้นทาง = 0” แปลว่าตอนจ่ายจากคลังใหญ่ไม่ได้เลือก Lot หรือข้อมูลต้นทุนไม่ครบ — ให้ตรวจสอบ/แก้ไขใบจ่ายของคลังใหญ่ในหน้าประวัติรับจ่าย (ราคาที่คลังย่อยลงไว้ใช้เป็นข้อมูลอ้างอิง)</div>
+                </div>
+                <div v-if="scUI.tab==='hist'" class="card card-shadow p-3">
+                    <div class="table-responsive"><table class="table table-sm table-bordered mb-0" style="font-size:0.88rem">
+                        <thead class="table-light"><tr><th>วันที่ส่งคืน</th><th>จากคลัง</th><th>รายการยา</th><th>Lot</th><th class="text-end">จำนวน</th><th>เหตุผล</th><th>สถานะ</th><th>เอกสารรับคืน</th></tr></thead>
+                        <tbody><tr v-for="r in subReturnsDone" :key="r.id"><td>{{ formatThaiDate(String(r.createdAt).slice(0,10)) }}</td><td>{{ locLabel(r.loc) }}</td><td>{{ getProductName(r.productId) }}</td><td>{{ r.lotNo }}</td><td class="text-end">{{ formatNumber(r.qty) }}</td><td class="small">{{ r.reason }}</td><td>รับคืนแล้ว ({{ r.acceptedBy }})</td><td>{{ r.returnDoc }}</td></tr>
+                        <tr v-if="!subReturnsDone.length"><td colspan="8" class="text-center text-muted py-3">ยังไม่มีประวัติ</td></tr></tbody></table></div>
+                </div>
+            </div>
+
             <!-- ================= สร้างใบ PO (คลังใหญ่) ================= -->
             <div v-show="page === 'poCreate' && canMainOps">
                 <h3 class="fw-bold text-primary mb-3"><i class="bi bi-receipt me-2"></i> สร้างใบ PO (คลังยาใหญ่)</h3>
@@ -2569,24 +2609,69 @@
                 </div>
 
                 <!-- ตะกร้า -->
-                <div v-if="subCart.length > 0" class="card card-shadow p-3 mb-3">
+                <div v-if="subCart.length > 0" class="card card-shadow p-3 mb-3" style="border-top: 4px solid #198754;">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <h5 class="fw-bold mb-0 text-success"><i class="bi bi-clipboard-check me-2"></i>ตรวจรับของ{{ subRecv.linkedDoc ? ' ตามใบจ่าย ' + subRecv.linkedDoc : '' }}</h5>
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <span v-if="subPick.savedAt" class="small text-muted">ร่างล่าสุด {{ subPick.savedAt }}</span>
+                            <button class="btn btn-sm btn-outline-secondary" @click="saveSubDraft(false)"><i class="bi bi-save"></i> บันทึกฉบับร่าง</button>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <div class="d-flex justify-content-between small fw-bold"><span>Approve แล้ว {{ subProgress.done }} / {{ subProgress.total }} รายการ</span><span>{{ subProgress.pct }}%</span></div>
+                        <div class="progress" style="height:18px"><div class="progress-bar" :class="subProgress.pct === 100 ? 'bg-success' : 'bg-warning text-dark'" :style="{width: subProgress.pct + '%'}">{{ subProgress.pct }}%</div></div>
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <div class="d-flex align-items-center gap-2 small">แสดงหน้าละ
+                            <select class="form-select form-select-sm" style="width:auto" v-model="subPick.size" @change="subPick.page = 1"><option :value="10">10</option><option :value="20">20</option><option :value="50">50</option><option :value="100">100</option><option :value="0">ทั้งหมด</option></select>
+                            <span class="text-muted">รายการ</span>
+                            <span v-if="subWarn.near" class="badge" style="background:#fd7e14">ใกล้หมดอายุ &lt; 6 เดือน {{ subWarn.near }}</span><span v-if="subWarn.expired" class="badge bg-danger">หมดอายุแล้ว {{ subWarn.expired }}</span><span v-if="subWarn.zero" class="badge bg-danger">ราคาทุน 0 = {{ subWarn.zero }}</span>
+                        </div>
+                        <button class="btn btn-sm btn-outline-success" @click="subApprovePage()"><i class="bi bi-check2-all"></i> Approve ทั้งหน้านี้</button>
+                    </div>
                     <div class="table-responsive">
-                        <table class="table table-bordered table-sm align-middle text-center text-nowrap mb-0">
-                            <thead class="table-light"><tr><th>รายการ</th><th>Lot / Exp</th><th style="width:140px">จำนวนที่รับ</th><th>ราคา/หน่วย</th><th>มูลค่า</th><th>ลบ</th></tr></thead>
+                        <table class="table table-bordered table-sm align-middle text-center mb-0" style="font-size:0.92rem">
+                            <thead class="table-light"><tr><th>#</th><th class="text-start">รายการ</th><th>Lot / Exp</th><th>คลังใหญ่จ่าย</th><th style="width:120px">จำนวนที่ได้รับจริง</th><th style="width:120px">ราคาทุน/หน่วย</th><th>มูลค่า</th><th>ส่งคืน</th><th>Approve</th><th></th></tr></thead>
                             <tbody>
-                                <tr v-for="(item, idx) in subCart" :key="idx">
-                                    <td class="text-start fw-bold">{{ item.productName }}<div v-if="item.issuedQty !== undefined && item.issuedQty !== item.qty" class="small text-danger fw-normal">คลังใหญ่จ่ายมา {{ formatNumber(item.issuedQty) }}</div></td>
-                                    <td>{{ item.lotNo || '-' }}<br><span v-if="item.expDate" class="badge bg-danger">{{ item.expDate }}</span></td>
-                                    <td><input type="number" v-model.number="item.qty" min="0" step="any" class="form-control form-control-sm text-center fw-bold text-primary"></td>
-                                    <td>{{ formatNumber(item.unitPrice) }}</td>
-                                    <td class="fw-bold">{{ formatCurrency(item.qty * item.unitPrice) }}</td>
-                                    <td><button @click="subCart.splice(idx, 1)" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button></td>
+                                <tr v-for="item in subPageRows" :key="item.idx" :class="item.approved ? 'table-success' : (item.expInfo.level === 'expired' ? 'table-danger' : (item.expInfo.level === 'near' ? '' : ''))" :style="item.expInfo.level === 'near' && !item.approved ? 'background:#fff3e6' : ''">
+                                    <td>{{ item.no }}</td>
+                                    <td class="text-start fw-bold">{{ item.productName }}<div v-if="item.returnQty > 0" class="small fw-normal" style="color:#c2570c">ส่งคืนคลังใหญ่ {{ formatNumber(item.returnQty) }} ({{ item.returnReason }})</div></td>
+                                    <td>{{ item.lotNo || '-' }}<br><span v-if="item.expDate" class="badge" :class="item.expInfo.level === 'expired' ? 'bg-danger' : (item.expInfo.level === 'near' ? '' : 'bg-secondary')" :style="item.expInfo.level === 'near' ? 'background:#fd7e14' : ''">{{ item.expDate }}</span>
+                                        <div v-if="item.expInfo.level === 'expired'" class="small text-danger fw-bold">หมดอายุแล้ว</div><div v-else-if="item.expInfo.level === 'near'" class="small fw-bold" style="color:#c2570c">เหลือ {{ item.expInfo.months }} เดือน</div></td>
+                                    <td><span v-if="item.issuedQty !== undefined" class="fw-bold">{{ formatNumber(item.issuedQty) }}</span><span v-else class="text-muted">-</span></td>
+                                    <td><input type="number" :value="item.qty" min="0" :max="item.issuedQty" step="any" class="form-control form-control-sm text-center fw-bold text-primary" @change="subSetQty(item.idx, $event.target.value)">
+                                        <div v-if="item.issuedQty !== undefined && item.qty < item.issuedQty - 0.0001" class="small text-danger">ขาด {{ formatNumber(item.issuedQty - item.qty) }}</div></td>
+                                    <td><input type="number" :value="item.unitPrice" min="0" step="0.0001" class="form-control form-control-sm text-end" :class="!(item.unitPrice > 0) ? 'border-danger bg-danger-subtle fw-bold' : ''" @change="subSetPrice(item.idx, $event.target.value)">
+                                        <div v-if="!(item.unitPrice > 0)" class="small text-danger fw-bold">⚠ ราคาทุน 0</div><div v-else-if="item.issuedPrice !== undefined && Math.abs(item.issuedPrice - item.unitPrice) > 0.00005" class="small text-muted">ต้นทาง {{ formatNumber(item.issuedPrice) }}</div></td>
+                                    <td class="fw-bold">{{ formatCurrency(item.value) }}</td>
+                                    <td><button class="btn btn-sm" :class="item.returnQty > 0 ? 'btn-warning' : (item.expInfo.level !== 'ok' ? 'btn-outline-warning fw-bold' : 'btn-outline-secondary')" @click="openSubRet(item.idx)" title="ส่งคืนคลังใหญ่ (เช่น ใกล้หมดอายุ เพื่อแลกคืนบริษัท)"><i class="bi bi-arrow-return-left"></i> ส่งคืน</button></td>
+                                    <td><button class="btn btn-sm" :class="item.approved ? 'btn-success' : 'btn-outline-secondary'" @click="subToggle(item.idx)">{{ item.approved ? '✔ Approve' : 'Approve' }}</button></td>
+                                    <td><button @click="subRemove(item.idx)" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button></td>
                                 </tr>
                             </tbody>
-                            <tfoot class="table-light"><tr><td colspan="4" class="text-end fw-bold">มูลค่ารวมที่รับเข้า</td><td class="fw-bold text-success fs-5">{{ formatCurrency(subCartTotal) }}</td><td></td></tr></tfoot>
+                            <tfoot class="table-light"><tr><td colspan="6" class="text-end fw-bold">มูลค่ารวมที่รับเข้า (หลังหักส่งคืน)</td><td class="fw-bold text-success fs-5">{{ formatCurrency(subCartTotal) }}</td><td colspan="3"></td></tr></tfoot>
                         </table>
                     </div>
-                    <button @click="submitSubReceive" class="btn btn-success btn-lg mt-3 fw-bold w-100 shadow"><i class="bi bi-save me-2"></i> ยืนยันบันทึกรับเข้า {{ locLabel(globalStock) }}</button>
+                    <div v-if="subPages > 1" class="d-flex justify-content-center align-items-center gap-1 my-2">
+                        <button class="btn btn-sm btn-outline-secondary" :disabled="subPick.page <= 1" @click="subPick.page--">‹</button>
+                        <button v-for="n in subPages" :key="n" class="btn btn-sm" :class="n === subPick.page ? 'btn-primary' : 'btn-outline-secondary'" @click="subPick.page = n">{{ n }}</button>
+                        <button class="btn btn-sm btn-outline-secondary" :disabled="subPick.page >= subPages" @click="subPick.page++">›</button>
+                    </div>
+                    <button @click="submitSubReceive" class="btn btn-success btn-lg mt-3 fw-bold w-100 shadow" :disabled="subProgress.pct < 100"><i class="bi bi-save me-2"></i> {{ subProgress.pct < 100 ? 'ต้อง Approve ให้ครบทุกรายการก่อนบันทึก (' + subProgress.done + '/' + subProgress.total + ')' : 'ยืนยันบันทึกรับเข้า ' + locLabel(globalStock) }}</button>
+                </div>
+
+                <!-- Modal: ส่งคืนคลังใหญ่ -->
+                <div v-if="subRet.show" class="modal-overlay-bg" style="z-index: 2600;">
+                    <div class="card p-4 shadow-lg" style="width: 95%; max-width: 480px;">
+                        <div class="d-flex justify-content-between"><h5 class="fw-bold mb-2" style="color:#c2570c"><i class="bi bi-arrow-return-left me-2"></i>ส่งคืนคลังใหญ่</h5><button class="btn-close" @click="subRet.show=false"></button></div>
+                        <div class="small mb-2"><b>{{ subRet.name }}</b><br>Lot {{ subRet.lot || '-' }} · Exp {{ subRet.exp || '-' }} <span v-if="subRet.level==='near'" class="badge" style="background:#fd7e14">ใกล้หมดอายุ</span><span v-if="subRet.level==='expired'" class="badge bg-danger">หมดอายุแล้ว</span> · ได้รับ {{ formatNumber(subRet.max) }}</div>
+                        <div class="mb-2"><label class="form-label small fw-bold mb-0">จำนวนที่ส่งคืน (0 = ยกเลิกการส่งคืน)</label><input type="number" min="0" :max="subRet.max" step="any" class="form-control" v-model.number="subRet.qty"></div>
+                        <div class="mb-2"><label class="form-label small fw-bold mb-0">เหตุผล</label>
+                            <select class="form-select" v-model="subRet.reason"><option>ใกล้หมดอายุ (&lt; 6 เดือน) ขอแลกคืนบริษัท</option><option>หมดอายุแล้ว</option><option>ได้รับผิดรายการ / ผิด Lot</option><option>เกินความต้องการ</option><option>อื่น ๆ</option></select></div>
+                        <div class="mb-3"><label class="form-label small fw-bold mb-0">หมายเหตุ</label><input class="form-control" v-model="subRet.note" placeholder="ไม่บังคับ"></div>
+                        <div class="small text-muted mb-3">ของที่ส่งคืนจะ <b>ไม่ถูกรับเข้า{{ locLabel(globalStock) }}</b> และขึ้นรายการ "รอรับคืน" ที่คลังใหญ่ คลังใหญ่กดรับคืนเข้าสต็อกเมื่อได้รับของจริง</div>
+                        <div class="d-flex justify-content-end gap-2"><button class="btn btn-outline-secondary" @click="subRet.show=false">ยกเลิก</button><button class="btn btn-warning fw-bold" @click="applySubRet()">บันทึกการส่งคืน</button></div>
+                    </div>
                 </div>
 
                 <!-- เบิกฉุกเฉินที่รอปรับเป็นใบเบิกจริง -->
@@ -2737,6 +2822,8 @@
                                 <option value="abcven">5. วิเคราะห์ ABC-VEN Matrix (ยา)</option>
                                 <option v-if="isSubShelfStock" value="shelf">7. สรุปการจ่ายขึ้น Shelf</option>
                                 <option v-if="globalStock === 'MAIN'" value="sjrong">6. รายงาน สจ.รง.1051 (เฉพาะคลังใหญ่)</option>
+                                <option v-if="globalStock === 'MAIN'" value="unfilled_pct">8. ร้อยละรายการที่ไม่ได้รับตามที่ขอเบิก (ตัวชี้วัด)</option>
+                                <option v-if="globalStock === 'MAIN'" value="unfilled_items">9. รายการที่ขอเบิกแล้วได้ไม่ครบ (รายละเอียด)</option>
                             </select>
                         </div>
                         <div class="col-12 col-md-3" v-if="reportFilter.type === 'inventory'">
@@ -2745,11 +2832,12 @@
                                 <option value="all">แสดงทั้งหมด</option><option value="Must list">Must list (ห้ามขาด)</option><option value="Watch list">Watch list (เฝ้าระวัง)</option><option value="General list">General list (ทั่วไป)</option>
                             </select>
                         </div>
-                        <div class="col-6 col-md-2" v-if="['usage', 'shelf'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ตั้งแต่วันที่</label><input type="date" v-model="reportFilter.start" class="form-control shadow-sm"></div>
-                        <div class="col-6 col-md-2" v-if="['usage', 'shelf'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ถึงวันที่</label><input type="date" v-model="reportFilter.end" class="form-control shadow-sm"></div>
+                        <div class="col-6 col-md-2" v-if="['usage', 'shelf', 'unfilled_pct', 'unfilled_items'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ตั้งแต่วันที่</label><input type="date" v-model="reportFilter.start" class="form-control shadow-sm"></div>
+                        <div class="col-6 col-md-2" v-if="['usage', 'shelf', 'unfilled_pct', 'unfilled_items'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ถึงวันที่</label><input type="date" v-model="reportFilter.end" class="form-control shadow-sm"></div>
+                        <div class="col-12 col-md-2" v-if="['unfilled_pct', 'unfilled_items'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">หน่วยที่ขอเบิก</label><select v-model="reportFilter.dept" class="form-select shadow-sm"><option value="">ทุกหน่วย</option><option v-for="d in unfilledDeptOptions" :key="d.dept" :value="d.dept">{{ d.label }}</option></select></div>
                         <div class="col-12 col-md-3 d-flex gap-2 ms-auto align-items-end mt-3 mt-md-0">
                             <button class="btn btn-outline-primary w-100 fw-bold shadow-sm" onclick="window.print()"><i class="bi bi-printer"></i> พิมพ์ PDF</button>
-                            <button class="btn btn-success w-100 fw-bold shadow-sm" @click="reportFilter.type === 'abcven' ? exportAbcVen() : (reportFilter.type === 'sjrong' ? exportSjrong() : exportExcel('reportArea', 'Report'))"><i class="bi bi-file-excel"></i> ส่งออก Excel</button>
+                            <button class="btn btn-success w-100 fw-bold shadow-sm" @click="['unfilled_pct', 'unfilled_items'].includes(reportFilter.type) ? exportUnfilled() : reportFilter.type === 'abcven' ? exportAbcVen() : (reportFilter.type === 'sjrong' ? exportSjrong() : exportExcel('reportArea', 'Report'))"><i class="bi bi-file-excel"></i> ส่งออก Excel</button>
                         </div>
                     </div>
                 </div>
@@ -2793,6 +2881,27 @@
                                 <tbody>
                                     <tr v-for="lot in sortedActiveLots" :key="lot.lot"><td class="fw-bold">{{ lot.productName }}</td><td class="text-center">{{ lot.lot }}</td><td class="text-center fw-bold">{{ lot.exp }}</td><td class="text-end fw-bold text-primary fs-5">{{ formatNumber(lot.qty) }}</td><td class="text-center"><span class="badge px-3 py-2" :class="isExpired(lot.exp)?'bg-danger':(isNearExp(lot.exp)?'bg-warning text-dark':'bg-success')">{{ isExpired(lot.exp)?'หมดอายุแล้ว':(isNearExp(lot.exp)?'ใกล้หมด (6 เดือน)':'ปกติ') }}</span></td></tr>
                                     <tr v-if="sortedActiveLots.length===0"><td colspan="5" class="text-center text-muted p-4">-- ไม่พบข้อมูล Lot สินค้าในคลัง --</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div v-if="reportFilter.type==='unfilled_pct'">
+                            <div class="small text-muted mb-2">ตัวตั้ง = จำนวนรายการ (Item) ที่ได้ไม่ครบตามที่ขอเบิก · ตัวหาร = จำนวน Item ทั้งหมดที่ขอเบิก · นับเฉพาะใบขอเบิกที่จ่ายแล้ว · “ได้รับ” ใช้ยอดที่คลังย่อยยืนยันรับจริง (หักส่งคืน) ถ้ามี มิฉะนั้นใช้ยอดที่คลังใหญ่จ่าย</div>
+                            <table class="table table-bordered table-striped text-nowrap">
+                                <thead class="table-dark"><tr class="text-center"><th>หน่วยที่ขอเบิก</th><th>จำนวนใบขอเบิก</th><th>Item ที่ขอทั้งหมด</th><th>Item ที่ได้ไม่ครบ</th><th>ในนี้ไม่ได้เลย</th><th style="min-width:200px">ร้อยละไม่ครบ</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="d in unfilledReport.byDept" :key="d.dept"><td class="fw-bold">{{ d.label }}</td><td class="text-center">{{ d.reqs }}</td><td class="text-end">{{ d.total }}</td><td class="text-end text-danger fw-bold">{{ d.short }}</td><td class="text-end">{{ d.none }}</td>
+                                        <td><div class="d-flex align-items-center gap-2"><div class="progress flex-grow-1" style="height:14px"><div class="progress-bar" :class="d.pct > 20 ? 'bg-danger' : (d.pct > 10 ? 'bg-warning' : 'bg-success')" :style="{width: Math.min(d.pct, 100) + '%'}"></div></div><b>{{ d.pct.toFixed(1) }}%</b></div></td></tr>
+                                    <tr v-if="!unfilledReport.byDept.length"><td colspan="6" class="text-center text-muted py-4">ไม่มีใบขอเบิกที่จ่ายแล้วในช่วงนี้</td></tr>
+                                </tbody>
+                                <tfoot v-if="unfilledReport.byDept.length"><tr class="table-light fw-bold"><td>รวม</td><td class="text-center">{{ unfilledReport.tot.reqs }}</td><td class="text-end">{{ unfilledReport.tot.total }}</td><td class="text-end text-danger">{{ unfilledReport.tot.short }}</td><td class="text-end">{{ unfilledReport.tot.none }}</td><td>{{ unfilledReport.tot.pct.toFixed(1) }}%</td></tr></tfoot>
+                            </table>
+                        </div>
+                        <div v-if="reportFilter.type==='unfilled_items'">
+                            <table class="table table-bordered table-striped table-sm text-nowrap">
+                                <thead class="table-dark"><tr class="text-center"><th>วันที่ขอ</th><th>เลขใบขอเบิก</th><th>หน่วยที่ขอ</th><th>รายการยา</th><th class="text-end">ขอเบิก</th><th class="text-end">คลังใหญ่จ่าย</th><th class="text-end">ได้รับ</th><th class="text-end">ขาด</th><th>สาเหตุ</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="(r, i) in unfilledReport.rows" :key="i"><td>{{ formatThaiDate(r.date) }}</td><td>{{ r.reqId }}</td><td>{{ r.label }}</td><td class="fw-bold">{{ r.name }}</td><td class="text-end">{{ formatNumber(r.requested) }}</td><td class="text-end">{{ formatNumber(r.issued) }}</td><td class="text-end">{{ formatNumber(r.got) }}</td><td class="text-end text-danger fw-bold">{{ formatNumber(r.short) }}</td><td class="small">{{ r.reason }}</td></tr>
+                                    <tr v-if="!unfilledReport.rows.length"><td colspan="9" class="text-center text-muted py-4">ไม่พบรายการที่ได้ไม่ครบในช่วงนี้</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3209,6 +3318,9 @@ const app = createApp({
             hsSettle: { show: false, docs: [], total: 0, mode: 'Paid', amount: 0, paidBy: 'สสจ.เลย เคลียร์ให้', paidOther: '', payDate: '', evNo: '', evDate: '', note: '', file: null, busy: false },
             hsDetail: { show: false, docId: '' },
             pick: { reqId: '', rows: [], page: 1, size: 10, savedAt: '', doneDoc: null },
+            subPick: { page: 1, size: 10, savedAt: '' },
+            subRet: { show: false, idx: -1, name: '', lot: '', exp: '', level: 'ok', max: 0, qty: 0, reason: 'ใกล้หมดอายุ (< 6 เดือน) ขอแลกคืนบริษัท', note: '' },
+            scUI: { tab: 'ret', sel: {}, docNo: '', onlyFlag: true, from: '' },
             hsImp: { rows: [], fileName: '', busy: false },
             hsFu: { show: false, hospital: '', docId: '', date: '', method: 'โทรศัพท์', note: '' },
             scAdd: { show: false, kind: 'OUT', date: '', docNo: '', entity: '', lotIdx: -1, lot: '', exp: '', qty: 1, unitPrice: 0, total: 0, note: '' },
@@ -3290,7 +3402,7 @@ const app = createApp({
             scanToast: { msg: '', type: 'ok' }, scanToastTimer: null,
             barcodeLink: { show: false, code: '', gs1: null, name: '', mode: 'scan' }, newBarcode: '',
             
-            reportFilter: { type: 'inventory', start: '', end: '', controlList: 'all' }, 
+            reportFilter: { type: 'inventory', start: '', end: '', controlList: 'all', dept: '' }, 
             historyFilterType: '', 
             outFilter: { start: '', end: '', dept: '', type: '', search: '' },
             dashFilter: { objType: '', category: '', drugClass: '' }, 
@@ -3830,7 +3942,7 @@ const app = createApp({
             const empty = all.filter(l => l.qty <= 0.01).sort((a, b) => new Date(b.exp || '1970-01-01') - new Date(a.exp || '1970-01-01')).slice(0, 5);
             return live.concat(empty);
         },
-        subCartTotal() { return this.subCart.reduce((s, i) => s + (parseFloat(i.qty) || 0) * (parseFloat(i.unitPrice) || 0), 0); },
+        subCartTotal() { return this.subRowsFull.reduce((s, r) => s + r.value, 0); },
 
         // ใบจ่ายจาก MAIN ที่ยังไม่ได้รับเข้าคลังย่อยที่เลือกอยู่ — เฉพาะปลายทาง = คลังนั้นตรงตัว (หรือใบที่ผูกกับใบขอเบิกของคลังนั้น)
         subReceiveCandidates() {
@@ -4099,6 +4211,52 @@ const app = createApp({
         pickPages() { return this.pick.size > 0 ? Math.max(1, Math.ceil(this.pick.rows.length / this.pick.size)) : 1; },
         pickPageRows() { const a = this.pickRowsFull; if (!(this.pick.size > 0)) return a; const p = Math.min(this.pick.page, this.pickPages); return a.slice((p - 1) * this.pick.size, p * this.pick.size); },
         pickTotalValue() { return this.pickRowsFull.reduce((a, r) => a + r.value, 0); },
+
+        expInfoDummy() { return 0; },
+        subRowsFull() {
+            return this.subCart.map((it, idx) => { const qty = parseFloat(it.qty) || 0, rq = parseFloat(it.returnQty) || 0, price = parseFloat(it.unitPrice) || 0; return Object.assign({}, it, { idx: idx, no: idx + 1, qty: qty, expInfo: this.expInfo(it.expDate), net: qty - rq, value: parseFloat(((qty - rq) * price).toFixed(2)) }); });
+        },
+        subProgress() { const t = this.subCart.length, d = this.subCart.filter(r => r.approved).length; return { total: t, done: d, pct: t ? Math.floor(d / t * 100) : 0 }; },
+        subPages() { return this.subPick.size > 0 ? Math.max(1, Math.ceil(this.subCart.length / this.subPick.size)) : 1; },
+        subPageRows() { const a = this.subRowsFull; if (!(this.subPick.size > 0)) return a; const p = Math.min(this.subPick.page, this.subPages); return a.slice((p - 1) * this.subPick.size, p * this.subPick.size); },
+        subWarn() { const a = this.subRowsFull; return { near: a.filter(r => r.expInfo.level === 'near').length, expired: a.filter(r => r.expInfo.level === 'expired').length, zero: a.filter(r => !(parseFloat(r.unitPrice) > 0)).length }; },
+        subAuditAll() { return (this.rawData.subAudit || []).map(r => ({ docId: r[0], loc: r[1], productId: String(r[2]), lotNo: r[3], expDate: r[4], issuedQty: r[5] === null ? null : parseFloat(r[5]), receivedQty: parseFloat(r[6]) || 0, returnedQty: parseFloat(r[7]) || 0, issuedPrice: r[8] === null ? null : parseFloat(r[8]), receivedPrice: parseFloat(r[9]) || 0, flag: r[10] || '', note: r[11] || '', by: r[12], at: r[13] || '' })); },
+        subAuditFlagged() { return this.subAuditAll.filter(r => r.flag); },
+        subAuditShown() { const f = this.scUI.from; return this.subAuditAll.filter(r => (!this.scUI.onlyFlag || r.flag) && (!f || String(r.at).slice(0, 10) >= f)); },
+        subReturnsAll() { return (this.rawData.subReturns || []).map(r => ({ id: r[0], docId: r[1], loc: r[2], productId: String(r[3]), lotNo: r[4], expDate: r[5], qty: parseFloat(r[6]) || 0, unitPrice: parseFloat(r[7]) || 0, reason: r[8], note: r[9], status: r[10], by: r[11], createdAt: r[12] || '', acceptedBy: r[13], acceptedAt: r[14], returnDoc: r[15] })); },
+        subReturnsPending() { return this.subReturnsAll.filter(r => r.status === 'Pending'); },
+        subReturnsDone() { return this.subReturnsAll.filter(r => r.status !== 'Pending'); },
+        scSelIds() { const ok = new Set(this.subReturnsPending.map(r => String(r.id))); return Object.keys(this.scUI.sel).filter(k => this.scUI.sel[k] && ok.has(k)); },
+        scAllSel() { return this.subReturnsPending.length > 0 && this.scSelIds.length === this.subReturnsPending.length; },
+        unfilledDeptOptions() { const m = {}; this.requests.forEach(r => { if (r.dept) m[r.dept] = { dept: r.dept, label: this.locLabel(r.dept) }; }); return Object.values(m); },
+        unfilledReport() {
+            const f = this.reportFilter.start || '0000-00-00', t = this.reportFilter.end || '9999-99-99', dsel = this.reportFilter.dept;
+            const issued = {}, docsOf = {};
+            this.transactions.forEach(x => { if (x.type !== 'OUT' || x.status !== 'Completed') return; const m = /REQ-\d+/.exec(String(x.note || '')); if (!m) return; const rid = m[0]; const o = issued[rid] || (issued[rid] = {}); o[x.productId] = (o[x.productId] || 0) + x.qty; (docsOf[rid] = docsOf[rid] || new Set()).add(String(x.billId)); });
+            const aud = {}; this.subAuditAll.forEach(a => { const k = a.docId + '|' + a.productId; const o = aud[k] || (aud[k] = { net: 0, ret: 0 }); o.net += a.receivedQty - a.returnedQty; o.ret += a.returnedQty; });
+            const pm = {}; this.products.forEach(p => { pm[p.id] = p; });
+            const dept = {}, rows = []; let unlinked = 0;
+            this.requests.forEach(rq => {
+                if (rq.status !== 'Completed') return; const d = String(rq.date || '').slice(0, 10); if (d < f || d > t) return; if (dsel && rq.dept !== dsel) return;
+                if (!issued[rq.id]) { unlinked++; return; }
+                const D = dept[rq.dept] || (dept[rq.dept] = { dept: rq.dept, label: this.locLabel(rq.dept), reqs: 0, total: 0, short: 0, none: 0, pct: 0 }); D.reqs++;
+                const want = {}; (rq.items || []).forEach(it => { const pid = String(it.productId); want[pid] = (want[pid] || 0) + (parseFloat(it.qty) || 0); });
+                Object.keys(want).forEach(pid => {
+                    const requested = want[pid], iss = issued[rq.id][pid] || 0; let got = iss, hasAud = false, ret = 0;
+                    docsOf[rq.id].forEach(doc => { const a = aud[doc + '|' + pid]; if (a) { if (!hasAud) { got = 0; hasAud = true; } got += a.net; ret += a.ret; } });
+                    D.total++;
+                    if (got < requested - 0.0001) {
+                        D.short++; if (got <= 0.0001) D.none++;
+                        const reason = iss < requested - 0.0001 ? (iss <= 0.0001 ? 'คลังใหญ่ไม่ได้จ่าย' : 'คลังใหญ่จ่ายไม่ครบ') : (ret > 0 ? 'คลังย่อยส่งคืน' : 'รับจริงน้อยกว่าที่คลังใหญ่จ่าย');
+                        rows.push({ date: d, reqId: rq.id, dept: rq.dept, label: D.label, name: (pm[pid] || {}).name || pid, requested: requested, issued: iss, got: got, short: requested - got, reason: reason });
+                    }
+                });
+            });
+            const byDept = Object.values(dept).map(d => Object.assign(d, { pct: d.total ? d.short / d.total * 100 : 0 })).sort((a, b) => b.pct - a.pct);
+            const tot = byDept.reduce((a, d) => ({ reqs: a.reqs + d.reqs, total: a.total + d.total, short: a.short + d.short, none: a.none + d.none }), { reqs: 0, total: 0, short: 0, none: 0 }); tot.pct = tot.total ? tot.short / tot.total * 100 : 0;
+            rows.sort((a, b) => b.date.localeCompare(a.date) || a.label.localeCompare(b.label, 'th'));
+            return { byDept: byDept, tot: tot, rows: rows, unlinked: unlinked };
+        },
         cartOutTotal() { return this.cartOut.reduce((sum, i) => sum + i.totalPrice, 0); },
         cartRecTotal() { return this.cartRec.reduce((sum, i) => sum + parseFloat(i.totalPrice), 0); },
 
@@ -4594,6 +4752,8 @@ const app = createApp({
             if (this.reportFilter.type === 'expiry') return 'รายงานวันหมดอายุ (Expiry Report)'; 
             if (this.reportFilter.type === 'usage') return 'สรุปการเบิกจ่ายแยกรายหน่วยงาน'; 
             if (this.reportFilter.type === 'shelf') return 'สรุปการจ่ายขึ้น Shelf (คลัง ' + this.globalStock + ')' + (this.reportFilter.start || this.reportFilter.end ? ' ' + (this.reportFilter.start || '') + ' ถึง ' + (this.reportFilter.end || '') : '');
+            if (this.reportFilter.type === 'unfilled_pct') return 'ร้อยละรายการที่ไม่ได้รับตามที่ขอเบิก' + this.unfilledRangeText();
+            if (this.reportFilter.type === 'unfilled_items') return 'รายการที่ขอเบิกแล้วได้ไม่ครบ' + this.unfilledRangeText();
             if (this.reportFilter.type === 'sjrong') return 'รายงานการบริหารเวชภัณฑ์ยาและเวชภัณฑ์ที่ไม่ใช่ยา (สจ.รง.1051)';
             if (this.reportFilter.type === 'abcven') return 'วิเคราะห์ ABC-VEN Matrix ปีงบประมาณ ' + this.abcFY + ' [' + this.abcModeLabel + '] (' + (this.globalStock === 'ALL' ? 'รวมทุกคลัง' : this.locLabel(this.globalStock)) + ')'; 
             return ''; 
@@ -4747,6 +4907,7 @@ const app = createApp({
         },
         
         navTo(pageName, stockLoc) {
+            if (pageName === 'subCheck' && !this.canMainOps) { this.toast('สิทธิ์นี้สำหรับ Admin/God และผู้รับผิดชอบคลังใหญ่'); return; }
             if (pageName === 'hospSupport' && !this.canMainOps) { this.toast('สิทธิ์นี้สำหรับ Admin/God และผู้รับผิดชอบคลังใหญ่'); return; }
             if (pageName === 'poCreate' && !this.canMainOps) { this.toast('สิทธิ์นี้สำหรับ Admin/God และผู้รับผิดชอบคลังใหญ่'); return; }
             if (((pageName === 'inspect' && stockLoc === 'MAIN') || pageName === 'clearEmg') && !this.canMainOps) { this.toast('สิทธิ์นี้สำหรับผู้ดูแล (Admin/God) และผู้รับผิดชอบคลังยาใหญ่เท่านั้น'); return; }
@@ -6196,42 +6357,152 @@ const app = createApp({
             this.subTemp = this.blankSubTemp();
             if (this.tsSubRecvProd) this.tsSubRecvProd.clear();
         },
-        loadTransferDoc(d) {
+        expInfo(exp) {
+            if (!exp) return { level: 'ok', months: null };
+            const str = String(exp), d = new Date(str.length === 7 ? str + '-28' : str); if (isNaN(d)) return { level: 'ok', months: null };
+            const months = (d - new Date()) / (30.4375 * 86400000);
+            if (months < 0) return { level: 'expired', months: 0 };
+            if (months < 6) return { level: 'near', months: Math.max(0, Math.round(months * 10) / 10) };
+            return { level: 'ok', months: Math.round(months) };
+        },
+        subDraftKey() { return this.globalStock + '|' + (this.subRecv.linkedDoc || 'manual'); },
+        subDraftJson() {
+            return JSON.stringify({ recv: { date: this.subRecv.date, reqType: this.subRecv.reqType, docNo: this.subRecv.docNo, source: this.subRecv.source, linkedDoc: this.subRecv.linkedDoc },
+                items: this.subCart.map(i => ({ productId: i.productId, productName: i.productName, lotNo: i.lotNo, expDate: i.expDate, qty: i.qty, unitPrice: i.unitPrice, packSize: i.packSize, note: i.note || '', issuedQty: i.issuedQty, issuedPrice: i.issuedPrice, approved: !!i.approved, returnQty: i.returnQty || 0, returnReason: i.returnReason || '', returnNote: i.returnNote || '' })) });
+        },
+        async saveSubDraft(silent) {
+            if (!this.subCart.length) return false;
+            const r = await this.apiCall('saveSubDraft', { username: this.currentUser.user, key: this.subDraftKey(), loc: this.globalStock, data: this.subDraftJson() });
+            if (r) { this.subPick.savedAt = new Date().toLocaleString('th-TH'); if (!silent) this.toast('บันทึกฉบับร่างแล้ว'); }
+            return !!r;
+        },
+        async applySubDraft(key, baseItems) {
+            const dr = await this.apiCall('getSubDraft', { username: this.currentUser.user, key: key, loc: this.globalStock });
+            if (!dr || !dr.data) return false;
+            try {
+                const d = JSON.parse(dr.data), used = new Set(), out = baseItems.slice();
+                (d.items || []).forEach(di => {
+                    const i = out.findIndex((x, k) => !used.has(k) && x.productId === di.productId && (x.lotNo || '') === (di.lotNo || '') && (x.issuedQty !== undefined) === (di.issuedQty !== undefined));
+                    if (i >= 0) { used.add(i); const x = out[i]; x.qty = x.issuedQty !== undefined ? Math.min(parseFloat(di.qty) || 0, x.issuedQty) : (parseFloat(di.qty) || 0); x.unitPrice = parseFloat(di.unitPrice) || 0; x.approved = !!di.approved; x.returnQty = di.returnQty || 0; x.returnReason = di.returnReason || ''; x.returnNote = di.returnNote || ''; x.note = di.note || ''; }
+                    else if (di.issuedQty === undefined) { out.push(Object.assign({}, di)); used.add(out.length - 1); }
+                });
+                this.subCart = out;
+                if (d.recv) { if (d.recv.date) this.subRecv.date = d.recv.date; if (d.recv.docNo && !this.subRecv.docNo) this.subRecv.docNo = d.recv.docNo; if (d.recv.source) this.subRecv.source = d.recv.source; if (d.recv.reqType && !this.subRecv.linkedDoc) this.subRecv.reqType = d.recv.reqType; }
+                this.subPick.savedAt = dr.at || ''; this.toast('โหลดฉบับร่างที่บันทึกไว้ (' + (dr.by || '') + ' · ' + (dr.at || '') + ')');
+                return true;
+            } catch (e) { return false; }
+        },
+        async loadSubManualDraft() {
+            if (this.subCart.length > 0 && !confirm('มีรายการอยู่แล้ว ต้องการแทนที่ด้วยฉบับร่างหรือไม่?')) return;
+            this.subRecv.linkedDoc = ''; this.subPick.page = 1;
+            if (!(await this.applySubDraft(this.globalStock + '|manual', []))) this.toast('ไม่พบฉบับร่างของการรับอื่น ๆ', 'err');
+        },
+        async loadTransferDoc(d) {
             if (this.subCart.length > 0 && !confirm('มีรายการในตะกร้าอยู่แล้ว ต้องการแทนที่ด้วยใบจ่ายนี้หรือไม่?')) return;
             this.subRecv.docNo = d.docNo;
             this.subRecv.linkedDoc = d.docNo;
             this.subRecv.reqType = d.note.includes('ฉุกเฉิน') ? 'เบิกฉุกเฉิน' : 'เบิกจริง';
             this.subRecv.source = 'คลังยาใหญ่';
             this.subRecv.date = new Date().toISOString().slice(0, 10);
-            this.subCart = d.items.map(i => ({ ...i, issuedQty: i.qty, note: '' }));
+            this.subPick = { page: 1, size: this.subPick.size, savedAt: '' };
+            const base = d.items.map(i => ({ ...i, issuedQty: i.qty, issuedPrice: i.unitPrice, approved: false, returnQty: 0, returnReason: '', returnNote: '', note: '' }));
+            this.subCart = base;
+            await this.applySubDraft(this.globalStock + '|' + d.docNo, base);
+        },
+        subSetQty(idx, v) {
+            const it = this.subCart[idx]; if (!it) return; let q = parseFloat(v); if (isNaN(q) || q < 0) q = 0;
+            if (it.issuedQty !== undefined && q > it.issuedQty) { q = it.issuedQty; this.toast('รับได้ไม่เกินจำนวนที่คลังใหญ่จ่าย (' + this.formatNumber(it.issuedQty) + ')', 'err'); }
+            it.qty = q; if ((parseFloat(it.returnQty) || 0) > q) it.returnQty = q; it.approved = false;
+        },
+        subSetPrice(idx, v) { const it = this.subCart[idx]; if (!it) return; let p = parseFloat(v); if (isNaN(p) || p < 0) p = 0; it.unitPrice = p; it.approved = false; },
+        subToggle(idx) {
+            const it = this.subCart[idx]; if (!it) return;
+            if (!it.approved && !(parseFloat(it.unitPrice) > 0) && !confirm('รายการนี้ราคาทุนเป็น 0 — มักเกิดจากไม่ได้เลือก Lot ตอนสร้างใบจ่าย หรือกรอกข้อมูลไม่ครบ\\nต้องการ Approve ทั้งที่ราคาทุนเป็น 0 หรือไม่?')) return;
+            it.approved = !it.approved;
+        },
+        subApprovePage() {
+            const rows = this.subPageRows, zero = rows.filter(r => !(parseFloat(r.unitPrice) > 0)).length;
+            if (zero && !confirm('ในหน้านี้มี ' + zero + ' รายการที่ราคาทุนเป็น 0\\nต้องการ Approve ทั้งหน้ารวมรายการเหล่านี้หรือไม่?')) { rows.forEach(r => { if (parseFloat(r.unitPrice) > 0) this.subCart[r.idx].approved = true; }); return; }
+            rows.forEach(r => { this.subCart[r.idx].approved = true; });
+        },
+        subRemove(idx) { this.subCart.splice(idx, 1); if (this.subPick.page > this.subPages) this.subPick.page = this.subPages; },
+        openSubRet(idx) {
+            const it = this.subRowsFull[idx]; if (!it) return;
+            const reasons = ['ใกล้หมดอายุ (< 6 เดือน) ขอแลกคืนบริษัท', 'หมดอายุแล้ว', 'ได้รับผิดรายการ / ผิด Lot', 'เกินความต้องการ', 'อื่น ๆ'];
+            const def = it.expInfo.level === 'expired' ? reasons[1] : (it.expInfo.level === 'near' ? reasons[0] : reasons[4]);
+            this.subRet = { show: true, idx: idx, name: it.productName, lot: it.lotNo, exp: it.expDate, level: it.expInfo.level, max: it.qty, qty: it.returnQty > 0 ? it.returnQty : (it.expInfo.level !== 'ok' ? it.qty : 0), reason: it.returnReason || def, note: it.returnNote || '' };
+        },
+        applySubRet() {
+            const r = this.subRet, it = this.subCart[r.idx]; if (!it) { r.show = false; return; }
+            let q = parseFloat(r.qty); if (isNaN(q) || q < 0) q = 0; if (q > r.max + 0.0001) return alert('ส่งคืนได้ไม่เกินจำนวนที่ได้รับ (' + this.formatNumber(r.max) + ')');
+            it.returnQty = q; it.returnReason = q > 0 ? r.reason : ''; it.returnNote = q > 0 ? r.note : ''; it.approved = false; r.show = false;
+            this.toast(q > 0 ? 'บันทึกการส่งคืน ' + this.formatNumber(q) + ' แล้ว (จะส่งให้คลังใหญ่เมื่อบันทึกรับเข้า)' : 'ยกเลิกการส่งคืนแล้ว');
         },
         async submitSubReceive() {
             const loc = this.globalStock;
             if (!SUB_STOCKS[loc]) return alert('คลังนี้ไม่รองรับการรับเข้าจากหน้านี้');
             if (this.subCart.length === 0) return alert('ยังไม่มีรายการรับเข้า');
+            if (this.subProgress.pct < 100) return alert('ต้อง Approve ให้ครบทุกรายการก่อนบันทึก');
             if (!this.subRecv.date) return alert('ระบุวันที่รับ');
             if (this.subRecv.reqType !== 'รับอื่นๆ' && !this.subRecv.docNo) return alert('ระบุเลขที่ใบเบิก (หรือเลือก "รับอื่น ๆ" หากไม่มีใบเบิก)');
-            if (this.subCart.some(i => !(parseFloat(i.qty) > 0))) return alert('มีรายการที่จำนวนรับเป็น 0 หรือว่าง กรุณาแก้ไขหรือลบรายการนั้น');
-            const noLot = this.subCart.filter(i => !i.lotNo || !i.expDate).length;
-            let msg = `ยืนยันบันทึกรับเข้า ${this.locLabel(loc)}\n${this.subCart.length} รายการ มูลค่า ${this.formatCurrency(this.subCartTotal)}`;
-            if (noLot > 0) msg += `\n\n⚠️ มี ${noLot} รายการที่ไม่ระบุ Lot หรือวันหมดอายุ`;
+            const rows = this.subRowsFull;
+            if (rows.some(r => r.issuedQty === undefined && !(r.qty > 0))) return alert('มีรายการที่เพิ่มเองที่จำนวนรับเป็น 0 หรือว่าง กรุณาแก้ไขหรือลบรายการนั้น');
+            if (!rows.some(r => r.net > 0)) return alert('ไม่มีรายการที่รับเข้าคลังเลย (จำนวนรับสุทธิเป็น 0 ทุกรายการ)');
+            const noLot = rows.filter(r => r.net > 0 && (!r.lotNo || !r.expDate)).length, shortN = rows.filter(r => r.issuedQty !== undefined && r.qty < r.issuedQty - 0.0001).length, retN = rows.filter(r => r.returnQty > 0).length;
+            let msg = `ยืนยันบันทึกรับเข้า ${this.locLabel(loc)}\\n${rows.filter(r => r.net > 0).length} รายการ มูลค่า ${this.formatCurrency(this.subCartTotal)}`;
+            if (shortN > 0) msg += `\\n📉 ได้ไม่ครบตามที่คลังใหญ่จ่าย ${shortN} รายการ`;
+            if (retN > 0) msg += `\\n↩ ส่งคืนคลังใหญ่ ${retN} รายการ`;
+            if (noLot > 0) msg += `\\n\\n⚠️ มี ${noLot} รายการที่ไม่ระบุ Lot หรือวันหมดอายุ`;
             if (!confirm(msg)) return;
             this.loading = true;
-            const items = this.subCart.map(i => {
-                let note = i.note || '';
-                if (i.issuedQty !== undefined && i.issuedQty !== i.qty) note = (note ? note + ' ' : '') + `(จ่าย ${i.issuedQty} รับ ${i.qty})`;
-                return { productId: i.productId, lotNo: i.lotNo, expDate: i.expDate, qty: i.qty, unitPrice: i.unitPrice, packSize: i.packSize, note: note };
+            const items = [], audit = [], returns = [];
+            rows.forEach(r => {
+                let note = r.note || '';
+                if (r.issuedQty !== undefined && (r.issuedQty !== r.qty || r.returnQty > 0)) note = (note ? note + ' ' : '') + `(จ่าย ${r.issuedQty} รับ ${r.qty}` + (r.returnQty > 0 ? ` ส่งคืน ${r.returnQty}` : '') + ')';
+                if (r.net > 0) items.push({ productId: r.productId, lotNo: r.lotNo, expDate: r.expDate, qty: r.net, unitPrice: r.unitPrice, packSize: r.packSize, note: note });
+                const flags = [];
+                if (r.issuedQty !== undefined && r.qty < r.issuedQty - 0.0001) flags.push('ได้ไม่ครบ (' + this.formatNumber(r.issuedQty) + '→' + this.formatNumber(r.qty) + ')');
+                if (r.issuedPrice !== undefined && !(r.issuedPrice > 0)) flags.push('ราคาต้นทาง 0');
+                if (r.issuedPrice !== undefined && r.issuedPrice > 0 && Math.abs(r.issuedPrice - r.unitPrice) > 0.00005) flags.push('ราคาแก้ไข');
+                if (!(parseFloat(r.unitPrice) > 0)) flags.push('ราคารับเข้า 0');
+                if (r.expInfo.level === 'near') flags.push('ใกล้หมดอายุ < 6 ด.'); if (r.expInfo.level === 'expired') flags.push('หมดอายุแล้ว');
+                if (r.returnQty > 0) flags.push('ส่งคืน ' + this.formatNumber(r.returnQty));
+                audit.push({ productId: r.productId, lotNo: r.lotNo, expDate: r.expDate, issuedQty: r.issuedQty === undefined ? null : r.issuedQty, receivedQty: r.qty, returnedQty: r.returnQty || 0, issuedPrice: r.issuedPrice === undefined ? null : r.issuedPrice, receivedPrice: parseFloat(r.unitPrice) || 0, flag: flags.join(' · '), note: r.returnReason || '' });
+                if (r.returnQty > 0) returns.push({ productId: r.productId, lotNo: r.lotNo, expDate: r.expDate, qty: r.returnQty, unitPrice: parseFloat(r.unitPrice) || 0, reason: r.returnReason, note: r.returnNote });
             });
             const res = await this.apiCall('saveSubReceive', {
-                user: this.currentUser.name, stockLocation: loc, date: this.subRecv.date, reqType: this.subRecv.reqType,
-                refDoc: this.subRecv.docNo, source: this.subRecv.source, linkedDoc: this.subRecv.linkedDoc, items: items
+                user: this.currentUser.name, username: this.currentUser.user, stockLocation: loc, date: this.subRecv.date, reqType: this.subRecv.reqType,
+                refDoc: this.subRecv.docNo, source: this.subRecv.source, linkedDoc: this.subRecv.linkedDoc, items: items, audit: audit, returns: returns, draftKey: this.subDraftKey()
             });
             if (res) {
                 alert(res.message);
-                this.subCart = []; this.subRecv.docNo = ''; this.subRecv.linkedDoc = ''; this.subRecv.reqType = 'เบิกจริง'; this.subRecv.source = 'คลังยาใหญ่';
+                this.subCart = []; this.subRecv.docNo = ''; this.subRecv.linkedDoc = ''; this.subRecv.reqType = 'เบิกจริง'; this.subRecv.source = 'คลังยาใหญ่'; this.subPick = { page: 1, size: this.subPick.size, savedAt: '' };
                 await this.loadData();
             }
             this.loading = false;
+        },
+        scToggleAll(on) { const sel = {}; if (on) this.subReturnsPending.forEach(r => { sel[r.id] = true; }); this.scUI.sel = sel; },
+        async acceptSubReturns() {
+            const ids = this.scSelIds.map(Number); if (!ids.length) return;
+            this.askConfirm({ title: 'รับคืนเข้าคลังใหญ่?', lines: [ids.length + ' รายการ จะถูกบันทึกเป็นรับเข้าคลังใหญ่ (Lot/Exp/ราคาทุนเดิม)', 'ตรวจนับของจริงที่ได้รับคืนแล้วจึงยืนยัน'], okText: 'ยืนยันรับคืน', onOk: async () => {
+                const r = await this.apiCall('acceptSubReturn', { username: this.currentUser.user, ids: ids, docNo: this.scUI.docNo });
+                if (r) { this.toast(r); this.scUI.sel = {}; this.scUI.docNo = ''; await this.loadData(); }
+            } });
+        },
+        exportSubAudit() {
+            const aoa = [['วันที่', 'คลังที่รับ', 'ใบจ่าย', 'รายการยา', 'Lot', 'Exp', 'จ่าย', 'รับจริง', 'ส่งคืน', 'ราคาต้นทาง', 'ราคาที่คลังย่อยลง', 'ข้อสังเกต']];
+            this.subAuditShown.forEach(r => aoa.push([String(r.at).slice(0, 10), this.locLabel(r.loc), r.docId, this.getProductName(r.productId), r.lotNo, r.expDate, r.issuedQty, r.receivedQty, r.returnedQty, r.issuedPrice, r.receivedPrice, r.flag]));
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'ครอสเช็คการรับ'); XLSX.writeFile(wb, 'ครอสเช็คการรับคลังย่อย.xlsx');
+        },
+        unfilledRangeText() { const f = this.reportFilter.start, t = this.reportFilter.end; return (f || t) ? ' (' + (f ? this.formatThaiDate(f) : 'เริ่มต้น') + ' - ' + (t ? this.formatThaiDate(t) : 'ปัจจุบัน') + ')' : ''; },
+        exportUnfilled() {
+            const u = this.unfilledReport, wb = XLSX.utils.book_new();
+            const a1 = [['หน่วยที่ขอเบิก', 'จำนวนใบขอเบิก', 'Item ที่ขอทั้งหมด', 'Item ที่ได้ไม่ครบ', 'ไม่ได้เลย', 'ร้อยละไม่ครบ']];
+            u.byDept.forEach(d => a1.push([d.label, d.reqs, d.total, d.short, d.none, parseFloat(d.pct.toFixed(2))])); a1.push(['รวม', u.tot.reqs, u.tot.total, u.tot.short, u.tot.none, parseFloat(u.tot.pct.toFixed(2))]);
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(a1), 'ร้อยละไม่ครบ');
+            const a2 = [['วันที่ขอ', 'เลขใบขอเบิก', 'หน่วยที่ขอ', 'รายการยา', 'ขอเบิก', 'คลังใหญ่จ่าย', 'ได้รับ', 'ขาด', 'สาเหตุ']];
+            u.rows.forEach(r => a2.push([r.date, r.reqId, r.label, r.name, r.requested, r.issued, r.got, r.short, r.reason]));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(a2), 'รายการที่ได้ไม่ครบ'); XLSX.writeFile(wb, 'รายงานรายการไม่ครบตามที่ขอเบิก.xlsx');
         },
         async updateEmgToActual(d) {
             const newDoc = String(this.emgNewDoc[d.docNo] || '').trim();
