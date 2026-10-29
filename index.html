@@ -1022,7 +1022,7 @@
                             <template v-if="scAdd.kind !== 'IN'">
                                 <select v-model="scAdd.lotIdx" @change="pickScAddLot" class="form-select form-select-sm" id="scAddLot">
                                     <option :value="-1">{{ scAddLots.length ? '-- เลือก Lot --' : 'ไม่มี Lot ที่มีสต็อกในคลังนี้' }}</option>
-                                    <option v-for="(l, i) in scAddLots" :key="l.lot" :value="i">{{ l.lot || '(ไม่ระบุ Lot)' }} · Exp {{ l.exp || '-' }} · ทุน {{ formatNumber(l.unitPrice) }} · เหลือ {{ formatNumber(l.qty) }}</option>
+                                    <option v-for="(l, i) in scAddLots" :key="l.lot" :value="i">{{ l.lot || '(ไม่ระบุ Lot)' }} · Exp {{ l.exp || '-' }}{{ expInfo(l.exp).level === 'expired' ? ' ❌หมดอายุแล้ว' : (expInfo(l.exp).level === 'near' ? ' ⚠️<6 เดือน' : '') }} · ทุน {{ formatNumber(l.unitPrice) }} · เหลือ {{ formatNumber(l.qty) }}</option>
                                 </select>
                             </template>
                             <template v-else>
@@ -1032,7 +1032,8 @@
                         </div>
                         <div class="col-6"><label class="small fw-bold text-muted">วันหมดอายุ <span class="text-danger" v-if="scAdd.kind === 'IN'">*</span></label>
                             <exp-picker v-if="scAdd.kind === 'IN'" v-model="scAdd.exp"></exp-picker>
-                            <input v-else :value="scAdd.exp || '-'" class="form-control form-control-sm" readonly></div>
+                            <input v-else :value="scAdd.exp || '-'" class="form-control form-control-sm" readonly>
+                            <span v-if="scAdd.kind !== 'IN' && expInfo(scAdd.exp).level === 'expired'" class="badge bg-danger mt-1">หมดอายุแล้ว</span><span v-else-if="scAdd.kind !== 'IN' && expInfo(scAdd.exp).level === 'near'" class="badge mt-1" style="background:#fd7e14">เหลือ < 6 เดือน</span></div>
                         <div class="col-3"><label class="small fw-bold text-muted">จำนวน</label><input type="number" step="any" min="0" v-model.number="scAdd.qty" @input="recalcScAdd" class="form-control form-control-sm text-end"></div>
                         <div class="col-3"><label class="small fw-bold text-muted">ราคาทุน/หน่วย <span class="text-danger" v-if="scAdd.kind === 'IN'">*</span></label><input type="number" step="any" min="0" v-model.number="scAdd.unitPrice" @input="recalcScAdd" :readonly="scAdd.kind !== 'IN'" class="form-control form-control-sm text-end"></div>
                         <div class="col-6"><label class="small fw-bold text-muted">มูลค่ารวม</label><input type="number" step="any" min="0" v-model.number="scAdd.total" :readonly="scAdd.kind !== 'IN'" class="form-control form-control-sm text-end fw-bold"></div>
@@ -1657,9 +1658,11 @@
                         </div>
                         <div class="d-flex gap-2 align-items-center mt-3 mt-md-0">
                             <div class="badge bg-primary fs-6 me-2 shadow-sm">ยอดปัจจุบัน: {{ formatNumber(inventory.find(i => i.id === scProdId)?.qty || 0) }}</div>
+                            <button v-if="isEditor && scLotFixPlan([scProdId]).moves.length" @click="askScLotFix([scProdId])" id="btnScFix" class="btn btn-warning fw-bold shadow-sm" title="รายการจ่ายที่ไม่ได้เลือก Lot จะถูกจัดเข้า Lot ที่หมดอายุเร็วที่สุดก่อน"><i class="bi bi-magic"></i> จัด Lot ให้อัตโนมัติ ({{ scLotFixPlan([scProdId]).moves.length }})</button>
                             <button v-if="canOpStock" @click="openScAdd()" id="btnScAdd" class="btn btn-primary fw-bold shadow-sm"><i class="bi bi-plus-lg"></i> เพิ่มรายการ</button>
                             <button @click="printStockCardData = true" class="btn btn-outline-dark fw-bold shadow-sm"><i class="bi bi-printer"></i> พิมพ์ F-SP-018</button>
                             <button @click="exportStockCardExcel" class="btn btn-success fw-bold shadow-sm"><i class="bi bi-file-excel"></i> Excel</button>
+                            <button v-if="isEditor" @click="askScLotFix(null)" id="btnScFixAll" class="btn btn-outline-warning btn-sm" title="ตรวจรายการจ่ายที่ไม่ได้เลือก Lot ของทุกรายการยาในคลังนี้"><i class="bi bi-magic"></i> ตรวจทั้งคลัง</button>
                         </div>
                     </div>
                     <div class="table-responsive">
@@ -1683,7 +1686,8 @@
                                     <td>{{ scDocOf(row) }} <span v-if="row.stockLocation === 'Pending' || (row.note && (row.note.includes('เคลียร์ ฉ.') || row.note.includes('ฉ.ตรวจรับแล้ว')))" class="text-danger fw-bold fs-6">(ฉ.)</span><br><small class="text-muted" v-if="!isShelfRow(row)">{{ row.note }}</small></td>
                                     <td>{{ row.vendorOrDept || '-' }}</td>
                                     <td class="text-end">{{ formatNumber(row.unitPrice) }}</td>
-                                    <td class="text-center">{{ formatThaiDate(row.expDate) || '-' }}</td>
+                                    <td class="text-center">{{ formatThaiDate(row.expDate) || '-' }}
+                                        <div v-if="scExpBadge(row)"><span class="badge" :class="scExpBadge(row).cls" :style="scExpBadge(row).style">{{ scExpBadge(row).text }}</span></div></td>
                                     <td class="text-center text-success fw-bold">{{ row.type==='IN' ? formatNumber(row.qty) : '-' }}</td>
                                     <td class="text-center text-danger fw-bold">{{ row.type==='OUT' ? formatNumber(row.qty) : '-' }}</td>
                                     <td class="text-center text-primary fw-bold fs-6">{{ formatNumber(row.runBal) }}</td>
@@ -4008,7 +4012,7 @@ const app = createApp({
                 const p = pm[t.productId]; if (!p) return;
                 const sgn = t.type === 'IN' ? 1 : -1;
                 const a = st.prod[t.productId] || (st.prod[t.productId] = { qty: 0, val: 0 });
-                a.qty += sgn * t.qty; a.val += sgn * t.totalPrice;
+                a.qty += sgn * t.qty; (a.rows || (a.rows = [])).push(t);
                 const lk = t.productId + '|' + t.lotNo, l = st.lots[lk] || (st.lots[lk] = { pid: t.productId, lot: t.lotNo, exp: t.expDate, qty: 0, up: t.unitPrice });
                 l.qty += sgn * t.qty; if (t.unitPrice) l.up = t.unitPrice;
                 const ds = String(t.date || '').slice(0, 10), tm = new Date(ds).getTime();
@@ -4023,7 +4027,7 @@ const app = createApp({
             const stocks = defs.map(d => {
                 const st = ST[d.key], r = { key: d.key, label: d.label, grp: d.grp, value: 0, skus: 0, edVal: 0, nedVal: 0, near: 0, nearVal: 0, expired: 0, expiredVal: 0, reorder: 0, tx7: st.tx7, tx30: st.tx30, shelf30: st.shelf30, last: st.last, mon: st.mon, top: [], nearList: [], reorderList: [], moveList: st.move.sort((x, y) => y.tm - x.tm).slice(0, 300) };
                 Object.keys(st.prod).forEach(id => {
-                    const p = pm[id], a = st.prod[id]; if (!p.isActive) return;
+                    const p = pm[id], a = st.prod[id]; a.val = this.valuePosition(a.rows).val; if (!p.isActive) return;
                     r.value += a.val;
                     if (a.qty > 0.0001) { r.skus++; r.top.push({ id, name: p.name, unit: p.unit, qty: a.qty, val: a.val }); if (p.objType === 'ยา') { if (p.drugClass === 'ED') r.edVal += a.val; else if (p.drugClass === 'NED') r.nedVal += a.val; } }
                     const mn = (lv[id + '|' + d.key] !== undefined) ? lv[id + '|' + d.key] : (p.min || 0);
@@ -4067,11 +4071,13 @@ const app = createApp({
                     let loc = t.stockLocation || 'MAIN';
                     let q = parseFloat(t.qty) || 0, tv = parseFloat(t.totalPrice) || 0;
                     if (this.globalStock === 'ALL' || this.globalStock === loc) {
-                        if (t.type === 'IN') { inv[t.productId].qty += q; inv[t.productId].totalVal += tv; } 
-                        else if (t.type === 'OUT') { inv[t.productId].qty -= q; inv[t.productId].totalVal -= tv; } 
+                        if (t.type === 'IN') { inv[t.productId].qty += q; } 
+                        else if (t.type === 'OUT') { inv[t.productId].qty -= q; } 
                     }
                 } 
             }); 
+            const vm_ = this.valMap;
+            Object.keys(vm_).forEach(k => { const i = k.indexOf('|'), pid = k.slice(0, i), loc = k.slice(i + 1); if (inv[pid] && (this.globalStock === 'ALL' || this.globalStock === loc)) inv[pid].totalVal += vm_[k].val; });
             return Object.values(inv).map(item => {
                 let minVal = parseFloat(item.min) || 0;
                 if (minVal > 0 && item.qty > 0) item.daysLeft = Math.round(item.qty / (minVal / 45)); 
@@ -4125,6 +4131,14 @@ const app = createApp({
         purchasedEdPercent() { let total = this.purchasedEdTotal + this.purchasedNedTotal; return total > 0 ? ((this.purchasedEdTotal / total) * 100).toFixed(1) : 0; },
         purchasedNedPercent() { let total = this.purchasedEdTotal + this.purchasedNedTotal; return total > 0 ? ((this.purchasedNedTotal / total) * 100).toFixed(1) : 0; },
 
+        // มูลค่าคงคลังแบบ Lot: หักยอดที่ตัดเกิน/ไม่มี Lot ออกจาก Lot ที่หมดอายุเร็วสุดก่อน แล้วคิดมูลค่าที่เหลือด้วยราคาทุนของแต่ละ Lot
+        // (เหลือ Lot เดียว = ราคา Lot นั้น, เหลือหลาย Lot = เฉลี่ยถ่วงน้ำหนักโดยปริยาย)
+        valMap() {
+            const g = {};
+            this.transactions.forEach(t => { if (t.status !== 'Completed') return; const k = t.productId + '|' + (t.stockLocation || 'MAIN'); (g[k] || (g[k] = [])).push(t); });
+            const m = {}; Object.keys(g).forEach(k => { m[k] = this.valuePosition(g[k]); }); return m;
+        },
+        scLotLeftMap() { const m = {}; this.transactions.forEach(t => { if (t.status !== 'Completed') return; const k = t.productId + '|' + (t.lotNo || '') + '|' + (t.stockLocation || 'MAIN'); m[k] = (m[k] || 0) + (t.type === 'IN' ? 1 : -1) * t.qty; }); return m; },
         allLots() { 
             let lots = {}; 
             this.transactions.filter(t => t.status === 'Completed').forEach(t => { 
@@ -5009,8 +5023,81 @@ const app = createApp({
         openScAdd() {
             const loc = this.globalStock;
             this.scAdd = { show: true, kind: 'OUT', date: new Date().toISOString().slice(0, 10), docNo: '', entity: '', lotIdx: -1, lot: '', exp: '', qty: 1, unitPrice: 0, total: 0, note: '' };
+            this.scAutoLot();
         },
-        setScAddKind(k) { const a = this.scAdd; a.kind = k; a.lotIdx = -1; a.lot = ''; a.exp = ''; a.unitPrice = 0; a.total = 0; },
+        scAutoLot() { const a = this.scAdd; if (a.kind !== 'IN' && this.scAddLots.length) { a.lotIdx = 0; this.pickScAddLot(); } },
+        setScAddKind(k) { const a = this.scAdd; a.kind = k; a.lotIdx = -1; a.lot = ''; a.exp = ''; a.unitPrice = 0; a.total = 0; this.scAutoLot(); },
+        scExpBadge(row) {
+            if (!row.expDate) return null;
+            const lf = this.scLotLeftMap[row.productId + '|' + (row.lotNo || '') + '|' + (row.stockLocation || 'MAIN')];
+            if (!(lf > 0.01)) return null;
+            const e = this.expInfo(row.expDate);
+            if (e.level === 'expired') return { cls: 'bg-danger', style: '', text: 'หมดอายุแล้ว' };
+            if (e.level === 'near') return { cls: '', style: 'background:#fd7e14;color:#fff', text: 'เหลือ ' + (e.months < 1 ? '< 1' : Math.ceil(e.months)) + ' เดือน' };
+            return null;
+        },
+        // จัด Lot ให้รายการจ่ายที่เคยบันทึกโดยไม่ได้เลือก Lot (กลุ่ม Lot ที่ไม่มีรายการรับเข้าเลย) ตาม FEFO
+        scLotFixPlan(pids) {
+            const loc = this.globalStock, want = pids ? new Set(pids.map(String)) : null, by = {};
+            this.transactions.forEach(t => {
+                if (t.status !== 'Completed' || (t.stockLocation || 'MAIN') !== loc) return; if (want && !want.has(String(t.productId))) return;
+                const P = by[t.productId] || (by[t.productId] = {});
+                const g = P[t.lotNo || ''] || (P[t.lotNo || ''] = { lot: t.lotNo || '', ins: 0, inQty: 0, rem: 0, exp: '', price: 0, outs: [] });
+                if (t.type === 'IN') { g.ins++; g.inQty += t.qty; g.rem += t.qty; if (t.expDate) g.exp = t.expDate; if (t.unitPrice) g.price = t.unitPrice; } else { g.rem -= t.qty; g.outs.push(t); }
+            });
+            const moves = [], unresolved = [];
+            Object.keys(by).forEach(pid => {
+                const groups = Object.values(by[pid]), good = groups.filter(g => g.ins > 0 && g.lot !== 'WAITING' && g.lot !== 'ADJUST'), items = [];
+                groups.forEach(g => {
+                    if (g.ins === 0) { g.outs.forEach(t => items.push({ t: t, need: t.qty, keep: 0 })); return; }
+                    if (g.rem >= -0.0001) return;
+                    let run = g.inQty; const outs = g.outs.slice().sort((x, y) => String(x.date).localeCompare(String(y.date)));
+                    outs.forEach(t => { if (run >= t.qty - 0.0001) { run -= t.qty; return; } const keep = Math.max(0, run); run = 0; items.push({ t: t, need: t.qty - keep, keep: keep }); });
+                    g.rem = 0;
+                });
+                items.sort((x, y) => String(x.t.date).localeCompare(String(y.t.date)));
+                items.forEach(it => {
+                    const canSplit = !/^(RCV-|ISS-|STK-|ADJ-)/.test(String(it.t.transId)) && !!it.t.billId;
+                    if (it.keep > 0 && !canSplit) { unresolved.push(it.t); return; }
+                    const parts = []; let need = it.need;
+                    const c = () => good.filter(g => g.rem > 0.0001).sort((x, y) => String(x.exp || '9999').localeCompare(String(y.exp || '9999')));
+                    if (!canSplit) { const one = c().find(g => g.rem >= need - 0.0001) || c().sort((x, y) => y.rem - x.rem)[0]; if (one) { one.rem -= need; parts.push({ lot: one.lot, exp: one.exp || '', price: one.price || 0, qty: need, enough: true }); need = 0; } }
+                    else while (need > 0.0001) { const cc = c(); if (!cc.length) break; const g = cc[0], take = Math.min(g.rem, need); g.rem -= take; need -= take; parts.push({ lot: g.lot, exp: g.exp || '', price: g.price || 0, qty: take, enough: true }); }
+                    if (!parts.length) { unresolved.push(it.t); return; }
+                    if (need > 0.0001) unresolved.push(it.t);
+                    moves.push({ t: it.t, keep: it.keep, parts: parts, lot: parts[0].lot, exp: parts[0].exp, price: parts[0].price, enough: need <= 0.0001 });
+                });
+            });
+            return { moves: moves, unresolved: unresolved };
+        },
+        askScLotFix(pids) {
+            const plan = this.scLotFixPlan(pids);
+            if (!plan.moves.length) return this.toast(plan.unresolved.length ? 'พบ ' + plan.unresolved.length + ' รายการที่ไม่มี Lot ให้จัด (ไม่มีสต็อกใน Lot ใด)' : 'ไม่พบรายการจ่ายที่ขาด Lot');
+            const lines = ['จะจัด Lot ให้ ' + plan.moves.length + ' รายการจ่าย (หมดอายุเร็วสุดก่อน แยกหลาย Lot ได้) พร้อมใส่ราคาทุนและวันหมดอายุ'];
+            plan.moves.slice(0, 6).forEach(m => lines.push(this.getProductName(m.t.productId) + ' · ' + this.formatNumber(m.t.qty) + ' → ' + (m.keep > 0 ? 'คงใน Lot เดิม ' + this.formatNumber(m.keep) + ' + ' : '') + m.parts.map(p => 'Lot ' + (p.lot || '-') + ' ×' + this.formatNumber(p.qty) + ' (ทุน ' + this.formatNumber(p.price) + ')').join(' + ')));
+            if (plan.moves.length > 6) lines.push('… และอีก ' + (plan.moves.length - 6) + ' รายการ');
+            const short = plan.moves.filter(m => !m.enough).length;
+            if (short) lines.push('⚠️ ' + short + ' รายการมีสต็อกใน Lot ไม่พอ ควรตรวจซ้ำ');
+            if (plan.unresolved.length) lines.push('ข้าม ' + plan.unresolved.length + ' รายการที่ไม่มี Lot ให้จัด');
+            lines.push('ยอดคงเหลือรวมไม่เปลี่ยน · มีบันทึกการแก้ไขทุกรายการในประวัติกิจกรรม');
+            this.askConfirm({ title: 'จัด Lot ให้อัตโนมัติ?', lines: lines, okText: 'ยืนยันจัด Lot', onOk: async () => {
+                this.loading = true; let n = 0, bad = 0;
+                for (const m of plan.moves) {
+                    const t = m.t, name = this.getProductName(t.productId), label = this.scDocOf(t), unit = t.unitPrice || 0;
+                    const upd = (lot, exp, price, q) => this.apiCall('updateTransactionItem', { username: this.currentUser.user, transId: t.transId, lotNo: lot, expDate: exp, qty: q, unitPrice: price, totalPrice: Math.round(q * price * 100) / 100, docLabel: label, productName: name });
+                    let parts = m.parts.slice(), ok = true;
+                    if (m.keep > 0) ok = !!(await upd(t.lotNo, t.expDate, unit, m.keep));
+                    else { const f = parts.shift(); ok = !!(await upd(f.lot, f.exp, f.price, f.qty)); }
+                    for (const p of parts) {
+                        if (!ok) break;
+                        const r = await this.apiCall('addDocItem', { username: this.currentUser.user, docId: t.billId, type: 'OUT', productId: t.productId, productName: name, lotNo: p.lot, expDate: p.exp, qty: p.qty, unitPrice: p.price, totalPrice: Math.round(p.qty * p.price * 100) / 100, stockLocation: this.globalStock });
+                        ok = !!r;
+                    }
+                    if (ok) n++; else bad++;
+                }
+                this.loading = false; this.toast('จัด Lot แล้ว ' + n + ' รายการ' + (bad ? ' · ไม่สำเร็จ ' + bad : '')); await this.loadData();
+            } });
+        },
         pickScAddLot() { const a = this.scAdd, l = this.scAddLots[a.lotIdx]; if (l) { a.lot = l.lot; a.exp = l.exp || ''; a.unitPrice = l.unitPrice || 0; this.recalcScAdd(); } else { a.lot = ''; a.exp = ''; a.unitPrice = 0; a.total = 0; } },
         pickScAddLotIn() { const a = this.scAdd, l = this.scAddKnownLots.find(x => x.lot === a.lot); if (l) { a.exp = l.exp || a.exp; if (!a.unitPrice) a.unitPrice = l.unitPrice || 0; this.recalcScAdd(); } },
         recalcScAdd() { const a = this.scAdd; a.total = Math.round((parseFloat(a.qty) || 0) * (parseFloat(a.unitPrice) || 0) * 100) / 100; },
@@ -5025,10 +5112,20 @@ const app = createApp({
                 if (!a.entity) return alert('ระบุแหล่งที่มา');
             } else {
                 if (a.lotIdx < 0) return alert('ต้องเลือก Lot ที่จะตัดสต็อก');
-                const l = this.scAddLots[a.lotIdx]; if (l && q > l.qty + 0.0001) return alert('จำนวนเกินยอดคงเหลือของ Lot นี้ (' + this.formatNumber(l.qty) + ')');
+                const l = this.scAddLots[a.lotIdx]; a.parts = null;
+                if (l && q > l.qty + 0.0001) {
+                    const parts = [{ lot: l.lot, exp: l.exp || '', unitPrice: l.unitPrice || 0, qty: l.qty }]; let need = q - l.qty;
+                    this.scAddLots.forEach((o, i) => { if (i === a.lotIdx || need <= 0.0001) return; const take = Math.min(o.qty, need); parts.push({ lot: o.lot, exp: o.exp || '', unitPrice: o.unitPrice || 0, qty: take }); need -= take; });
+                    if (need > 0.0001) return alert('จำนวนเกินยอดคงเหลือรวมทุก Lot (' + this.formatNumber(this.scAddLots.reduce((x, y) => x + y.qty, 0)) + ')');
+                    a.parts = parts;
+                }
                 if (a.kind === 'OUT' && (!a.docNo || !a.entity)) return alert('ระบุเลขที่เอกสารและปลายทาง');
             }
             const kindTxt = a.kind === 'IN' ? 'รับเข้า' : (a.kind === 'SHELF' ? 'จ่ายขึ้น Shelf' : 'จ่ายออก');
+            if (a.parts) {
+                const tot = a.parts.reduce((x, p) => x + p.qty * p.unitPrice, 0);
+                return this.askConfirm({ title: 'ยืนยันบันทึก' + kindTxt + ' (ตัดหลาย Lot)?', lines: [this.getProductName(this.scProdId) + ' — คลัง ' + this.locLabel(loc), 'จำนวนเกิน Lot ที่เลือก ระบบตัดต่อจาก Lot ที่หมดอายุเร็วสุดให้:', ...a.parts.map(p => 'Lot ' + p.lot + ' · ' + this.formatNumber(p.qty) + ' × ' + this.formatNumber(p.unitPrice)), 'รวม ' + this.formatNumber(q) + ' หน่วย = ' + this.formatCurrency(tot) + ' (เฉลี่ยถ่วงน้ำหนัก ' + this.formatNumber(tot / q) + '/หน่วย)'], okText: 'ยืนยัน', onOk: () => this.doScAdd() });
+            }
             this.askConfirm({ title: 'ยืนยันบันทึก' + kindTxt + '?', lines: [this.getProductName(this.scProdId) + ' — คลัง ' + this.locLabel(loc), 'Lot ' + a.lot + ' · Exp ' + (a.exp || '-') + ' · ' + this.formatNumber(q) + ' × ' + this.formatNumber(u) + ' = ' + this.formatCurrency(t), 'ยอดคงเหลือ/Stock Card จะเปลี่ยนตามทันที'], okText: 'ยืนยัน', onOk: () => this.doScAdd() });
         },
         async doScAdd() {
@@ -5040,7 +5137,7 @@ const app = createApp({
             const note = shelf ? ('จ่ายขึ้น Shelf' + (a.note ? ' | ' + a.note : '')) : ((isIn ? 'รับเข้า (บันทึกจาก Stock Card)' : 'เบิกจริง') + (a.note ? ' | ' + a.note : ''));
             const p = this.products.find(x => x.id === this.scProdId);
             this.loading = true;
-            const res = await this.apiCall('saveBatchTransaction', { user: this.currentUser.name, type: isIn ? 'IN' : 'OUT', items: [{ date: a.date, refDoc: doc, vendorOrDept: ent, productId: this.scProdId, lotNo: a.lot, expDate: a.exp, qty: parseFloat(a.qty), unitPrice: parseFloat(a.unitPrice) || 0, totalPrice: parseFloat(a.total) || 0, status: 'Completed', note: note, packSize: p ? p.packSize : 1, stockLocation: loc }] });
+            const res = await this.apiCall('saveBatchTransaction', { user: this.currentUser.name, type: isIn ? 'IN' : 'OUT', items: (a.parts && !isIn ? a.parts.map(x => ({ date: a.date, refDoc: doc, vendorOrDept: ent, productId: this.scProdId, lotNo: x.lot, expDate: x.exp, qty: x.qty, unitPrice: x.unitPrice, totalPrice: Math.round(x.qty * x.unitPrice * 100) / 100, status: 'Completed', note: note, packSize: p ? p.packSize : 1, stockLocation: loc })) : [{ date: a.date, refDoc: doc, vendorOrDept: ent, productId: this.scProdId, lotNo: a.lot, expDate: a.exp, qty: parseFloat(a.qty), unitPrice: parseFloat(a.unitPrice) || 0, totalPrice: parseFloat(a.total) || 0, status: 'Completed', note: note, packSize: p ? p.packSize : 1, stockLocation: loc }]) });
             this.loading = false;
             if (res) { this.scAdd.show = false; this.toast('บันทึกรายการแล้ว'); await this.loadData(); this.$nextTick(() => this.initTomSelects()); }
         },
@@ -6364,6 +6461,22 @@ const app = createApp({
             if (months < 0) return { level: 'expired', months: 0 };
             if (months < 6) return { level: 'near', months: Math.max(0, Math.round(months * 10) / 10) };
             return { level: 'ok', months: Math.round(months) };
+        },
+        valuePosition(rows) {
+            const lots = {}; let qtyAll = 0, flat = 0;
+            rows.forEach(t => {
+                const sg = t.type === 'IN' ? 1 : -1, q = parseFloat(t.qty) || 0, k = t.lotNo || '';
+                const g = lots[k] || (lots[k] = { qty: 0, price: 0, exp: '', ins: 0 });
+                g.qty += sg * q; qtyAll += sg * q; flat += sg * (parseFloat(t.totalPrice) || 0);
+                if (sg > 0) { g.ins++; if (t.unitPrice > 0) g.price = t.unitPrice; if (t.expDate) g.exp = t.expDate; }
+            });
+            let deficit = 0; const pos = [];
+            Object.values(lots).forEach(g => { if (g.qty < -0.0001) deficit += -g.qty; else if (g.qty > 0.0001 && g.ins > 0) pos.push(g); });
+            pos.sort((a, b) => String(a.exp || '9999').localeCompare(String(b.exp || '9999')));
+            pos.forEach(g => { if (deficit <= 0.0001) return; const take = Math.min(g.qty, deficit); g.qty -= take; deficit -= take; });
+            const left = pos.filter(g => g.qty > 0.0001);
+            if (left.length) return { qty: qtyAll, val: left.reduce((a, g) => a + g.qty * g.price, 0), lots: left.length };
+            return { qty: qtyAll, val: deficit > 0.0001 ? flat : 0, lots: 0 };
         },
         subDraftKey() { return this.globalStock + '|' + (this.subRecv.linkedDoc || 'manual'); },
         subDraftJson() {
