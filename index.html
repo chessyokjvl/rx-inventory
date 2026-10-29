@@ -3847,7 +3847,15 @@ const app = createApp({
         // แบ่งหน้า F-SP-011: หน้าละไม่เกิน 15 รายการ (รายการที่ 16, 31, 46 ... ขึ้นหน้าใหม่)
         printPages() {
             const d = this.printDoc; if (!d) return [];
-            const items = (d.items || []).concat(d.zeroRows || []), per = 15, n = Math.max(1, Math.ceil(items.length / per)), out = [];
+            // รวมทุก Lot ของยาตัวเดียวกันเป็น 1 บรรทัด (ราคา/หน่วย = เฉลี่ยถ่วงน้ำหนักจากมูลค่ารวม ÷ จำนวนรวม)
+            const mg = {}, merged = [];
+            (d.items || []).forEach(it => {
+                const k = it.productId + '|' + (it.emg ? 1 : 0) + '|' + (it.stockLoc || '');
+                if (!mg[k]) { mg[k] = Object.assign({}, it, { qty: parseFloat(it.qty) || 0, total: parseFloat(it.total) || 0, lots: 1 }); merged.push(mg[k]); }
+                else { const m = mg[k]; m.qty += parseFloat(it.qty) || 0; m.total += parseFloat(it.total) || 0; m.lots++; if (m.reqQty === '' || m.reqQty === undefined) m.reqQty = it.reqQty; }
+            });
+            merged.forEach(m => { m.total = Math.round(m.total * 100) / 100; m.price = m.qty > 0 ? Math.round(m.total / m.qty * 100) / 100 : m.price; });
+            const items = merged.concat(d.zeroRows || []), per = 15, n = Math.max(1, Math.ceil(items.length / per)), out = [];
             for (let p = 0; p < n; p++) {
                 const part = items.slice(p * per, (p + 1) * per);
                 out.push({ n: p + 1, start: p * per, items: part, last: p === n - 1, total: part.reduce((a, x) => a + (parseFloat(x.total) || 0), 0) });
