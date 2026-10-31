@@ -274,6 +274,7 @@
                             <a @click="navTo('stockTake', 'MAIN')" class="nav-link" :class="{active: page==='stockTake' && globalStock==='MAIN'}">🔍 เช็คสต็อก (Stock take)</a>
                             <a @click="navTo('stockCard', 'MAIN')" class="nav-link" :class="{active: page==='stockCard' && globalStock==='MAIN'}">💳 Stock Card</a>
                             <a @click="navTo('valueCheck', 'MAIN')" class="nav-link" :class="{active: page==='valueCheck' && globalStock==='MAIN'}">💲 ตรวจสอบมูลค่ายา</a>
+                            <a @click="navTo('expTrack', 'MAIN')" class="nav-link" style="color:#fd7e14" :class="{active: page==='expTrack' && globalStock==='MAIN'}">⏳ ติดตามยาใกล้หมดอายุที่จ่ายไป</a>
                             <a @click="navTo('reports', 'MAIN')" class="nav-link" :class="{active: page==='reports' && globalStock==='MAIN'}">📈 สรุปรายงาน</a>
                             <a @click="navTo('dispenseReport', 'MAIN')" class="nav-link" :class="{active: page==='dispenseReport' && globalStock==='MAIN'}">📊 สรุปยอดเบิกรายตัว</a>
                             <a v-if="canMainOps" @click="navTo('poCreate', 'MAIN')" class="nav-link text-warning fw-bold" :class="{active: page==='poCreate'}">🧾 สร้างใบ PO</a>
@@ -302,6 +303,7 @@
                             <a @click="navTo('stockOut', 'OPD')" class="nav-link" :class="{active: page==='stockOut' && globalStock==='OPD'}">📤 จ่ายยาขึ้นชั้น/ผู้ป่วย</a>
                             <a @click="navTo('stockTake', 'OPD')" class="nav-link" :class="{active: page==='stockTake' && globalStock==='OPD'}">🔍 เช็คสต็อก (OPD)</a>
                             <a @click="navTo('stockCard', 'OPD')" class="nav-link" :class="{active: page==='stockCard' && globalStock==='OPD'}">💳 Stock Card (OPD)</a>
+                            <a @click="navTo('expTrack', 'OPD')" class="nav-link" style="color:#fd7e14" :class="{active: page==='expTrack' && globalStock==='OPD'}">⏳ ติดตามยาใกล้หมดอายุที่จ่ายไป</a>
                             <a @click="navTo('reports', 'OPD')" class="nav-link" :class="{active: page==='reports' && globalStock==='OPD'}">📈 สรุปรายงาน</a>
                             <a @click="navTo('history', 'OPD')" class="nav-link" :class="{active: page==='history' && globalStock==='OPD'}">📜 ประวัติรับ-จ่าย (OPD)</a>
                         </div>
@@ -324,6 +326,7 @@
                             <a @click="navTo('stockOut', 'IPD')" class="nav-link" :class="{active: page==='stockOut' && globalStock==='IPD'}">📤 จ่ายยาขึ้นชั้น/ผู้ป่วย</a>
                             <a @click="navTo('stockTake', 'IPD')" class="nav-link" :class="{active: page==='stockTake' && globalStock==='IPD'}">🔍 เช็คสต็อก (IPD)</a>
                             <a @click="navTo('stockCard', 'IPD')" class="nav-link" :class="{active: page==='stockCard' && globalStock==='IPD'}">💳 Stock Card (IPD)</a>
+                            <a @click="navTo('expTrack', 'IPD')" class="nav-link" style="color:#fd7e14" :class="{active: page==='expTrack' && globalStock==='IPD'}">⏳ ติดตามยาใกล้หมดอายุที่จ่ายไป</a>
                             <a @click="navTo('reports', 'IPD')" class="nav-link" :class="{active: page==='reports' && globalStock==='IPD'}">📈 สรุปรายงาน</a>
                             <a @click="navTo('history', 'IPD')" class="nav-link" :class="{active: page==='history' && globalStock==='IPD'}">📜 ประวัติรับ-จ่าย (IPD)</a>
                         </div>
@@ -348,6 +351,7 @@
                             <a @click="navTo('stockOut', 'เวชภัณฑ์มิใช่ยา')" class="nav-link" :class="{active: page==='stockOut' && globalStock==='เวชภัณฑ์มิใช่ยา'}">📤 จ่ายเวชภัณฑ์</a>
                             <a @click="navTo('stockTake', 'เวชภัณฑ์มิใช่ยา')" class="nav-link" :class="{active: page==='stockTake' && globalStock==='เวชภัณฑ์มิใช่ยา'}">🔍 เช็คสต็อก</a>
                             <a @click="navTo('stockCard', 'เวชภัณฑ์มิใช่ยา')" class="nav-link" :class="{active: page==='stockCard' && globalStock==='เวชภัณฑ์มิใช่ยา'}">💳 Stock Card</a>
+                            <a @click="navTo('expTrack', 'เวชภัณฑ์มิใช่ยา')" class="nav-link" style="color:#fd7e14" :class="{active: page==='expTrack' && globalStock==='เวชภัณฑ์มิใช่ยา'}">⏳ ติดตามยาใกล้หมดอายุที่จ่ายไป</a>
                             <a @click="navTo('reports', 'เวชภัณฑ์มิใช่ยา')" class="nav-link" :class="{active: page==='reports' && globalStock==='เวชภัณฑ์มิใช่ยา'}">📈 สรุปรายงาน</a>
                             <a @click="navTo('history', 'เวชภัณฑ์มิใช่ยา')" class="nav-link" :class="{active: page==='history' && globalStock==='เวชภัณฑ์มิใช่ยา'}">📜 ประวัติรับ-จ่าย</a>
                         </div>
@@ -2461,6 +2465,61 @@
                 </div>
             </div>
 
+            <!-- ================= ติดตามยาใกล้หมดอายุที่จ่ายออกไปแล้ว ================= -->
+            <div v-if="page === 'expTrack'">
+                <h3 class="fw-bold mb-1" style="color:#fd7e14"><i class="bi bi-hourglass-split"></i> ติดตามยาใกล้หมดอายุที่จ่ายออกไปแล้ว <span class="fs-5 text-primary">({{ globalStock === 'MAIN' ? 'ทุกปลายทาง' : locLabel(globalStock) }})</span></h3>
+                <div class="small text-muted mb-3">ดูจากรายการที่<b>คลังใหญ่จ่ายออก</b> เฉพาะ Lot ที่อายุเหลือน้อยกว่าเกณฑ์ ใช้ตรวจที่ปลายทางว่ายา Lot นั้นยังเหลือบน Shelf หรือไม่ (ยาที่ตัดขึ้น Shelf แล้วระบบเช็ควันหมดอายุโดยตรงไม่ได้) บันทึกผลการตรวจได้ที่คอลัมน์ขวา</div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6 col-md-3"><div class="card card-shadow p-2 text-center"><div class="small text-muted">รายการที่ต้องตรวจ</div><div class="fs-4 fw-bold text-primary">{{ expTrackStats.total }}</div></div></div>
+                    <div class="col-6 col-md-3"><div class="card card-shadow p-2 text-center"><div class="small text-muted">ยังไม่ตรวจ</div><div class="fs-4 fw-bold text-danger">{{ expTrackStats.unchecked }}</div></div></div>
+                    <div class="col-6 col-md-3"><div class="card card-shadow p-2 text-center"><div class="small text-muted">หมดอายุแล้ว</div><div class="fs-4 fw-bold text-danger">{{ expTrackStats.expired }}</div></div></div>
+                    <div class="col-6 col-md-3"><div class="card card-shadow p-2 text-center"><div class="small text-muted">อายุ &lt; 3 เดือน</div><div class="fs-4 fw-bold" style="color:#fd7e14">{{ expTrackStats.lt3 }}</div></div></div>
+                </div>
+                <div class="card card-shadow p-3 mb-3">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6 col-md-2"><label class="small fw-bold text-muted">อายุเหลือน้อยกว่า</label><select v-model.number="etUI.months" class="form-select form-select-sm"><option :value="3">3 เดือน</option><option :value="6">6 เดือน</option><option :value="9">9 เดือน</option><option :value="12">12 เดือน</option></select></div>
+                        <div class="col-6 col-md-2"><label class="small fw-bold text-muted">สถานะการตรวจ</label><select v-model="etUI.status" class="form-select form-select-sm"><option value="all">ทั้งหมด</option><option value="open">ยังไม่ตรวจ / พบยังเหลือ</option><option value="checked">ตรวจแล้ว</option></select></div>
+                        <div class="col-12 col-md-3" v-if="globalStock === 'MAIN'"><label class="small fw-bold text-muted">ปลายทาง</label><select v-model="etUI.dest" class="form-select form-select-sm"><option value="">ทุกปลายทาง</option><option v-for="d in expTrackDests" :key="d" :value="d">{{ d }}</option></select></div>
+                        <div class="col-12 col-md-3"><label class="small fw-bold text-muted">ค้นหา (ชื่อยา / Lot)</label><input v-model="etUI.q" class="form-control form-control-sm" placeholder="พิมพ์ชื่อยาหรือ Lot"></div>
+                        <div class="col-12 col-md-2"><button class="btn btn-success btn-sm w-100 fw-bold" @click="exportExpTrack"><i class="bi bi-file-excel"></i> Excel</button></div>
+                    </div>
+                </div>
+                <div class="card card-shadow p-3">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm align-middle" style="font-size:.9rem">
+                            <thead class="table-light text-center"><tr><th>ปลายทาง</th><th>รายการยา</th><th>Lot</th><th>วันหมดอายุ</th><th>จ่ายออกจากคลังใหญ่</th><th>ที่คลังย่อย (ระบบ)</th><th style="min-width:230px">ผลการตรวจที่ปลายทาง</th></tr></thead>
+                            <tbody>
+                                <tr v-for="r in expTrackShown" :key="r.key">
+                                    <td class="fw-bold">{{ r.destLabel }}</td>
+                                    <td>{{ r.name }}</td>
+                                    <td class="text-center">{{ r.lot || '-' }}</td>
+                                    <td class="text-center text-nowrap">{{ formatThaiDate(r.exp) }}<div><span v-if="r.level === 'expired'" class="badge bg-danger">หมดอายุแล้ว</span><span v-else class="badge" style="background:#fd7e14">เหลือ {{ r.months < 1 ? '< 1' : Math.ceil(r.months) }} เดือน</span></div></td>
+                                    <td class="text-center text-nowrap"><b class="text-danger">{{ formatNumber(r.issued) }}</b><div class="small text-muted">{{ formatThaiDate(r.lastDate) }} · {{ r.docs }}</div></td>
+                                    <td class="small text-nowrap">
+                                        <template v-if="r.destLoc">
+                                            <div>รับเข้า: <b>{{ formatNumber(r.recv) }}</b><span v-if="!r.recv" class="badge bg-warning text-dark ms-1">ยังไม่บันทึกรับ</span></div>
+                                            <div>ขึ้น Shelf แล้ว: <b>{{ formatNumber(r.shelf) }}</b></div>
+                                            <div>คงเหลือในคลัง: <b>{{ formatNumber(r.stock) }}</b></div>
+                                        </template>
+                                        <span v-else class="text-muted">ปลายทางนอกระบบคลังย่อย</span>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            <select class="form-select form-select-sm" :disabled="!canOpStock" :value="r.status" @change="setExpCheck(r, $event.target.value, r.note)">
+                                                <option value="">ยังไม่ตรวจ</option><option value="none">ตรวจแล้ว ไม่เหลือ</option><option value="found">พบยังเหลือ (รอดำเนินการ)</option><option value="done">จัดการแล้ว (ส่งคืน/แลก)</option>
+                                            </select>
+                                        </div>
+                                        <input class="form-control form-control-sm mt-1" :disabled="!canOpStock || !r.status" :value="r.note" placeholder="หมายเหตุ" @change="setExpCheck(r, r.status, $event.target.value)">
+                                        <div v-if="r.by" class="small text-muted mt-1">{{ r.by }} · {{ String(r.at).slice(0, 10) }}</div>
+                                    </td>
+                                </tr>
+                                <tr v-if="!expTrackShown.length"><td colspan="7" class="text-center text-muted py-4">ไม่พบรายการ{{ expTrackRows.length ? 'ตามตัวกรอง' : 'ที่ใกล้หมดอายุ' }}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- ================= สร้างใบ PO (คลังใหญ่) ================= -->
             <div v-show="page === 'poCreate' && canMainOps">
                 <h3 class="fw-bold text-primary mb-3"><i class="bi bi-receipt me-2"></i> สร้างใบ PO (คลังยาใหญ่)</h3>
@@ -3326,6 +3385,7 @@ const app = createApp({
             pick: { reqId: '', rows: [], page: 1, size: 10, savedAt: '', doneDoc: null },
             subPick: { page: 1, size: 10, savedAt: '' },
             subRet: { show: false, idx: -1, name: '', lot: '', exp: '', level: 'ok', max: 0, qty: 0, reason: 'ใกล้หมดอายุ (< 6 เดือน) ขอแลกคืนบริษัท', note: '' },
+            etUI: { months: 6, status: 'all', dest: '', q: '' },
             scUI: { tab: 'ret', sel: {}, docNo: '', onlyFlag: true, from: '' },
             hsImp: { rows: [], fileName: '', busy: false },
             hsFu: { show: false, hospital: '', docId: '', date: '', method: 'โทรศัพท์', note: '' },
@@ -4148,6 +4208,48 @@ const app = createApp({
             this.transactions.forEach(t => { if (t.status !== 'Completed') return; const k = t.productId + '|' + (t.stockLocation || 'MAIN'); (g[k] || (g[k] = [])).push(t); });
             const m = {}; Object.keys(g).forEach(k => { m[k] = this.valuePosition(g[k]); }); return m;
         },
+
+        expChecksMap() { const m = {}; (this.rawData.expChecks || []).forEach(r => { m[r[0]] = { loc: r[1], status: r[2], note: r[3], by: r[4], at: r[5] }; }); return m; },
+        expTrackRows() {
+            const now = Date.now(), lim = 12;   // เก็บเผื่อ 12 เดือน แล้วกรองตามเกณฑ์ที่หน้าจอ
+            const reqDept = {}; this.requests.forEach(r => { reqDept[r.id] = r.dept; });
+            const destLocOf = {}; Object.keys(SUB_STOCKS).forEach(k => SUB_STOCKS[k].dest.forEach(n => { destLocOf[n] = k; }));
+            const lotBal = {}, recv = {}, shelf = {};
+            this.transactions.forEach(t => {
+                if (t.status !== 'Completed') return; const loc = t.stockLocation || 'MAIN'; if (!SUB_STOCKS[loc]) return;
+                const k = loc + '|' + t.productId + '|' + (t.lotNo || '');
+                lotBal[k] = (lotBal[k] || 0) + (t.type === 'IN' ? 1 : -1) * t.qty;
+                if (t.type === 'IN') recv[k] = (recv[k] || 0) + t.qty; else if (this.isShelfRow(t)) shelf[k] = (shelf[k] || 0) + t.qty;
+            });
+            const pm = {}; this.products.forEach(p => { pm[p.id] = p; });
+            const g = {};
+            this.transactions.forEach(t => {
+                if (t.type !== 'OUT' || t.status !== 'Completed' || (t.stockLocation || 'MAIN') !== 'MAIN') return;
+                if (t.lotNo === 'ADJUST' || !t.billId || t.billId === '-' || !t.expDate || this.isShelfRow(t)) return;
+                const ex = new Date(String(t.expDate).length === 7 ? t.expDate + '-28' : t.expDate); if (isNaN(ex)) return;
+                const months = (ex.getTime() - now) / (30.4375 * 864e5); if (months >= lim) return;
+                const dest = String(t.vendorOrDept || '').trim(), note = String(t.note || '');
+                let dl = destLocOf[dest] || ''; if (!dl) { const m = /REQ-\d+/.exec(note); if (m && SUB_STOCKS[reqDept[m[0]]]) dl = reqDept[m[0]]; }
+                const dk = dl || dest, key = t.productId + '|' + (t.lotNo || '') + '|' + dk;
+                const r = g[key] || (g[key] = { key: key, pid: t.productId, name: (pm[t.productId] || {}).name || t.productId, lot: t.lotNo || '', exp: t.expDate, months: months, level: months < 0 ? 'expired' : 'near', destLoc: dl, destKey: dk, destLabel: dl ? SUB_STOCKS[dl].label : (dest || '-'), issued: 0, lastDate: '', docSet: new Set() });
+                r.issued += t.qty; const d = String(t.date).slice(0, 10); if (d > r.lastDate) r.lastDate = d; r.docSet.add(String(t.billId));
+            });
+            const ck = this.expChecksMap;
+            return Object.values(g).map(r => {
+                const lk = r.destLoc + '|' + r.pid + '|' + r.lot, c = ck[r.key] || {};
+                return Object.assign(r, { docs: Array.from(r.docSet).slice(0, 2).join(', ') + (r.docSet.size > 2 ? ' +' + (r.docSet.size - 2) : ''), recv: r.destLoc ? (recv[lk] || 0) : 0, shelf: r.destLoc ? (shelf[lk] || 0) : 0, stock: r.destLoc ? Math.max(0, lotBal[lk] || 0) : 0, status: c.status || '', note: c.note || '', by: c.by || '', at: c.at || '' });
+            });
+        },
+        expTrackScoped() { const g = this.globalStock; return this.expTrackRows.filter(r => g === 'MAIN' || g === 'ALL' || r.destLoc === g); },
+        expTrackBase() { return this.expTrackScoped.filter(r => r.months < this.etUI.months); },
+        expTrackDests() { return Array.from(new Set(this.expTrackBase.map(r => r.destLabel))).sort((a, b) => a.localeCompare(b, 'th')); },
+        expTrackShown() {
+            const q = String(this.etUI.q || '').trim().toLowerCase(), st = this.etUI.status;
+            return this.expTrackBase.filter(r => (!this.etUI.dest || r.destLabel === this.etUI.dest) && (!q || (r.name + ' ' + r.lot).toLowerCase().includes(q))
+                && (st === 'all' || (st === 'open' ? (!r.status || r.status === 'found') : !!r.status && r.status !== 'found')))
+                .sort((a, b) => a.months - b.months || a.destLabel.localeCompare(b.destLabel, 'th'));
+        },
+        expTrackStats() { const a = this.expTrackBase; return { total: a.length, unchecked: a.filter(r => !r.status).length, expired: a.filter(r => r.level === 'expired').length, lt3: a.filter(r => r.months >= 0 && r.months < 3).length }; },
         scLotLeftMap() { const m = {}; this.transactions.forEach(t => { if (t.status !== 'Completed') return; const k = t.productId + '|' + (t.lotNo || '') + '|' + (t.stockLocation || 'MAIN'); m[k] = (m[k] || 0) + (t.type === 'IN' ? 1 : -1) * t.qty; }); return m; },
         allLots() { 
             let lots = {}; 
@@ -6623,6 +6725,17 @@ const app = createApp({
                 const r = await this.apiCall('acceptSubReturn', { username: this.currentUser.user, ids: ids, docNo: this.scUI.docNo });
                 if (r) { this.toast(r); this.scUI.sel = {}; this.scUI.docNo = ''; await this.loadData(); }
             } });
+        },
+
+        async setExpCheck(r, status, note) {
+            const res = await this.apiCall('saveExpCheck', { username: this.currentUser.user, key: r.key, loc: r.destLoc || 'MAIN', status: status, note: note || '' });
+            if (res) { await this.loadData(); this.toast(status ? 'บันทึกผลการตรวจแล้ว' : 'ยกเลิกสถานะแล้ว'); }
+        },
+        exportExpTrack() {
+            const lab = { '': 'ยังไม่ตรวจ', none: 'ตรวจแล้ว ไม่เหลือ', found: 'พบยังเหลือ', done: 'จัดการแล้ว' };
+            const aoa = [['ปลายทาง', 'รายการยา', 'Lot', 'วันหมดอายุ', 'เหลือ (เดือน)', 'จ่ายออก', 'วันที่จ่ายล่าสุด', 'เลขเอกสาร', 'รับเข้าคลังย่อย', 'ขึ้น Shelf แล้ว', 'คงเหลือในคลังย่อย', 'ผลการตรวจ', 'หมายเหตุ', 'ผู้ตรวจ']];
+            this.expTrackShown.forEach(r => aoa.push([r.destLabel, r.name, r.lot, r.exp, r.level === 'expired' ? 'หมดอายุแล้ว' : Math.round(r.months * 10) / 10, r.issued, r.lastDate, Array.from(r.docSet).join(', '), r.destLoc ? r.recv : '', r.destLoc ? r.shelf : '', r.destLoc ? r.stock : '', lab[r.status || ''], r.note, r.by]));
+            const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'ยาใกล้หมดอายุที่จ่ายไป'); XLSX.writeFile(wb, 'ติดตามยาใกล้หมดอายุที่จ่ายไป.xlsx');
         },
         exportSubAudit() {
             const aoa = [['วันที่', 'คลังที่รับ', 'ใบจ่าย', 'รายการยา', 'Lot', 'Exp', 'จ่าย', 'รับจริง', 'ส่งคืน', 'ราคาต้นทาง', 'ราคาที่คลังย่อยลง', 'ข้อสังเกต']];
