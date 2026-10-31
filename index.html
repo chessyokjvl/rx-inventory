@@ -23,6 +23,7 @@
         .po-edit:hover, .po-edit:focus { outline: 1px dashed #0d6efd; background: #eef5ff; }
         .po-show { display: none; }
         @media print { .po-edit { display: none; } .po-show { display: inline; } }
+        @media print { #printSection table { border-collapse: collapse; } #printSection thead { display: table-header-group; } #printSection tr { page-break-inside: avoid; break-inside: avoid; } #printSection th, #printSection td { border: 1px solid #000 !important; background-clip: padding-box; } }
         .guest-wrap { min-height: 100vh; width: 100%; background: #f1f4f9; }
         .guest-card:hover { box-shadow: 0 .5rem 1rem rgba(0,0,0,.15) !important; }
         .login-bg { background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); }
@@ -652,7 +653,8 @@
                     <div class="row g-2 align-items-end">
                         <div class="col-12 col-md-4"><div class="d-flex justify-content-between"><label class="small text-muted fw-bold">รายการสินค้า (ค้นหา/ยิงบาร์โค้ด)</label><a href="#" @click.prevent="openBarcodeQuick(tempOpen.productId, true)" class="small text-decoration-none text-success"><i class="bi bi-upc-scan"></i> ผูกบาร์โค้ด</a></div><select id="openProductSelect" placeholder="พิมพ์ค้นหาสินค้า..."></select></div>
                         <div class="col-12 col-md-2"><label class="small text-muted fw-bold">จำนวนสุทธิ (Base)</label><input type="number" id="scanQty_open" @keydown.enter.prevent="addToOpenCart" v-model.number="tempOpen.qty" @input="calcOpenTotal" class="form-control border-primary" min="1"></div>
-                        <div class="col-12 col-md-2"><label class="small text-muted fw-bold">ราคา/หน่วย (บาท)</label><input type="number" v-model.number="tempOpen.unitPrice" @input="calcOpenTotal" class="form-control border-primary" min="0" step="0.01"></div>
+                        <div class="col-12 col-md-2"><label class="small text-muted fw-bold">ราคา/หน่วย (บาท)</label><input type="number" v-model.number="tempOpen.unitPrice" @input="calcOpenTotal(); tempOpen.priceHint = ''" class="form-control border-primary" min="0" step="0.01">
+                            <div v-if="tempOpen.priceHint" class="small text-success fw-bold mt-1" style="line-height:1.2"><i class="bi bi-magic"></i> {{ tempOpen.priceHint }} <span class="text-muted fw-normal">(แก้ไขได้)</span></div></div>
                         <div class="col-12 col-md-2"><label class="small text-muted fw-bold">มูลค่ารวม (บาท)</label><input type="number" v-model.number="tempOpen.totalPrice" class="form-control bg-light text-end fw-bold" readonly></div>
                         
                     </div>
@@ -1766,18 +1768,18 @@
                         <div style="text-align:center; font-weight:bold; font-size:15px; margin-bottom:6px;">ประจำเดือน {{ poPrintData.monthLabel }}</div>
                         <table style="width:100%; border-collapse:collapse;">
                             <thead><tr>
-                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;" style="width:34px;">ลำดับ</th>
-                                <th TH>ชื่อสามัญ</th>
-                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;" style="width:120px;">บริษัท</th>
-                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;" style="width:80px;">หน่วยนับ</th>
-                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;" style="width:70px;">ราคา</th>
-                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;" style="width:62px;">อัตราการใช้ ปี {{ poPrintData.fy }}</th>
-                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;" style="width:52px;">Rate/1mo</th>
-                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;" style="width:42px;">min</th>
-                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;" style="width:42px;">max</th>
-                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;" style="width:66px;">จำนวนคงคลัง {{ poPrintData.stockDate }}</th>
-                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;" style="width:62px;">จำนวนขอสั่งซื้อ</th>
-                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;" style="width:84px;">มูลค่า</th>
+                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;width:34px;">ลำดับ</th>
+                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;">ชื่อสามัญ</th>
+                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;width:120px;">บริษัท</th>
+                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;width:80px;">หน่วยนับ</th>
+                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;width:70px;">ราคา</th>
+                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;width:62px;">อัตราการใช้ ปี {{ poPrintData.fy }}</th>
+                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;width:52px;">Rate/1mo</th>
+                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;width:42px;">min</th>
+                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;width:42px;">max</th>
+                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;width:66px;">จำนวนคงคลัง {{ poPrintData.stockDate }}</th>
+                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;width:62px;">จำนวนขอสั่งซื้อ</th>
+                                <th style="border:1px solid #000; padding:3px 2px; text-align:center; font-weight:bold; vertical-align:bottom;width:84px;">มูลค่า</th>
                             </tr></thead>
                             <tbody>
                                 <tr v-for="r in poPrintData.rows" :key="r.no">
@@ -3353,7 +3355,7 @@ const app = createApp({
             formMinMax: { productId: '', stockLocation: '', min: 0, max: 0, productName: '' },
 
             formOpen: { date: new Date().toISOString().slice(0, 10), refDoc: 'ยอดยกมาปีปัจจุบัน' }, 
-            tempOpen: { productId: '', productName: '', qty: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: 'บันทึกยอดยกมาต้นปี' }, 
+            tempOpen: { productId: '', productName: '', qty: 1, totalPrice: 0, unitPrice: 0, priceHint: '', expDate: '', lotNo: '', note: 'บันทึกยอดยกมาต้นปี' }, 
             cartOpen: [],
             
             formRec: { refBillNo: '', vendor: '', receivedDate: new Date().toISOString().slice(0, 10), poNo: '', cntNo: '', buyMethod: '32', coPurchase: '1', rcvFlag: '1' }, 
@@ -3888,7 +3890,7 @@ const app = createApp({
             });
             const ov = this.printPoOv || {};
             let sum = 0;
-            const rows = d.items.map((it, i) => {
+            const rows = [...d.items].sort((a, b) => { const A = String(a.productName || '').trim(), B = String(b.productName || '').trim(), ta = /^[\u0E00-\u0E7F]/.test(A) ? 1 : 0, tb = /^[\u0E00-\u0E7F]/.test(B) ? 1 : 0; return ta - tb || (ta ? A.localeCompare(B, 'th') : A.localeCompare(B, 'en', { sensitivity: 'base', numeric: true })); }).map((it, i) => {
                 const mm = this.getLocMinMax(it.productId, 'MAIN'), p = this.products.find(x => x.id === it.productId), o = ov[it.productId] || {};
                 const pick = (k, v) => (o[k] !== undefined && o[k] !== '' && !isNaN(parseFloat(o[k]))) ? parseFloat(o[k]) : v;
                 const price = pick('price', parseFloat(it.unitPrice) || 0);
@@ -5211,7 +5213,7 @@ const app = createApp({
             let oEl = document.getElementById('openProductSelect'); 
             if (oEl) {
                 if(this.tsOpenProduct) this.tsOpenProduct.destroy();
-                this.tsOpenProduct = new TomSelect(oEl, { valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode', 'barcodeText'], options: this.products.filter(p => p.isActive), render: { option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small>${d.barcodeText ? ' <small class="text-muted"><i class="bi bi-upc"></i> ' + e(d.barcodeText) + '</small>' : ''}</div>`; }, item: function(d, e) { return `<div>${e(d.name)}</div>`; } }, onChange: (v) => { let p = this.products.find(x => x.id == v); if (p) { this.tempOpen.productId = p.id; this.tempOpen.productName = p.name; } } });
+                this.tsOpenProduct = new TomSelect(oEl, { valueField: 'id', labelField: 'name', searchField: ['name', 'id', 'workingCode', 'barcodeText'], options: this.products.filter(p => p.isActive), render: { option: function(d, e) { return `<div><span class="fw-bold">${e(d.name)}</span> <small>[${e(d.id)}]</small>${d.barcodeText ? ' <small class="text-muted"><i class="bi bi-upc"></i> ' + e(d.barcodeText) + '</small>' : ''}</div>`; }, item: function(d, e) { return `<div>${e(d.name)}</div>`; } }, onChange: (v) => { let p = this.products.find(x => x.id == v); if (p) { this.tempOpen.productId = p.id; this.tempOpen.productName = p.name; this.fillOpenPrice(p.id); } } });
             }
             let vEl = document.getElementById('vendorSelect'); 
             if (vEl) {
@@ -5358,9 +5360,21 @@ const app = createApp({
         },
 
         // --- 📤 รับยา / ยอดยกมา ---
+        // ราคาทุน/หน่วยล่าสุดของยานั้น: รับเข้า (IN) ที่ราคา > 0 ล่าสุดจากทุกคลัง (ไม่พบจึงใช้รายการจ่ายล่าสุด)
+        latestUnitPrice(pid) {
+            const best = (type) => { let b = null; this.transactions.forEach(t => { if (String(t.productId) !== String(pid) || t.type !== type || !(parseFloat(t.unitPrice) > 0)) return; const k = String(t.date || '') + '|' + String(t.transId); if (!b || k > b.k) b = { k: k, t: t }; }); return b && b.t; };
+            const t = best('IN') || best('OUT'); if (!t) return null;
+            return { price: parseFloat(t.unitPrice), date: String(t.date || '').slice(0, 10), loc: t.stockLocation || 'MAIN', lot: t.lotNo || '' };
+        },
+        fillOpenPrice(pid) {
+            const o = this.tempOpen, r = this.latestUnitPrice(pid);
+            if (r) { o.unitPrice = r.price; o.priceHint = 'ดึงราคาล่าสุด ' + this.formatNumber(r.price) + ' บาท (' + this.formatThaiDate(r.date) + ' · ' + this.locLabel(r.loc) + ')'; }
+            else { o.unitPrice = 0; o.priceHint = ''; this.toast('ยังไม่มีประวัติราคาของรายการนี้ กรุณากรอกราคาเอง'); }
+            this.calcOpenTotal();
+        },
         calcOpenTotal() { this.tempOpen.totalPrice = parseFloat((this.tempOpen.qty * this.tempOpen.unitPrice).toFixed(2)) || 0; },
         calcRecTotal() { this.tempRec.totalPrice = parseFloat((this.tempRec.qty * this.tempRec.unitPrice).toFixed(2)) || 0; },
-        addToOpenCart() { if (!this.tempOpen.productId) return alert("ระบุสินค้า"); this.cartOpen.push({ ...this.tempOpen }); this.tempOpen = { productId: '', productName: '', qty: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: 'บันทึกยอดยกมาต้นปี' }; if (this.tsOpenProduct) this.tsOpenProduct.clear(); },
+        addToOpenCart() { if (!this.tempOpen.productId) return alert("ระบุสินค้า"); this.cartOpen.push({ ...this.tempOpen }); this.tempOpen = { productId: '', productName: '', qty: 1, totalPrice: 0, unitPrice: 0, priceHint: '', expDate: '', lotNo: '', note: 'บันทึกยอดยกมาต้นปี' }; if (this.tsOpenProduct) this.tsOpenProduct.clear(); },
         async submitOpeningBalance() { if (this.cartOpen.length === 0 || !confirm(`ยืนยันบันทึกยอดยกมาเข้าคลัง (${this.globalStock})?`)) return; this.loading = true; const res = await this.apiCall("saveBatchTransaction", { user: this.currentUser.name, type: 'IN', items: this.cartOpen.map(i => ({ ...i, date: this.formOpen.date, refDoc: this.formOpen.refDoc, vendorOrDept: 'ยอดยกมา', status: 'Completed', stockLocation: this.globalStock })) }); if (res) { alert('บันทึกสำเร็จ'); this.cartOpen = []; await this.loadData(); } this.loading = false; },
 
         addToReceiveCart() { if (!this.tempRec.productId || !this.formRec.vendor || !this.formRec.refBillNo) return alert("ระบุข้อมูลให้ครบ"); this.cartRec.push({ ...this.tempRec }); this.tempRec = { productId: '', productName: '', qty: 1, packSize: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: '' }; if (this.tsProduct) this.tsProduct.clear(); },
@@ -6016,7 +6030,7 @@ const app = createApp({
                     this.toast('เลือก: ' + p.name); this.focusEl('scanQty_rec'); break;
                 case 'opening':
                     if (this.tsOpenProduct) this.tsOpenProduct.setValue(pid);
-                    this.tempOpen.productId = p.id; this.tempOpen.productName = p.name;
+                    this.tempOpen.productId = p.id; this.tempOpen.productName = p.name; this.fillOpenPrice(p.id);
                     if (lot) this.tempOpen.lotNo = lot; if (exp) this.tempOpen.expDate = exp;
                     this.toast('เลือก: ' + p.name); this.focusEl('scanQty_open'); break;
                 case 'subReceive':
