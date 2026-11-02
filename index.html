@@ -22,6 +22,9 @@
         .po-edit::-webkit-outer-spin-button, .po-edit::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
         .po-edit:hover, .po-edit:focus { outline: 1px dashed #0d6efd; background: #eef5ff; }
         .po-show { display: none; }
+        .table-expform th, .table-expform td { border: 1px solid #000; padding: 4px 6px; vertical-align: middle; }
+        .table-expform th { text-align: center; font-weight: bold; }
+        .table-expform td.c { text-align: center; } .table-expform td.r { text-align: right; }
         @media print { .po-edit { display: none; } .po-show { display: inline; } }
         @media print { #printSection table { border-collapse: collapse; } #printSection thead { display: table-header-group; } #printSection tr { page-break-inside: avoid; break-inside: avoid; } #printSection th, #printSection td { border: 1px solid #000 !important; background-clip: padding-box; } }
         .guest-wrap { min-height: 100vh; width: 100%; background: #f1f4f9; }
@@ -2899,6 +2902,7 @@
                         </div>
                         <div class="col-6 col-md-2" v-if="['usage', 'shelf', 'unfilled_pct', 'unfilled_items'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ตั้งแต่วันที่</label><input type="date" v-model="reportFilter.start" class="form-control shadow-sm"></div>
                         <div class="col-6 col-md-2" v-if="['usage', 'shelf', 'unfilled_pct', 'unfilled_items'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">ถึงวันที่</label><input type="date" v-model="reportFilter.end" class="form-control shadow-sm"></div>
+                        <div class="col-6 col-md-2" v-if="reportFilter.type === 'expiry'"><label class="small fw-bold text-muted mb-1">อายุเหลือน้อยกว่า</label><select v-model.number="reportFilter.expMonths" class="form-select shadow-sm"><option :value="3">3 เดือน</option><option :value="6">6 เดือน</option><option :value="9">9 เดือน</option><option :value="12">12 เดือน</option><option :value="0">ทั้งหมด</option></select></div>
                         <div class="col-12 col-md-2" v-if="['unfilled_pct', 'unfilled_items'].includes(reportFilter.type)"><label class="small fw-bold text-muted mb-1">หน่วยที่ขอเบิก</label><select v-model="reportFilter.dept" class="form-select shadow-sm"><option value="">ทุกหน่วย</option><option v-for="d in unfilledDeptOptions" :key="d.dept" :value="d.dept">{{ d.label }}</option></select></div>
                         <div class="col-12 col-md-3 d-flex gap-2 ms-auto align-items-end mt-3 mt-md-0">
                             <button class="btn btn-outline-primary w-100 fw-bold shadow-sm" onclick="window.print()"><i class="bi bi-printer"></i> พิมพ์ PDF</button>
@@ -2941,13 +2945,32 @@
                             </table>
                         </div>
                         <div v-if="reportFilter.type==='expiry'">
-                            <table class="table table-bordered table-hover text-nowrap">
-                                <thead class="table-dark"><tr><th>รายการสินค้า</th><th class="text-center">Lot No.</th><th class="text-center">วันหมดอายุ (Exp)</th><th class="text-end">จำนวนคงเหลือ</th><th class="text-center">สถานะ</th></tr></thead>
+                            <div class="text-start fw-bold mb-2" style="font-size:15px">แจ้ง ณ วันที่ {{ formatThaiDate(new Date().toISOString().slice(0, 10)) }}</div>
+                            <table class="table-expform" style="width:100%; border-collapse:collapse; font-size:14px;">
+                                <thead><tr style="background:#f1f5f9">
+                                    <th style="width:6%">ลำดับที่</th><th>ชื่อยา</th><th style="width:9%">ขนาดบรรจุ</th><th style="width:13%">บริษัท</th><th style="width:8%">ราคา</th><th style="width:11%">Lot No.</th><th style="width:10%">วันหมดอายุ</th><th style="width:7%">จำนวน</th><th style="width:10%">มูลค่า</th><th style="width:8%">หมายเหตุ</th>
+                                </tr></thead>
                                 <tbody>
-                                    <tr v-for="lot in sortedActiveLots" :key="lot.lot"><td class="fw-bold">{{ lot.productName }}</td><td class="text-center">{{ lot.lot }}</td><td class="text-center fw-bold">{{ lot.exp }}</td><td class="text-end fw-bold text-primary fs-5">{{ formatNumber(lot.qty) }}</td><td class="text-center"><span class="badge px-3 py-2" :class="isExpired(lot.exp)?'bg-danger':(isNearExp(lot.exp)?'bg-warning text-dark':'bg-success')">{{ isExpired(lot.exp)?'หมดอายุแล้ว':(isNearExp(lot.exp)?'ใกล้หมด (6 เดือน)':'ปกติ') }}</span></td></tr>
-                                    <tr v-if="sortedActiveLots.length===0"><td colspan="5" class="text-center text-muted p-4">-- ไม่พบข้อมูล Lot สินค้าในคลัง --</td></tr>
+                                    <tr v-for="r in expiryForm.rows" :key="r.no + r.lot">
+                                        <td class="c">{{ r.no }}</td><td>{{ r.name }}</td><td class="c">{{ r.pack }}</td><td class="c">{{ r.vendor }}</td>
+                                        <td class="r">{{ formatNumber(r.price) }}</td>
+                                        <td class="c">
+                                            <template v-if="r.blank && (isEditor || canOpStock)"><div class="d-print-none d-flex gap-1"><input v-model.trim="etLot[r.rowKey]" class="form-control form-control-sm" style="min-width:90px" placeholder="ใส่ Lot" @keydown.enter="saveExpLot(r)"><button class="btn btn-sm btn-primary py-0 px-2" title="บันทึกเลข Lot ย้อนไปทุกรายการ" @click="saveExpLot(r)"><i class="bi bi-check-lg"></i></button></div><span class="d-none d-print-inline" style="color:#c00">(ไม่ระบุ)</span></template>
+                                            <template v-else>{{ r.lot }}</template>
+                                        </td><td class="c">{{ r.expText }}</td><td class="c">{{ formatNumber(r.qty) }}</td>
+                                        <td class="r">{{ formatNumber(r.value) }}</td><td class="c" :style="r.expired ? 'color:#c00;font-weight:bold' : ''">{{ r.note }}</td>
+                                    </tr>
+                                    <tr v-if="!expiryForm.rows.length"><td colspan="10" class="c" style="padding:18px;color:#6c757d">-- ไม่พบรายการที่ใกล้หมดอายุตามเกณฑ์ --</td></tr>
+                                    <tr v-if="expiryForm.rows.length" style="font-weight:bold"><td colspan="8" class="r">รวม</td><td class="r">{{ formatNumber(expiryForm.sum) }}</td><td></td></tr>
                                 </tbody>
                             </table>
+                            <div class="d-print-none d-flex flex-wrap gap-2 mt-3 align-items-center small text-muted"><i class="bi bi-pencil"></i> แก้ชื่อผู้ลงนาม:
+                                <input v-model="poSign.n1" @change="savePoSign" class="form-control form-control-sm" style="width:190px"><input v-model="poSign.t1" @change="savePoSign" class="form-control form-control-sm" style="width:130px">
+                                <input v-model="poSign.n2" @change="savePoSign" class="form-control form-control-sm" style="width:190px"><input v-model="poSign.t2" @change="savePoSign" class="form-control form-control-sm" style="width:150px"></div>
+                            <div style="display:flex; justify-content:space-around; margin-top:60px; page-break-inside:avoid; color:#000;">
+                                <div style="text-align:center; line-height:1.9;"><div>ลงชื่อ.............................................</div><div>({{ poSign.n1 }})</div><div>{{ poSign.t1 }}</div></div>
+                                <div style="text-align:center; line-height:1.9;"><div>ลงชื่อ.............................................</div><div>({{ poSign.n2 }})</div><div>{{ poSign.t2 }}</div></div>
+                            </div>
                         </div>
                         <div v-if="reportFilter.type==='unfilled_pct'">
                             <div class="small text-muted mb-2">ตัวตั้ง = จำนวนรายการ (Item) ที่ได้ไม่ครบตามที่ขอเบิก · ตัวหาร = จำนวน Item ทั้งหมดที่ขอเบิก · นับเฉพาะใบขอเบิกที่จ่ายแล้ว · “ได้รับ” ใช้ยอดที่คลังย่อยยืนยันรับจริง (หักส่งคืน) ถ้ามี มิฉะนั้นใช้ยอดที่คลังใหญ่จ่าย</div>
@@ -3385,6 +3408,7 @@ const app = createApp({
             pick: { reqId: '', rows: [], page: 1, size: 10, savedAt: '', doneDoc: null },
             subPick: { page: 1, size: 10, savedAt: '' },
             subRet: { show: false, idx: -1, name: '', lot: '', exp: '', level: 'ok', max: 0, qty: 0, reason: 'ใกล้หมดอายุ (< 6 เดือน) ขอแลกคืนบริษัท', note: '' },
+            etLot: {},
             etUI: { months: 6, status: 'all', dest: '', q: '' },
             scUI: { tab: 'ret', sel: {}, docNo: '', onlyFlag: true, from: '' },
             hsImp: { rows: [], fileName: '', busy: false },
@@ -3468,7 +3492,7 @@ const app = createApp({
             scanToast: { msg: '', type: 'ok' }, scanToastTimer: null,
             barcodeLink: { show: false, code: '', gs1: null, name: '', mode: 'scan' }, newBarcode: '',
             
-            reportFilter: { type: 'inventory', start: '', end: '', controlList: 'all', dept: '' }, 
+            reportFilter: { type: 'inventory', start: '', end: '', controlList: 'all', dept: '', expMonths: 6 }, 
             historyFilterType: '', 
             outFilter: { start: '', end: '', dept: '', type: '', search: '' },
             dashFilter: { objType: '', category: '', drugClass: '' }, 
@@ -4306,6 +4330,25 @@ const app = createApp({
             return validLots;
         },
         
+
+        expiryForm() {
+            const lim = parseFloat(this.reportFilter.expMonths) || 0, now = Date.now(), vend = {};
+            const bad = new Set(['ยอดยกมา', 'คลังยาใหญ่']); Object.keys(SUB_STOCKS).forEach(k => SUB_STOCKS[k].dest.forEach(n => bad.add(n)));
+            this.transactions.forEach(t => { if (t.type !== 'IN') return; const v = this.cleanVendor(t.vendorOrDept); if (!v || bad.has(String(t.vendorOrDept).trim())) return; const k = t.productId + '|' + (t.lotNo || ''), p = vend[k]; if (!p || String(t.date) >= p.d) vend[k] = { d: String(t.date), v: v }; });
+            const pm = {}; this.products.forEach(p => { pm[p.id] = p; });
+            const rows = []; let sum = 0;
+            this.activeLots.forEach(l => {
+                if (!l.exp) return; const ex = new Date(String(l.exp).length === 7 ? l.exp + '-28' : l.exp); if (isNaN(ex)) return;
+                const months = (ex.getTime() - now) / (30.4375 * 864e5); if (lim && months >= lim) return;
+                const p = pm[l.pid] || {}, pk = p.packSize > 1 ? p.packSize : 1, price = parseFloat(l.unitPrice) || 0, e = String(l.exp).slice(0, 10).split('-');
+                rows.push({ rowKey: l.pid + '|' + (l.lot || '') + '|' + l.stockLoc + '|' + l.exp, blank: !l.lot || l.lot === '-', pid: l.pid, name: l.productName, pack: p.packSize > 1 ? p.packSize.toLocaleString('en-US') + '/' + (p.unit || '') : (p.unit || ''), vendor: (vend[l.pid + '|' + (l.lot || '')] || {}).v || '', price: pk > 1 ? price * pk : price, lot: l.lot || '',
+                    expText: e.length === 3 ? e[2] + '/' + e[1] + '/' + e[0] : String(l.exp), exp: l.exp, qty: pk > 1 ? Math.round(l.qty / pk * 100) / 100 : l.qty, value: Math.round(l.qty * price * 100) / 100, expired: months < 0, months: months,
+                    note: months < 0 ? 'หมดอายุ' : Math.max(1, Math.ceil(months)) + ' เดือน' });
+            });
+            rows.sort((a, b) => a.months - b.months || a.name.localeCompare(b.name, 'th'));
+            rows.forEach((r, i) => { r.no = i + 1; sum += r.value; });
+            return { rows: rows, sum: sum };
+        },
         sortedActiveLots() { return this.applySort(this.activeLots); },
 
         availableLotsOut() { 
@@ -4539,8 +4582,9 @@ const app = createApp({
     },
     watch: {
         loading(v) { if (!v && this.page === 'dashboard') this.renderCharts(); },
+        'reportFilter.type'() { this.syncExpPageStyle(); },
         page(val) { 
-            this.isSidebarOpen = false; this.adminQuery = ''; this.adminSort = { key: '', asc: true };
+            this.syncExpPageStyle(); this.isSidebarOpen = false; this.adminQuery = ''; this.adminSort = { key: '', asc: true };
             if (val === 'dashboard') this.$nextTick(() => this.renderCharts()); 
             if (val !== 'dashboard' && window.__sj) { ['ov', 'ctl'].forEach(k => { try { if (window.__sj[k]) window.__sj[k].destroy(); } catch (e) {} window.__sj[k] = null; }); }
             if (['stockOut', 'stockTake', 'receive', 'opening', 'stockCard', 'dispenseReport', 'subReceive'].includes(val)) this.$nextTick(() => this.initTomSelects());
@@ -4875,7 +4919,7 @@ const app = createApp({
         getReportTitle() { 
             if (this.reportFilter.type === 'inventory') return 'รายงานสินค้าคงคลังปัจจุบัน'; 
             if (this.reportFilter.type === 'category_val') return 'สรุปมูลค่าคงคลังตามประเภท (ED/NED)'; 
-            if (this.reportFilter.type === 'expiry') return 'รายงานวันหมดอายุ (Expiry Report)'; 
+            if (this.reportFilter.type === 'expiry') return 'แจ้งรายการยาและเวชภัณฑ์ใกล้หมดอายุ ' + (this.globalStock === 'ALL' ? 'ทุกคลัง' : this.locLabel(this.globalStock)); 
             if (this.reportFilter.type === 'usage') return 'สรุปการเบิกจ่ายแยกรายหน่วยงาน'; 
             if (this.reportFilter.type === 'shelf') return 'สรุปการจ่ายขึ้น Shelf (คลัง ' + this.globalStock + ')' + (this.reportFilter.start || this.reportFilter.end ? ' ' + (this.reportFilter.start || '') + ' ถึง ' + (this.reportFilter.end || '') : '');
             if (this.reportFilter.type === 'unfilled_pct') return 'ร้อยละรายการที่ไม่ได้รับตามที่ขอเบิก' + this.unfilledRangeText();
@@ -6419,6 +6463,27 @@ const app = createApp({
             if (!document.getElementById('poPageStyle')) { const st = document.createElement('style'); st.id = 'poPageStyle'; st.textContent = '@page { size: A4 landscape; margin: 8mm; }'; document.head.appendChild(st); }
         },
         closePrintPO() { this.printPoDoc = null; const st = document.getElementById('poPageStyle'); if (st) st.remove(); },
+        // รายงานวันหมดอายุพิมพ์ A4 แนวนอน
+        syncExpPageStyle() {
+            const on = this.page === 'reports' && this.reportFilter.type === 'expiry', el = document.getElementById('expPageStyle');
+            if (on && !el) { const st = document.createElement('style'); st.id = 'expPageStyle'; st.textContent = '@page { size: A4 landscape; margin: 8mm; }'; document.head.appendChild(st); }
+            else if (!on && el) el.remove();
+        },
+        // เติมเลข Lot ให้ Lot ที่ยังไม่ได้ระบุ: บันทึกย้อนไปยังทุกรายการ (ทุกคลัง) ที่เป็นยาเดียวกัน ไม่มี Lot และวันหมดอายุตรงกัน
+        saveExpLot(r) {
+            const lot = String(this.etLot[r.rowKey] || '').trim(); if (!lot) return alert('กรอกเลข Lot ก่อน');
+            const rows = this.transactions.filter(t => String(t.productId) === String(r.pid) && (!t.lotNo || t.lotNo === '-') && String(t.expDate || '') === String(r.exp || '') && t.status !== 'Cancelled');
+            if (!rows.length) return this.toast('ไม่พบรายการที่ต้องแก้');
+            const byLoc = {}; rows.forEach(t => { const k = this.locLabel(t.stockLocation || 'MAIN'); byLoc[k] = (byLoc[k] || 0) + 1; });
+            this.askConfirm({ title: 'เติมเลข Lot ให้รายการนี้?', lines: [r.name + ' · Exp ' + r.expText, 'Lot ใหม่: ' + lot, 'จะบันทึกย้อนไปยัง ' + rows.length + ' รายการ ได้แก่ ' + Object.keys(byLoc).map(k => k + ' ' + byLoc[k]).join(', '), 'มีผลกับ Stock Card, ประวัติรับ-จ่าย และทุกรายงาน (บันทึกในประวัติกิจกรรมทุกรายการ)'], okText: 'ยืนยันเติม Lot', onOk: async () => {
+                this.loading = true; let n = 0, bad = 0;
+                for (const t of rows) {
+                    const res = await this.apiCall('updateTransactionItem', { username: this.currentUser.user, transId: t.transId, lotNo: lot, expDate: t.expDate || '', qty: t.qty, unitPrice: t.unitPrice, totalPrice: t.totalPrice, docLabel: this.scDocOf(t), productName: r.name });
+                    if (res) n++; else bad++;
+                }
+                this.loading = false; this.toast('เติม Lot แล้ว ' + n + ' รายการ' + (bad ? ' · ไม่สำเร็จ ' + bad : '')); delete this.etLot[r.rowKey]; await this.loadData();
+            } });
+        },
         savePoSign() { try { localStorage.setItem('jvlPoSign', JSON.stringify(this.poSign)); } catch (e) {} },
         cleanVendor(v) { v = String(v == null ? '' : v).trim(); return v.includes('ยอดยกมา') ? '' : v; },
         setPoOv(pid, k, v) { const o = this.printPoOv[pid] || (this.printPoOv[pid] = {}); o[k] = v; this.printPoOv = { ...this.printPoOv }; },
