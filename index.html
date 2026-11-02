@@ -2981,7 +2981,7 @@
                                             </template>
                                             <template v-else>{{ r.lot }}</template>
                                         </td>
-                                        <td class="c">{{ r.expText }}</td><td class="c">{{ formatNumber(r.qty) }}</td>
+                                        <td class="c">{{ r.expText }}</td><td class="c">{{ Number.isInteger(r.qty) ? r.qty.toLocaleString('en-US') : r.qty.toFixed(2) }}</td>
                                         <td class="r">{{ expFmt(r.value) }}</td><td class="c" :style="r.expired ? 'color:#c00;font-weight:bold' : ''">{{ r.note }}</td>
                                     </tr>
                                     <tr v-if="!expiryForm.rows.length"><td colspan="10" class="c" style="padding:18px;color:#6c757d">-- ไม่พบรายการที่ใกล้หมดอายุตามเกณฑ์ --</td></tr>
@@ -4366,8 +4366,8 @@ const app = createApp({
                 if (!l.exp) return; const ex = new Date(String(l.exp).length === 7 ? l.exp + '-28' : l.exp); if (isNaN(ex)) return;
                 const months = (ex.getTime() - now) / (30.4375 * 864e5); if (lim && months >= lim) return;
                 const p = pm[l.pid] || {}, pk = p.packSize > 1 ? p.packSize : 1, price = parseFloat(l.unitPrice) || 0, e = String(l.exp).slice(0, 10).split('-');
-                rows.push({ rowKey: l.pid + '|' + (l.lot || '') + '|' + l.stockLoc + '|' + l.exp, blank: !l.lot || l.lot === '-', pid: l.pid, name: l.productName, pack: p.packSize > 1 ? p.packSize.toLocaleString('en-US') + '/' + (p.unit || '') : (p.unit || ''), vkey: l.pid + '|' + (l.exp || ''), vendor: this.lotVendorMap[l.pid + '|' + (l.exp || '')] || (vend[l.pid + '|' + (l.lot || '')] || {}).v || '', price: pk > 1 ? price * pk : price, lot: l.lot || '',
-                    expText: e.length === 3 ? e[2] + '/' + e[1] + '/' + e[0] : String(l.exp), exp: l.exp, qty: pk > 1 ? Math.round(l.qty / pk * 100) / 100 : l.qty, value: Math.round(l.qty * price * 100) / 100, expired: months < 0, months: months,
+                rows.push({ rowKey: l.pid + '|' + (l.lot || '') + '|' + l.stockLoc + '|' + l.exp, blank: !l.lot || l.lot === '-', pid: l.pid, name: l.productName, pack: p.packSize > 1 ? p.packSize.toLocaleString('en-US') + '/' + (p.unit || '') : (p.unit || ''), vkey: l.pid + '|' + (l.exp || ''), vendor: this.lotVendorMap[l.pid + '|' + (l.exp || '')] || (vend[l.pid + '|' + (l.lot || '')] || {}).v || '', price: price, lot: l.lot || '',
+                    expText: e.length === 3 ? e[2] + '/' + e[1] + '/' + e[0] : String(l.exp), exp: l.exp, qty: Math.round(l.qty * 100) / 100, value: Math.round(l.qty * price * 100) / 100, expired: months < 0, months: months,
                     note: months < 0 ? 'หมดอายุ' : Math.max(1, Math.ceil(months)) + ' เดือน' });
             });
             rows.sort((a, b) => a.months - b.months || a.name.localeCompare(b.name, 'th'));
@@ -6533,7 +6533,7 @@ const app = createApp({
             rows.forEach(r => {
                 const row = ws.getRow(rn++); const vals = [r.no, r.name, r.pack, r.vendor, r.price, r.lot, r.expText, r.qty, r.value, r.note];
                 vals.forEach((v, i) => { const c = row.getCell(i + 1); c.value = v; c.border = BD; c.font = F(i === 9 && r.expired ? { color: { argb: 'FFCC0000' }, bold: true } : {}); c.alignment = { horizontal: [1, 4].includes(i) ? 'left' : (i === 4 || i === 8 ? 'right' : 'center'), vertical: 'middle', wrapText: i === 1 || i === 3 }; });
-                row.getCell(5).numFmt = '#,##0.00'; row.getCell(9).numFmt = '#,##0.00'; row.getCell(8).numFmt = '#,##0.##'; row.height = 20;
+                row.getCell(5).numFmt = '#,##0.00'; row.getCell(9).numFmt = '#,##0.00'; row.getCell(8).numFmt = Number.isInteger(r.qty) ? '#,##0' : '#,##0.00'; row.height = 20;
             });
             if (rows.length) { ws.mergeCells('A' + rn + ':H' + rn); const c = ws.getCell('A' + rn); c.value = 'รวม'; c.font = F({ bold: true }); c.alignment = { horizontal: 'right' }; for (let i = 1; i <= 10; i++) ws.getCell(rn, i).border = BD; const v = ws.getCell(rn, 9); v.value = this.expiryForm.sum; v.numFmt = '#,##0.00'; v.font = F({ bold: true }); v.alignment = { horizontal: 'right' }; rn++; }
             rn += 2;
