@@ -765,6 +765,16 @@
                             <div class="col-12 col-md-3"><label class="small text-muted fw-bold">หมายเหตุ</label><input type="text" v-model="tempRec.note" class="form-control" placeholder="เช่น ยืมมาก่อน, กล่องมีตำหนิ..."></div>
                             <div class="col-12 col-md-2"><button @click="addToReceiveCart" class="btn btn-primary w-100 fw-bold shadow-sm mt-3 mt-md-0">นำลงตะกร้า</button></div>
                         </div>
+                        <div class="mt-2">
+                            <a href="#" @click.prevent="addRecLot" class="small fw-bold text-decoration-none"><i class="bi bi-plus-circle"></i> ยาตัวนี้มีมากกว่า 1 Lot — เพิ่ม Lot ที่ {{ (tempRec.extraLots || []).length + 2 }}</a>
+                            <span v-if="(tempRec.extraLots || []).length" class="small text-muted ms-2">จำนวนรวม {{ formatNumber(tempRec.qty) }} · Lot 1 = {{ formatNumber(recLot1Qty) }} · Lot อื่น {{ formatNumber(recExtraSum) }}</span>
+                        </div>
+                        <div v-for="(x, xi) in (tempRec.extraLots || [])" :key="xi" class="row g-2 mt-1 align-items-end p-2 rounded" style="background:#f4f8ff">
+                            <div class="col-12 col-md-2"><label class="small text-muted fw-bold">เลข Lot ที่ {{ xi + 2 }}</label><input type="text" v-model="x.lotNo" class="form-control form-control-sm"></div>
+                            <div class="col-12 col-md-5"><label class="small text-danger fw-bold">วันหมดอายุ Lot ที่ {{ xi + 2 }}</label><exp-picker v-model="x.expDate"></exp-picker></div>
+                            <div class="col-8 col-md-3"><label class="small text-muted fw-bold">จำนวน Lot ที่ {{ xi + 2 }}</label><input type="number" min="0" step="any" v-model.number="x.qty" class="form-control form-control-sm"></div>
+                            <div class="col-4 col-md-2"><button @click="tempRec.extraLots.splice(xi, 1)" class="btn btn-outline-danger btn-sm w-100"><i class="bi bi-trash"></i></button></div>
+                        </div>
                     </div>
 
                     <div v-if="cartRec.length > 0" class="card card-shadow p-3">
@@ -981,6 +991,18 @@
                                     <td class="text-center text-nowrap">
                                         <button @click="askSaveItem(it)" class="btn btn-sm btn-success py-0 px-1" title="บันทึก"><i class="bi bi-check2"></i></button>
                                         <button @click="docEdit.transId=''" class="btn btn-sm btn-outline-secondary py-0 px-1 ms-1" title="ยกเลิก"><i class="bi bi-x"></i></button>
+                                    </td>
+                                </tr>
+                                <tr v-if="docEdit.transId === it.transId" class="table-warning">
+                                    <td colspan="6" class="pt-0">
+                                        <a href="#" @click.prevent="addEditLot" class="small fw-bold text-decoration-none"><i class="bi bi-plus-circle"></i> แยกเป็นหลาย Lot — เพิ่ม Lot ที่ {{ (docEdit.form.extra || []).length + 2 }}</a>
+                                        <span v-if="(docEdit.form.extra || []).length" class="small text-muted ms-2">จำนวนรวมเดิม {{ formatNumber(docEdit.form.origQty) }} · Lot นี้ = {{ formatNumber(docEdit.form.qty) }} · Lot ที่เพิ่ม {{ formatNumber(editExtraSum) }}</span>
+                                        <div v-for="(x, xi) in (docEdit.form.extra || [])" :key="xi" class="row g-1 mt-1 align-items-center">
+                                            <div class="col-3"><input v-model="x.lot" class="form-control form-control-sm" :placeholder="'Lot ที่ ' + (xi + 2)"></div>
+                                            <div class="col-5"><exp-picker v-model="x.exp"></exp-picker></div>
+                                            <div class="col-3"><input type="number" min="0" step="any" v-model.number="x.qty" @input="syncEditSplit" class="form-control form-control-sm text-end" placeholder="จำนวน"></div>
+                                            <div class="col-1"><button @click="docEdit.form.extra.splice(xi, 1); syncEditSplit()" class="btn btn-outline-danger btn-sm py-0 px-1"><i class="bi bi-x"></i></button></div>
+                                        </div>
                                     </td>
                                 </tr>
                                 </template>
@@ -3510,7 +3532,7 @@ const app = createApp({
             cartOpen: [],
             
             formRec: { refBillNo: '', vendor: '', receivedDate: new Date().toISOString().slice(0, 10), poNo: '', cntNo: '', buyMethod: '32', coPurchase: '1', rcvFlag: '1' }, 
-            tempRec: { productId: '', productName: '', qty: 1, packSize: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: '' }, 
+            tempRec: { productId: '', productName: '', qty: 1, packSize: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: '', extraLots: [] }, 
             cartRec: [],
             
             clearEmgDocNo: '',
@@ -4535,6 +4557,9 @@ const app = createApp({
             return { byDept: byDept, tot: tot, rows: rows, unlinked: unlinked };
         },
         cartOutTotal() { return this.cartOut.reduce((sum, i) => sum + i.totalPrice, 0); },
+        editExtraSum() { return ((this.docEdit.form.extra) || []).reduce((a, x) => a + (parseFloat(x.qty) || 0), 0); },
+        recExtraSum() { return (this.tempRec.extraLots || []).reduce((a, x) => a + (parseFloat(x.qty) || 0), 0); },
+        recLot1Qty() { return Math.round(((parseFloat(this.tempRec.qty) || 0) - this.recExtraSum) * 1000) / 1000; },
         cartRecTotal() { return this.cartRec.reduce((sum, i) => sum + parseFloat(i.totalPrice), 0); },
 
         historyGroups() { 
@@ -5631,7 +5656,18 @@ const app = createApp({
         addToOpenCart() { if (!this.tempOpen.productId) return alert("ระบุสินค้า"); this.cartOpen.push({ ...this.tempOpen }); this.tempOpen = { productId: '', productName: '', qty: 1, totalPrice: 0, unitPrice: 0, priceHint: '', expDate: '', lotNo: '', note: 'บันทึกยอดยกมาต้นปี' }; if (this.tsOpenProduct) this.tsOpenProduct.clear(); },
         async submitOpeningBalance() { if (this.cartOpen.length === 0 || !confirm(`ยืนยันบันทึกยอดยกมาเข้าคลัง (${this.globalStock})?`)) return; this.loading = true; const res = await this.apiCall("saveBatchTransaction", { user: this.currentUser.name, type: 'IN', items: this.cartOpen.map(i => ({ ...i, date: this.formOpen.date, refDoc: this.formOpen.refDoc, vendorOrDept: 'ยอดยกมา', status: 'Completed', stockLocation: this.globalStock })) }); if (res) { alert('บันทึกสำเร็จ'); this.cartOpen = []; await this.loadData(); } this.loading = false; },
 
-        addToReceiveCart() { if (!this.tempRec.productId || !this.formRec.vendor || !this.formRec.refBillNo) return alert("ระบุข้อมูลให้ครบ"); this.cartRec.push({ ...this.tempRec }); this.tempRec = { productId: '', productName: '', qty: 1, packSize: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: '' }; if (this.tsProduct) this.tsProduct.clear(); },
+        addRecLot() { if (!this.tempRec.extraLots) this.tempRec.extraLots = []; this.tempRec.extraLots.push({ lotNo: '', expDate: '', qty: 0 }); },
+        addToReceiveCart() {
+            if (!this.tempRec.productId || !this.formRec.vendor || !this.formRec.refBillNo) return alert("ระบุข้อมูลให้ครบ");
+            const ex = (this.tempRec.extraLots || []).filter(x => x.lotNo || x.expDate || parseFloat(x.qty) > 0), base = { ...this.tempRec }; delete base.extraLots;
+            const mk = (lot, exp, q) => Object.assign({}, base, { lotNo: lot, expDate: exp, qty: q, totalPrice: parseFloat((q * (parseFloat(base.unitPrice) || 0)).toFixed(2)) });
+            if (ex.length) {
+                if (ex.some(x => !(parseFloat(x.qty) > 0))) return alert('ระบุจำนวนของ Lot ที่เพิ่มให้มากกว่า 0');
+                const l1 = this.recLot1Qty; if (!(l1 > 0)) return alert('จำนวนรวม ' + this.formatNumber(this.tempRec.qty) + ' น้อยกว่าหรือเท่ากับผลรวมของ Lot อื่น — Lot ที่ 1 ต้องเหลืออย่างน้อย 1');
+                this.cartRec.push(mk(base.lotNo, base.expDate, l1)); ex.forEach(x => this.cartRec.push(mk(String(x.lotNo || '').trim(), x.expDate, parseFloat(x.qty))));
+            } else this.cartRec.push(base);
+            this.tempRec = { productId: '', productName: '', qty: 1, packSize: 1, totalPrice: 0, unitPrice: 0, expDate: '', lotNo: '', note: '', extraLots: [] }; if (this.tsProduct) this.tsProduct.clear();
+        },
         async submitPendingBill() { if (this.cartRec.length === 0 || !confirm(`สร้างบิลรอตรวจรับเข้า ${this.locLabel(this.globalStock)}?`)) return; this.loading = true; const res = await this.apiCall("savePendingBill", { stockLocation: this.globalStock, user: this.currentUser.name, refBillNo: this.formRec.refBillNo, vendor: this.formRec.vendor, receivedDate: this.formRec.receivedDate, items: this.cartRec, poNo: this.formRec.poNo, cntNo: this.formRec.cntNo, buyMethod: this.formRec.buyMethod, coPurchase: this.formRec.coPurchase, rcvFlag: this.formRec.rcvFlag }); if (res) { alert(res); this.cartRec = []; this.formRec.refBillNo = ''; this.formRec.poNo = ''; this.formRec.cntNo = ''; if (this.tsVendor) this.tsVendor.clear(); await this.loadData(); } this.loading = false; },
         
         openInspectModal(bill) { 
@@ -5692,8 +5728,10 @@ const app = createApp({
         },
         startEditItem(it) {
             this.docEdit.headOpen = false; this.docEdit.transId = it.transId;
-            this.docEdit.form = { lot: it.lot || '', exp: it.exp || '', qty: it.qty, unitPrice: it.price, total: it.total };
+            this.docEdit.form = { lot: it.lot || '', exp: it.exp || '', qty: it.qty, unitPrice: it.price, total: it.total, origQty: it.qty, extra: [] };
         },
+        addEditLot() { const f = this.docEdit.form; if (!f.extra) f.extra = []; f.origQty = f.extra.length ? f.origQty : (parseFloat(f.qty) || 0); f.extra.push({ lot: '', exp: '', qty: 0 }); },
+        syncEditSplit() { const f = this.docEdit.form; if (f.extra && f.extra.length) { f.qty = Math.round(((parseFloat(f.origQty) || 0) - this.editExtraSum) * 1000) / 1000; } else if (f.origQty != null) f.qty = f.origQty; this.recalcEditTotal(); },
         recalcEditTotal() { const f = this.docEdit.form; f.total = Math.round((parseFloat(f.qty) || 0) * (parseFloat(f.unitPrice) || 0) * 100) / 100; },
         itemLine(it) { return it.name + ' | Lot ' + (it.lot || '-') + ' | ' + this.formatNumber(it.qty) + ' ' + (it.unit || '') + ' | ' + this.formatCurrency(it.total); },
         askSaveItem(it) {
@@ -5705,12 +5743,25 @@ const app = createApp({
             if (q !== it.qty) ch.push('จำนวน: ' + this.formatNumber(it.qty) + ' → ' + this.formatNumber(q));
             if (u !== parseFloat(it.price)) ch.push('ราคา/หน่วย: ' + this.formatNumber(it.price) + ' → ' + this.formatNumber(u));
             if (t !== parseFloat(it.total)) ch.push('มูลค่า: ' + this.formatCurrency(it.total) + ' → ' + this.formatCurrency(t));
+            const ex = (f.extra || []).filter(x => x.lot || x.exp || parseFloat(x.qty) > 0);
+            if (ex.length) {
+                if (ex.some(x => !(parseFloat(x.qty) > 0))) return alert('ระบุจำนวนของ Lot ที่เพิ่มให้มากกว่า 0');
+                if (!(q > 0)) return alert('จำนวนของ Lot แรกต้องมากกว่า 0 — จำนวน Lot ที่เพิ่มรวมกันต้องน้อยกว่าจำนวนรวม ' + this.formatNumber(f.origQty));
+                ex.forEach(x => ch.push('เพิ่ม Lot ' + (x.lot || '-') + (x.exp ? ' (Exp ' + x.exp + ')' : '') + ' จำนวน ' + this.formatNumber(parseFloat(x.qty)) + ' = ' + this.formatCurrency(Math.round(parseFloat(x.qty) * u * 100) / 100)));
+            }
             if (!ch.length) { this.docEdit.transId = ''; return this.toast('ไม่มีการเปลี่ยนแปลง'); }
-            this.askConfirm({ title: 'ยืนยันการแก้ไขรายการ?', lines: [this.docView.docLabel + ' — ' + it.name, ...ch, 'ยอดคงเหลือ/Stock Card จะเปลี่ยนตามทันที'], okText: 'ยืนยันแก้ไข', onOk: () => this.doSaveItem(it, { lot: f.lot, exp: f.exp, qty: q, unit: u, total: t }) });
+            this.askConfirm({ title: 'ยืนยันการแก้ไขรายการ?', lines: [this.docView.docLabel + ' — ' + it.name, ...ch, 'ยอดคงเหลือ/Stock Card จะเปลี่ยนตามทันที'], okText: 'ยืนยันแก้ไข', onOk: () => this.doSaveItem(it, { lot: f.lot, exp: f.exp, qty: q, unit: u, total: t, extra: ex.map(x => ({ lot: String(x.lot || '').trim(), exp: x.exp || '', qty: parseFloat(x.qty) })) }) });
         },
         async doSaveItem(it, v) {
             this.loading = true;
             const res = await this.apiCall('updateTransactionItem', { username: this.currentUser.user, transId: it.transId, lotNo: v.lot, expDate: v.exp, qty: v.qty, unitPrice: v.unit, totalPrice: v.total, docLabel: this.docView.docLabel, productName: it.name });
+            if (res && v.extra && v.extra.length) {
+                const d = this.docView;
+                for (const x of v.extra) {
+                    const r2 = await this.apiCall('addDocItem', { username: this.currentUser.user, docId: d.id, type: d.type, productId: it.productId, productName: it.name, lotNo: x.lot, expDate: x.exp, qty: x.qty, unitPrice: v.unit, totalPrice: Math.round(x.qty * v.unit * 100) / 100, stockLocation: it.stockLoc || d.stockLoc || 'MAIN', docLabel: d.docLabel });
+                    if (!r2) { this.toast('เพิ่ม Lot ' + (x.lot || '-') + ' ไม่สำเร็จ — ตรวจรายการในใบอีกครั้ง'); break; }
+                }
+            }
             this.loading = false;
             if (res) { this.docEdit.transId = ''; this.toast('แก้ไขรายการแล้ว'); await this.refreshDocView(); }
         },
